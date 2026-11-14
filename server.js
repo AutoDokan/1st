@@ -203,6 +203,7 @@ async function connectToWhatsApp() {
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
       browser: Browsers.ubuntu('Chrome'),
+      syncFullHistory: false,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
       keepAliveIntervalMs: 30000
