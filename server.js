@@ -5,7 +5,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage } = require('./borkha_brain');
+const { handleIncomingMessage, refreshProductsFromDB } = require('./borkha_brain');
 
 const app = express();
 app.use(cors());
@@ -142,6 +142,166 @@ app.get('/status', (req, res) => {
     has_qr: !!currentQR,
     supabase: !!SUPABASE_URL
   });
+});
+
+// Products Management Dashboard (Simple Web UI for friend to add/edit products)
+app.get('/products', async (req, res) => {
+  const { createClient } = require('@supabase/supabase-js');
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data: products } = await sb.from('products').select('*').order('id', { ascending: true });
+
+  const productRows = (products || []).map(p => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #334155;">#${p.id}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155; font-weight: bold; color: #38bdf8;">${p.name}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155;">${p.fabric || '-'}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155; color: #10b981; font-weight: bold;">৳${p.price}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155;">${p.sizes || '৫০-৫৬'}</td>
+    </tr>
+  `).join('');
+
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>AutoDokan - Product Management</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: white; padding: 2rem; margin: 0; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: #1e293b; padding: 1.5rem; border-radius: 1rem; border: 1px solid #334155; margin-bottom: 2rem; }
+        h1 { margin-top: 0; font-size: 1.5rem; color: #38bdf8; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 10px; background: #0f172a; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        input { background: #0f172a; border: 1px solid #334155; color: white; padding: 0.75rem; border-radius: 0.5rem; font-size: 0.9rem; }
+        button { background: #2563eb; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h1>👗 বোরকা ক্যাটালগ ও মূল্য তালিকা</h1>
+          <a href="/orders" style="color: #38bdf8; text-decoration: none; font-weight: bold;">📦 লাইভ অর্ডার দেখুন ➔</a>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1.1rem; margin-top: 0;">নতুন বোরকা যুক্ত করুন:</h2>
+          <form method="POST" action="/api/add-product">
+            <div class="form-grid">
+              <input type="text" name="name" placeholder="বোরকার নাম" required>
+              <input type="text" name="fabric" placeholder="কাপড় (যেমন: দুবাই চেরি)" required>
+              <input type="number" name="price" placeholder="মূল্য (টাকা)" required>
+              <input type="text" name="sizes" placeholder="ঝুল সাইজ (যেমন: ৫০, ৫২, ৫৪)" value="৫০, ৫২, ৫৪, ৫৬">
+            </div>
+            <div style="margin-top: 1rem; text-align: right;">
+              <button type="submit">+ সেভ করুন</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1.1rem; margin-top: 0;">বর্তমান সক্রিয় পণ্যসমূহ:</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>বোরকার নাম</th>
+                <th>কাপড় / ফেব্রিক</th>
+                <th>ফিক্সড মূল্য</th>
+                <th>ঝুল সাইজ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${productRows || '<tr><td colspan="5" style="text-align: center; padding: 1rem; color: #64748b;">কোনো পণ্য পাওয়া যায়নি</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+app.post('/api/add-product', express.urlencoded({ extended: true }), async (req, res) => {
+  const { name, fabric, price, sizes } = req.body;
+  if (name && price) {
+    const { createClient } = require('@supabase/supabase-js');
+    const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+    await sb.from('products').insert({
+      name,
+      fabric: fabric || 'দুবাই চেরি',
+      price: parseFloat(price),
+      sizes: sizes || '৫০, ৫২, ৫৪, ৫৬',
+      hijab_included: true,
+      in_stock: true
+    });
+    await refreshProductsFromDB();
+  }
+  res.redirect('/products');
+});
+
+// Live Orders Dashboard
+app.get('/orders', async (req, res) => {
+  const { createClient } = require('@supabase/supabase-js');
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data: orders } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
+
+  const orderRows = (orders || []).map(o => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #334155;">#${o.id}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155; color: #38bdf8; font-weight: bold;">${o.customer_phone}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155;">${o.product_details || '-'}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155;"><span style="background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${o.status}</span></td>
+      <td style="padding: 10px; border-bottom: 1px solid #334155; color: #94a3b8; font-size: 0.8rem;">${new Date(o.created_at).toLocaleString('bn-BD')}</td>
+    </tr>
+  `).join('');
+
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta http-equiv="refresh" content="15">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>AutoDokan - Live Orders</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: white; padding: 2rem; margin: 0; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: #1e293b; padding: 1.5rem; border-radius: 1rem; border: 1px solid #334155; }
+        h1 { margin-top: 0; font-size: 1.5rem; color: #10b981; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 10px; background: #0f172a; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h1>📦 লাইভ কাস্টমার অর্ডার ও লিড</h1>
+          <a href="/products" style="color: #38bdf8; text-decoration: none; font-weight: bold;">👗 বোরকা ক্যাটালগ ➔</a>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>ফোন নাম্বার</th>
+                <th>কাস্টমারের মেসেজ / ডিটেইলস</th>
+                <th>স্ট্যাটাস</th>
+                <th>সময়</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderRows || '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #64748b;">এখনও কোনো অর্ডার আসেনি</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 async function processBufferedUserMessages(remoteJid) {

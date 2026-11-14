@@ -1,21 +1,7 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Groq = require('groq-sdk');
 const { createClient } = require('@supabase/supabase-js');
 
-// Initialize AI clients
-const geminiApiKey = process.env.GEMINI_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
-
-let geminiModel = null;
-if (geminiApiKey) {
-  try {
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-  } catch (err) {
-    console.warn('[AI] Gemini init warning:', err.message);
-  }
-}
-
 let groqClient = null;
 if (groqApiKey) {
   try {
@@ -25,112 +11,130 @@ if (groqApiKey) {
   }
 }
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+const supabaseUrl = process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxemRrcmVkemRwcXh2ZnJ6anVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2ODE2MzAsImV4cCI6MjExMDI1NzYzMH0.kzQAm9E4QKccOiAZ93GFvqmSelcktHrVmc412qz6eik';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Conversation memory per user (in-memory sliding window)
+// In-memory product cache (refreshed periodically)
+let cachedProductsText = `
+১. দুবাই চেরি রানি আবায়া (কালো) - মূল্য: ৳২,২০০ টাকা (১০০% অরিজিনাল দুবাই চেরি কাপড়, ঝুল ৫০, ৫২, ৫৪, ৫৬, ম্যাচিং হিজাব ফ্রি)
+২. কাফতান প্রিমিয়াম বোরকা (কফি ও মেরুন) - মূল্য: ৳১,৯৫০ টাকা (প্রিমিয়াম সফট চেরি ও জর্জেট, ঝুল ৫২, ৫৪, ৫৬, ম্যাচিং হিজাব ফ্রি)
+৩. সিম্পল এ-লাইন ক্যাজুয়াল বোরকা (নেভি ব্লু) - মূল্য: ৳১,৬৫০ টাকা (দুবাই চেরি কাপড়, ঝুল ৫০, ৫২, ৫৪)
+`;
+
+async function refreshProductsFromDB() {
+  try {
+    const { data, error } = await supabase.from('products').select('*').eq('in_stock', true);
+    if (!error && data && data.length > 0) {
+      cachedProductsText = data.map((p, idx) => 
+        `${idx + 1}. ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric}, ঝুল সাইজ: ${p.sizes}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'})`
+      ).join('\n');
+    }
+  } catch (e) {
+    console.warn('[Products Sync] Using cached products:', e.message);
+  }
+}
+
+// Refresh products every 2 minutes
+refreshProductsFromDB();
+setInterval(refreshProductsFromDB, 120000);
+
+// Conversation memory per user (sliding window)
 const conversationMemory = new Map();
 
-const BORKHA_SYSTEM_PROMPT = `
-তুমি হচ্ছো আমাদের এক্সক্লুসিভ বোরকা ও আবায়া শপের একজন প্রফেশনাল, নম্র এবং বিশ্বস্ত সেলস অ্যাসিস্ট্যান্ট।
-তোমার ভাষা হবে অত্যন্ত মিষ্টি, মার্জিত বাংলা এবং সহজ বাংলিশ (যেমন: "আসসালামু আলাইকুম আপু/ভাইয়া", "জি আপু, ডেলিভারি চার্জ ঢাকার ভেতরে ৮০ টাকা, বাইরে ১৩০ টাকা")।
+function buildSystemPrompt() {
+  return `
+তুমি হচ্ছো আমাদের এক্সক্লুসিভ বোরকা ও আবায়া শপের একজন অত্যন্ত নম্র, মিষ্টিভাষী ও দক্ষ সেলস অ্যাসিস্ট্যান্ট।
+তোমার ভাষা হবে প্রাকৃতিক, বিনম্র বাংলা এবং সহজ বাংলিশ (যেমন: "আসসালামু আলাইকুম আপু/ভাইয়া", "জি আপু, ডেলিভারি চার্জ ঢাকার ভেতরে ৮০ টাকা, বাইরে ১৩০ টাকা")।
 
-তোমার ক্যাটালগ ও নিয়মাবলী:
-১. কাপড়: আমাদের বোরকাগুলো ১০০% অরিজিনাল দুবাই চেরি (Dubai Cherry) কাপড়ে তৈরি। কাপড় সফট, গরমে আরামদায়ক এবং একটুও পাতলা বা ট্রান্সপারেন্ট নয়। সাথে ম্যাচিং হিজাব থাকে।
-২. সাইজ ও ঝুল (Height to Length Guide):
+আমাদের বর্তমান প্রোডাক্ট ও মূল্য তালিকা:
+${cachedProductsText}
+
+গুরুত্বপূর্ণ নিয়মাবলী:
+১. কাপড় সম্পর্কে: আমাদের কাপড় ১০০% প্রিমিয়াম দুবাই চেরি ও সফট জর্জেট। কাপড় মোলায়েম, গরমে আরামদায়ক এবং একটুও পাতলা বা ট্রান্সপারেন্ট নয়। সাথে ম্যাচিং হিজাব একদম ফ্রি থাকে।
+২. সাইজ ও ঝুল গাইড (Height to Length Guide):
    - উচ্চতা ৫'০" থেকে ৫'১" ➔ ৫০ বা ৫২ সাইজ (ঝুল)
    - উচ্চতা ৫'২" থেকে ৫'৩" ➔ ৫২ বা ৫৪ সাইজ (ঝুল)
    - উচ্চতা ৫'৪" থেকে ৫'৫" ➔ ৫৪ বা ৫৬ সাইজ (ঝুল)
    - উচ্চতা ৫'৬" এর উপরে ➔ ৫৬ সাইজ (ঝুল)
-   - বডি সাইজ: ৩৮, ৪০, ৪২, ৪৪, ৪৬ (বা ফ্রি সাইজ)।
-৩. মূল্য: ফিক্সড দাম। অতিরিক্ত দামাদামি করলে বিনয়ের সাথে বলবে যে কাপড়ের কোয়ালিটি সেরা তাই রেট ফিক্সড।
+   - বডি সাইজ: ৩৮, ৪০, ৪২, ৪৪, ৪৬ (অথবা ফ্রি সাইজ)।
+৩. মূল্য: মূল্য সম্পূর্ণ ফিক্সড। দামাদামি করলে বিনয়ের সাথে বলবে যে কাপড়ের কোয়ালিটি সেরা তাই রেট ফিক্সড রাখা হয়েছে।
 ৪. ডেলিভারি ও পেমেন্ট:
-   - ক্যাশ অন ডেলিভারি (COD) সুবিধা আছে।
-   - অগ্রিম ডেলিভারি চার্জ বিকাশ বা নগদে পাঠাতে চাইলে আমাদের পার্সোনাল নাম্বারে পাঠিয়ে লাস্ট ৪ ডিজিট বা TrxID জানাতে বলবে।
+   - ক্যাশ অন ডেলিভারি (পণ্য হাতে পেয়ে টাকা দেওয়া) সুবিধা আছে।
+   - অগ্রিম ডেলিভারি চার্জ বিকাশ বা নগদে পাঠিয়ে লাস্ট ৪ ডিজিট বা TrxID জানাতে বলবে।
 ৫. অর্ডার কনফার্ম করতে ৪টি তথ্য আবশ্যক:
    - কাস্টমারের পুরো নাম
-   - ১১ ডিজিটের একটিভ ফোন নাম্বার (01XXXXXXXXX)
-   - ফুল ঠিকানা (জেলা, থানা/উপজেলা, রোড/বাড়ি নাম্বার)
+   - ১১ ডিজিটের সচল ফোন নাম্বার (01XXXXXXXXX)
+   - পূর্ণ ডেলিভারি ঠিকানা (জেলা, থানা/এলাকা, রোড/বাসা নাম্বার)
    - বোরকার নাম, ঝুল ও বডি সাইজ
 
-অর্ডার সম্পূর্ণ হলে সব তথ্যের একটা সুন্দর সামারি দেবে এবং বলবে যে অর্ডারটি পেন্ডিং রয়েছে, আমাদের টিম দ্রুত পার্সেল প্রসেস করবে।
+অর্ডার নেওয়া সম্পন্ন হলে সব তথ্যের একটা সুন্দর সামারি দেবে এবং আশ্বস্ত করবে যে আমাদের প্রতিনিধি খুব দ্রুত পার্সেল ডেলিভারির জন্য বুক করবে।
 `;
-
-async function callGemini(messages) {
-  if (!geminiModel) throw new Error('Gemini model not initialized');
-  const chat = geminiModel.startChat({
-    history: messages.slice(0, -1).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }))
-  });
-  const lastMsg = messages[messages.length - 1].content;
-  const result = await chat.sendMessage(BORKHA_SYSTEM_PROMPT + '\n\n' + lastMsg);
-  return result.response.text();
 }
 
-async function callGroq(messages) {
+async function callGroqWithFallback(messages) {
   if (!groqClient) throw new Error('Groq client not initialized');
+
+  const systemPrompt = buildSystemPrompt();
   const chatMessages = [
-    { role: 'system', content: BORKHA_SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...messages
   ];
-  const completion = await groqClient.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
-    messages: chatMessages,
-    temperature: 0.7,
-    max_tokens: 500
-  });
-  return completion.choices[0].message.content;
-}
 
-// Order extraction regex helper to detect when customer provides full info
-function checkOrderInfo(text, senderNumber) {
-  const phoneMatch = text.match(/(01[3-9]\d{8})/);
-  const trxMatch = text.match(/([A-Z0-9]{8,12})/i);
-  return {
-    phone: phoneMatch ? phoneMatch[1] : senderNumber,
-    trx: trxMatch ? trxMatch[1] : null
-  };
+  // Try Qwen 27B first (best for Bengali), then Llama 70B/8B or GPT-OSS
+  const candidateModels = [
+    'qwen/qwen3.8-27b',
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b'
+  ];
+
+  for (const model of candidateModels) {
+    try {
+      const completion = await groqClient.chat.completions.create({
+        model: model,
+        messages: chatMessages,
+        temperature: 0.65,
+        max_tokens: 600
+      });
+      const reply = completion.choices[0]?.message?.content;
+      if (reply && reply.trim()) {
+        return reply.trim();
+      }
+    } catch (err) {
+      console.warn(`[Groq Model ${model}] Error:`, err.message);
+    }
+  }
+
+  throw new Error('All Groq candidate models failed');
 }
 
 async function handleIncomingMessage(senderId, userText) {
-  // Clean phone number
   const cleanPhone = senderId.replace(/[^0-9]/g, '');
 
-  // Retrieve or create conversation history (sliding window: max 6 messages)
   if (!conversationMemory.has(cleanPhone)) {
     conversationMemory.set(cleanPhone, []);
   }
   const history = conversationMemory.get(cleanPhone);
   history.push({ role: 'user', content: userText });
-  if (history.length > 6) history.shift();
+  if (history.length > 8) history.shift();
 
   let aiReply = '';
 
-  // Dual-Engine Execution: Gemini 1st -> Groq Fallback
   try {
-    aiReply = await callGemini(history);
-  } catch (geminiError) {
-    console.warn('[AI Fallback] Gemini failed/rate-limited, switching to Groq:', geminiError.message);
-    try {
-      aiReply = await callGroq(history);
-    } catch (groqError) {
-      console.error('[AI Critical] Both Gemini and Groq failed:', groqError.message);
-      aiReply = 'আসসালামু আলাইকুম! আমাদের সিস্টেমে সাময়িক রক্ষণাবেক্ষণ চলছে। আপনার মেসেজটি আমরা পেয়েছি, আমাদের প্রতিনিধি খুব দ্রুত আপনার সাথে সরাসরি যোগাযোগ করবেন। ধন্যবাদ!';
-    }
+    aiReply = await callGroqWithFallback(history);
+  } catch (error) {
+    console.error('[AI Error]:', error.message);
+    aiReply = 'আসসালামু আলাইকুম আপু/ভাইয়া! আমাদের কাছে প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০), কাফতান বোরকা (৳১,৯৫০) এবং এ-লাইন বোরকা (৳১,৬৫০) রয়েছে। সাথে ম্যাচিং হিজাব একদম ফ্রি! আপনার উচ্চতা (হাইট) কত জানিয়ে দিলে সঠিক সাইজটি বলে দিতে পারব।';
   }
 
   history.push({ role: 'assistant', content: aiReply });
 
-  // If user provides phone number or order confirmation, save to Supabase
+  // Save order leads to Supabase
   try {
-    const extracted = checkOrderInfo(userText, cleanPhone);
-    if (userText.length > 15 && supabase) {
-      // Save order lead to Supabase
+    if (userText.length > 10 && supabase) {
+      const phoneMatch = userText.match(/(01[3-9]\d{8})/);
       await supabase.from('orders').insert({
-        customer_phone: cleanPhone,
+        customer_phone: phoneMatch ? phoneMatch[1] : cleanPhone,
         product_details: userText.substring(0, 300),
         status: 'Pending'
       });
@@ -142,4 +146,4 @@ async function handleIncomingMessage(senderId, userText) {
   return aiReply;
 }
 
-module.exports = { handleIncomingMessage };
+module.exports = { handleIncomingMessage, refreshProductsFromDB };
