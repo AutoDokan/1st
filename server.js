@@ -20,6 +20,10 @@ let connectionStatus = 'initializing';
 let connectedNumber = null;
 let sock = null;
 
+// User message buffer for smart human-like debouncing (combining multiple rapid messages)
+const userMessageBuffers = new Map();
+const DEBOUNCE_DELAY_MS = 4000; // 4 seconds debounce window for follow-up texts
+
 // Health Endpoint for UptimeRobot (Keeps Render awake 24/7)
 app.get('/', (req, res) => {
   res.json({
@@ -139,6 +143,50 @@ app.get('/status', (req, res) => {
   });
 });
 
+async function processBufferedUserMessages(remoteJid) {
+  const userData = userMessageBuffers.get(remoteJid);
+  if (!userData || !userData.messages.length) return;
+
+  const combinedText = userData.messages.join(' \n ');
+  const lastKey = userData.lastKey;
+  userMessageBuffers.delete(remoteJid);
+
+  console.log(`[WhatsApp Processing Combined] From: ${remoteJid} | Combined: "${combinedText}"`);
+
+  try {
+    // 1. Mark as read (Blue tick)
+    if (lastKey && sock) {
+      await sock.readMessages([lastKey]);
+    }
+
+    // 2. Initial human reading pause (1.5 to 2.5 seconds)
+    await new Promise(r => setTimeout(r, 1800));
+
+    // 3. Show "typing..." presence
+    if (sock) {
+      await sock.sendPresenceUpdate('composing', remoteJid);
+    }
+
+    // 4. Generate AI reply
+    const replyText = await handleIncomingMessage(remoteJid, combinedText);
+
+    // 5. Realistic human typing duration based on response length
+    // Longer text takes a few more seconds to type
+    const typingDuration = Math.min(Math.max(replyText.length * 35, 2500), 5500);
+    console.log(`[WhatsApp Human Delay] Simulating typing for ${(typingDuration / 1000).toFixed(1)}s...`);
+    await new Promise(r => setTimeout(r, typingDuration));
+
+    // 6. Send message
+    if (sock) {
+      await sock.sendMessage(remoteJid, { text: replyText });
+      await sock.sendPresenceUpdate('available', remoteJid);
+      console.log(`[WhatsApp Outbound Done] To: ${remoteJid}`);
+    }
+  } catch (err) {
+    console.error('[WhatsApp Send Error]:', err.message);
+  }
+}
+
 async function connectToWhatsApp() {
   try {
     console.log('[WhatsApp] Initializing connection with Supabase state...');
@@ -186,7 +234,7 @@ async function connectToWhatsApp() {
       }
     });
 
-    // Inbound Message Listener
+    // Inbound Message Listener with Human-Like Debounce & Typing
     sock.ev.on('messages.upsert', async (m) => {
       const msg = m.messages[0];
       if (!msg || msg.key.fromMe || m.type !== 'notify') return;
@@ -201,19 +249,24 @@ async function connectToWhatsApp() {
 
       if (!messageContent.trim()) return;
 
-      console.log(`[WhatsApp Inbound] From: ${remoteJid} | Text: ${messageContent}`);
+      console.log(`[WhatsApp Received Fragment] From: ${remoteJid} | "${messageContent}"`);
 
-      // Simulate human presence (typing...)
-      await sock.sendPresenceUpdate('composing', remoteJid);
-      await new Promise(r => setTimeout(r, 1500));
+      // Debounce logic: Buffer multiple messages from same user
+      let userData = userMessageBuffers.get(remoteJid);
+      if (!userData) {
+        userData = { messages: [], timer: null, lastKey: msg.key };
+        userMessageBuffers.set(remoteJid, userData);
+      } else {
+        clearTimeout(userData.timer);
+        userData.lastKey = msg.key;
+      }
 
-      // Call AI Brain
-      const replyText = await handleIncomingMessage(remoteJid, messageContent);
+      userData.messages.push(messageContent);
 
-      // Send Response
-      await sock.sendMessage(remoteJid, { text: replyText });
-      await sock.sendPresenceUpdate('available', remoteJid);
-      console.log(`[WhatsApp Outbound] To: ${remoteJid} | Sent Reply`);
+      // Wait 4 seconds for user to finish typing follow-ups before responding
+      userData.timer = setTimeout(() => {
+        processBufferedUserMessages(remoteJid);
+      }, DEBOUNCE_DELAY_MS);
     });
 
   } catch (error) {
