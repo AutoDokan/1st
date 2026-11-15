@@ -18,12 +18,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // In-memory product cache (refreshed periodically from Supabase)
 let cachedProductsText = `
-১. [মডেল কোড: DF-101] ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট - মূল্য: ৳২,৪৫০ টাকা (ফেব্রিক: প্রিমিয়াম দুবাই চেরি কাপড় + গর্জিয়াস কারচুপি কোটি, ঝুল ৫০-৫৬, বডি ৩৮-৪৬ ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি ৩-পিস সেট)
-২. [মডেল কোড: DF-102] প্রিমিয়াম দুবাই চেরি রানি আবায়া (জেট ব্ল্যাক) - মূল্য: ৳২,২০০ টাকা (১০০% অরিজিনাল দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৬, ম্যাচিং হিজাব ফ্রি)
-৩. [মডেল কোড: DF-103] কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান বোরকা (কফি ও সি-গ্রিন) - মূল্য: ৳১,৯৫০ টাকা (প্রিমিয়াম সফট কোরিয়ান চেরি ও জর্জেট, ঝুল ৫২-৫৬, কাফতান ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি)
-৪. [মডেল কোড: DF-104] সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার বোরকা (নেভি ব্লু) - মূল্য: ৳১,৬৫০ টাকা (১০০% সফট দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৪, হিজাব সহ)
-৫. [মডেল কোড: DF-105] এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (রয়েল ব্লু ও মেরুন) - মূল্য: ৳২,৩০০ টাকা (হেভি কোরিয়ান ডায়মন্ড জর্জেট, ঝুল ৫২-৫৬, ম্যাচিং লং হিজাব ফ্রি)
-৬. [মডেল কোড: DF-106] ডাবল লেয়ার কোটি স্টাইল দুবাই আবায়া (চকলেট ও কালো) - মূল্য: ৳২,১০০ টাকা (পিওর দুবাই চেরি ডাবল লেয়ার, ঝুল ৫০-৫৬, বডি ৩৮-৪৪, ম্যাচিং হিজাব ফ্রি)
+১. [মডেল কোড: DF-101] ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, মূল্য: ৳২,৪৫০ টাকা (ফেব্রিক: প্রিমিয়াম দুবাই চেরি কাপড় + গর্জিয়াস কারচুপি কোটি, ঝুল ৫০-৫৬, বডি ৩৮-৪৬ ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি ৩-পিস সেট)
+২. [মডেল কোড: DF-102] প্রিমিয়াম দুবাই চেরি রানি আবায়া (জেট ব্ল্যাক), মূল্য: ৳২,২০০ টাকা (১০০% অরিজিনাল দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৬, ম্যাচিং হিজাব ফ্রি)
+৩. [মডেল কোড: DF-103] কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান বোরকা (কফি ও সি-গ্রিন), মূল্য: ৳১,৯৫০ টাকা (প্রিমিয়াম সফট কোরিয়ান চেরি ও জর্জেট, ঝুল ৫২-৫৬, কাফতান ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি)
+৪. [মডেল কোড: DF-104] সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার বোরকা (নেভি ব্লু), মূল্য: ৳১,৬৫০ টাকা (১০০% সফট দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৪, হিজাব সহ)
+৫. [মডেল কোড: DF-105] এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (রয়েল ব্লু ও মেরুন), মূল্য: ৳২,৩০০ টাকা (হেভি কোরিয়ান ডায়মন্ড জর্জেট, ঝুল ৫২-৫৬, ম্যাচিং লং হিজাব ফ্রি)
+৬. [মডেল কোড: DF-106] ডাবল লেয়ার কোটি স্টাইল দুবাই আবায়া (চকলেট ও কালো), মূল্য: ৳২,১০০ টাকা (পিওর দুবাই চেরি ডাবল লেয়ার, ঝুল ৫০-৫৬, বডি ৩৮-৪৪, ম্যাচিং হিজাব ফ্রি)
 `;
 
 let cachedProductList = [];
@@ -65,7 +65,7 @@ async function refreshProductsFromDB() {
     if (!error && data && data.length > 0) {
       cachedProductList = data;
       cachedProductsText = data.map((p, idx) => 
-        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}, সাইজ: ${p.sizes || '৫০-৫৬'}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'}${p.image_url ? ', মেইন ছবি: আছে' : ''}${p.hijab_image_url ? ', হিজাব ছবি: আছে' : ''}${p.detail_image_url ? ', কাজের ডিটেইল ছবি: আছে' : ''})`
+        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name}, মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}, সাইজ: ${p.sizes || '৫০-৫৬'}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'}${p.image_url ? ', মেইন ছবি: আছে' : ''}${p.hijab_image_url ? ', হিজাব ছবি: আছে' : ''}${p.detail_image_url ? ', কাজের ছবি: আছে' : ''})`
       ).join('\n');
       console.log(`[Products Sync] Loaded ${data.length} active products from Supabase`);
     }
@@ -83,6 +83,38 @@ const greetedContacts = new Set();
 
 // Conversation memory per user (sliding window)
 const conversationMemory = new Map();
+
+// Intent and Model Matchers
+function detectModelFromText(text) {
+  const t = (text || '').toLowerCase();
+  if (/df-?101|\b101\b|কারচুপি|karchupi|কোটি|koti/i.test(t)) return 'DF-101';
+  if (/df-?102|\b102\b|রানি|rani/i.test(t)) return 'DF-102';
+  if (/df-?103|\b103\b|কাফতান|kaftan|কোরিয়ান|korian|korean|ceri/i.test(t)) return 'DF-103';
+  if (/df-?104|\b104\b|এ-লাইন|a-line|aline|ক্যাজুয়াল/i.test(t)) return 'DF-104';
+  if (/df-?105|\b105\b|বাটারফ্লাই|butterfly/i.test(t)) return 'DF-105';
+  if (/df-?106|\b106\b|ডাবল লেয়ার|double layer/i.test(t)) return 'DF-106';
+  return null;
+}
+
+function isAskingForImage(text) {
+  const t = (text || '').toLowerCase();
+  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|dekhao|dekhaw|dekhi|দেখান|দেখাও|দেখব|দেখি|দেখতে|কালেকশন/i.test(t);
+}
+
+function isAskingForHijab(text) {
+  const t = (text || '').toLowerCase();
+  return /হিজাব|hijab|ওড়না|orna/i.test(t);
+}
+
+function isAskingForDetail(text) {
+  const t = (text || '').toLowerCase();
+  return /কাজের|ডিটেইল|detail|ক্লোজ|close|হাতা|কাজ|স্লিভ|sleeve/i.test(t);
+}
+
+function isAskingForAllImages(text) {
+  const t = (text || '').toLowerCase();
+  return /সব|all|একাধিক|কয়েকটা|আরও|আর কি|ডিটেইল/i.test(t);
+}
 
 function buildSystemPrompt(isFirstMessage) {
   const salamRule = isFirstMessage
@@ -102,69 +134,70 @@ CRITICAL COMMUNICATION RULES (MUST FOLLOW STRICTLY):
 1. NO GENDER ASSUMPTIONS - NEVER SAY "আপু", "ভাইয়া", OR "আপু/ভাইয়া":
    - কখনোই কাস্টমারকে "আপু" বা "ভাইয়া" বলবে না।
    - সব সময় প্রমিত, মার্জিত ও সম্মানসূচক "আপনি", "আপনার", "জি", "অবশ্যই" ব্যবহার করবে।
-   - কাস্টমার যে-ই হোক, অত্যন্ত আন্তরিক ও ইসলামিক শালীনতা বজায় রেখে কথা বলবে।
 
 ${salamRule}
 
-3. CONCISE & DIRECT ANSWERS (টু দ্য পয়েন্ট ও প্রাসঙ্গিক উত্তর):
-   - কাস্টমার যতটুকু জানতে চেয়েছে ততটুকুর সরাসরি ও সুন্দর উত্তর দিবে (১ থেকে ৩ লাইনের মধ্যে)।
-   - কাস্টমার যদি বলে "কোন কোন মডেল আছে", "মডেল দেখাও", "কালেকশন কি কি":
-     সরাসরি আমাদের এভেইলেবল মডেলগুলোর কোড ও নাম সংক্ষেপে উল্লেখ করে বলবে:
-     "আমাদের কাছে বর্তমানে জনপ্রিয় এই মডেলগুলো রয়েছে:
-     • DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট (৳২,৪৫০)
-     • DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০)
-     • DF-103: কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
-     • DF-104: সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার (৳১,৬৫০)
-     • DF-105: এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
-     সবগুলোর সাথেই ম্যাচিং হিজাব ফ্রি! আপনি কোন মডেলটির ছবি ও বিস্তারিত দেখতে চাচ্ছেন?"
-   - কাস্টমার কোনো অপ্রাসঙ্গিক কথা বললে অযথা অন্য কিছু (যেমন মা, ওয়াইফ ইত্যাদি) টেনে আনবে না। যদি কাস্টমার নিজে বলে যে সে মা বা ওয়াইফের জন্য নিচ্ছে, তখন শুধু তাদের পছন্দের কথা জানতে চাইবে।
-
-4. LOCAL BANGLADESH VIBE & LIGHT WITTY WARMTH (লোকাল ভাষার মিষ্টি টান ও আন্তরিক মজা):
-   - কথার টোনে একদম রোবট হবে না। আন্তরিক ও মিষ্টি করে কথা বলবে।
+3. ABSOLUTELY NO DASHES OR BULLETS (ড্যাশ বা হাইফেন বা বুলেট সম্পূর্ণ নিষিদ্ধ):
+   - উত্তরের মধ্যে কখনোই ড্যাশ, এনাম-ড্যাশ, হাইফেন বা বুলেট (যেমন: '-', '--', '–', '—', '•') ব্যবহার করবে না!
+   - কোনো তালিকা লেখার প্রয়োজন হলে খাঁটি বাংলা সংখ্যা ১., ২., ৩. ইত্যাদি দিয়ে লিখবে, কোনো হাইফেন বা ড্যাশ দেবে না।
    - যেমন:
-     * সাইজ নিয়ে ভাবলে: "আরেহ কোনো চিন্তাই করবেন না! একদম মানানসই সাইজ বেছে দেওয়ার দায়িত্ব আমাদের। শুধু আপনার উচ্চতাটা জানিয়ে দিন 😊"
-     * কাপড় নিয়ে জানতে চাইলে: "একদম নিশ্চিন্ত থাকতে পারেন! ১০০% পিওর দুবাই চেরি ফেব্রিক, ছবির চেয়েও বাস্তবে অনেক বেশি গর্জিয়াস লাগবে।"
+     ১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট (মূল্য ৳২,৪৫০)
+     ২. DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (মূল্য ৳২,২০০)
+
+4. IMMEDIATE SPECIFIC PHOTO SENDING (ছবি চাইলে সাথে সাথে ট্যাগ দিতে হবে):
+   - কাস্টমার যখনই কোনো মডেল দেখতে চাইবে (যেমন: "DF 101 dekhaw", "Korian ceri ta dekhaw", "কাফতান দেখাও", "রানি আবায়া দেখতে চাই"):
+     * শুধু "এখনই দেখাচ্ছি" লিখে বসে থাকবে না! অবশ্যই অবশ্যই উত্তরের শেষে সেই মডেলের ফটো ট্যাগ [SEND_IMAGE:DF-XXX] লিখবে!
+     * উদাহরণ: "DF-101 ৩-পিস কারচুপি কোটি আবায়া সেটের ছবি পাঠিয়ে দিচ্ছি [SEND_IMAGE:DF-101]"
+     * যদি কাস্টমার বলে "সব ছবি দেন" বা "ডিটেইল পিক দেন" -> ট্যাগ লিখবে: [SEND_ALL_IMAGES:DF-101]
+     * যদি কাস্টমার বলে "হিজাবের ছবি দেন" -> ট্যাগ লিখবে: [SEND_HIJAB_IMAGE:DF-101]
+     * যদি কাস্টমার বলে "কাজের ছবি দেন" -> ট্যাগ লিখবে: [SEND_DETAIL_IMAGE:DF-101]
+
+5. CONCISE & DIRECT ANSWERS (টু দ্য পয়েন্ট ও প্রাসঙ্গিক উত্তর):
+   - কাস্টমার যদি বলে "টোটাল কয়টা মডেল আছে" বা "কোন কোন মডেল আছে":
+     সরাসরি আমাদের মডেলগুলোর তালিকা দিয়ে বলবে:
+     "আমাদের বর্তমানে এই ৫টি সেরা মডেল রয়েছে:
+     ১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট (৳২,৪৫০)
+     ২. DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০)
+     ৩. DF-103: কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
+     ৪. DF-104: সিম্পল এ-লাইন ক্যাজুয়াল বোরকা (৳১,৬৫০)
+     ৫. DF-105: এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
+     সবগুলোর সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি! আপনি কোন মডেলটির ছবি ও বিস্তারিত দেখতে চাচ্ছেন?"
+   - কাস্টমার অপ্রাসঙ্গিক কথা বললে কোনো অবস্থাতেই মা/ওয়াইফের কথা নিজে থেকে টেনে আনবে না।
+
+6. LOCAL BANGLADESH VIBE (আন্তরিক ও মিষ্টি বাংলা):
+   - একদম রোবট হবে না। স্বাভাবিক দেশি শপকিপারের মতো আন্তরিকভাবে কথা বলবে।
 
 ABOUT DAWAH FASHION:
 - Brand Name: Dawah Fashion (দাওয়াহ ফ্যাশন)
 - Motto: Dress with Purpose | Modest Style | Premium Quality
-- Specialty: Exclusive 3-Piece Karchupi Koti Abayas (ইনার + কারচুপি কাজের কোটি + ম্যাচিং হিজাব), Dubai Cherry & Korean Cherry Modest Wear.
+- Specialty: Exclusive 3-Piece Karchupi Koti Abayas, Dubai Cherry & Korean Cherry Modest Wear.
 - Location: Dhaka, Bangladesh (Mirpur). Cash on Delivery (COD) available all over Bangladesh.
 
 CURRENT LIVE PRODUCTS & PRICING:
 ${cachedProductsText}
 
 ESSENTIAL SHOP GUIDELINES:
-1. Product Models & Model Codes (DF-101, DF-102, DF-103, DF-104, DF-105, DF-106):
-   - কাস্টমার নির্দিষ্ট কোড বললে সেই মডেলের নাম, মূল্য, ফেব্রিক ও হিজাব অফার স্পষ্ট করে জানাবে।
+1. Product Models & Model Codes:
+   DF-101: ৩-পিস কারচুপি কোটি আবায়া সেট (৳২,৪৫০)
+   DF-102: দুবাই চেরি রানি আবায়া (৳২,২০০)
+   DF-103: কোরিয়ান চেরি কাফতান বোরকা (৳১,৯৫০)
+   DF-104: এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার (৳১,৬৫০)
+   DF-105: বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
+   DF-106: ডাবল লেয়ার কোটি স্টাইল আবায়া (৳২,১০০)
 
-2. Height to Length / Size Guide (উচ্চতা অনুযায়ী সাইজ):
-   - ৫'০" থেকে ৫'১" ➔ সাইজ ৫০ বা ৫২
-   - ৫'২" থেকে ৫'৩" ➔ সাইজ ৫২ বা ৫৪
-   - ৫'৪" থেকে ৫'৫" ➔ সাইজ ৫৪ বা ৫৬
-   - ৫'৬" এবং তদূর্ধ্ব ➔ সাইজ ৫৬
-   - বডি সাইজ: ৩৬, ৩৮, ৪০, ৪২, ৪৪, ৪৬ (অথবা ফ্রি সাইজ)।
+2. Height to Length / Size Guide:
+   ৫'০" থেকে ৫'১" ➔ সাইজ ৫০ বা ৫২
+   ৫'২" থেকে ৫'৩" ➔ সাইজ ৫২ বা ৫৪
+   ৫'৪" থেকে ৫'৫" ➔ সাইজ ৫৪ বা ৫৬
+   ৫'৬" এবং তদূর্ধ্ব ➔ সাইজ ৫৬
+   বডি সাইজ: ৩৬, ৩৮, ৪০, ৪২, ৪৪, ৪৬ (অথবা ফ্রি সাইজ)।
 
-3. Pricing & Advance Delivery Policy (অগ্রিম ডেলিভারি চার্জ পলিসি):
-   - ঢাকার ভেতরে ডেলিভারি চার্জ: ৳${storeSettings.inside_dhaka_fee} টাকা।
-   - ঢাকার বাইরে ডেলিভারি চার্জ: ৳${storeSettings.outside_dhaka_fee} টাকা।
-   - অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি (${storeSettings.inside_dhaka_fee}/${storeSettings.outside_dhaka_fee} টাকা) আমাদের বিকাশ বা নগদে (${storeSettings.bkash_number}) অগ্রিম প্রদান করতে হয়।
-   - বাকি ড্রেসের পুরো মূল্য ক্যাশ অন ডেলিভারিতে (COD) পার্সেল হাতে পেয়ে প্রদান করবেন।
+3. Pricing & Advance Delivery Policy:
+   ঢাকার ভেতরে ডেলিভারি চার্জ: ৳${storeSettings.inside_dhaka_fee} টাকা।
+   ঢাকার বাইরে ডেলিভারি চার্জ: ৳${storeSettings.outside_dhaka_fee} টাকা।
+   অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি (${storeSettings.inside_dhaka_fee}/${storeSettings.outside_dhaka_fee} টাকা) আমাদের বিকাশ বা নগদে (${storeSettings.bkash_number}) অগ্রিম দিতে হয়। বাকি পুরো টাকা ক্যাশ অন ডেলিভারিতে দিবেন।
 
-4. PRODUCT PHOTOS & MULTI-PICTURE RULES (ছবি পাঠানোর সঠিক ট্যাগ):
-   ব্যাকএন্ড স্বয়ংক্রিয়ভাবে কাস্টমারের হোয়াটসঅ্যাপে ছবি ডেলিভার করবে ট্যাগের মাধ্যমে:
-   - কাস্টমার যখন একটি নির্দিষ্ট মডেলের ছবি দেখতে চায় (যেমন: "DF-101 এর ছবি দেন", "রানি আবায়া দেখব", "পিক দাও"):
-     উত্তরের শেষে ট্যাগ লিখবে: [SEND_IMAGE:DF-101]
-   - কাস্টমার যখন হিজাবের ছবি দেখতে চায় (যেমন: "হিজাবের ছবি দেন", "হিজাব কেমন", "হিজাব সহ ছবি দেখান"):
-     উত্তরের শেষে ট্যাগ লিখবে: [SEND_HIJAB_IMAGE:DF-101]
-   - কাস্টমার যখন কাজের ক্লোজ-আপ / হাতার কাজ / ফেব্রিকের নিখুঁত ছবি দেখতে চায় (যেমন: "কাজের ছবি দেন", "হাতার কাজ দেখান", "কারচুপির ক্লোজআপ দিন"):
-     উত্তরের শেষে ট্যাগ লিখবে: [SEND_DETAIL_IMAGE:DF-101]
-   - কাস্টমার যখন একাধিক বা সব ছবি দেখতে চায় (যেমন: "সব ছবি দেন", "একাধিক পিক দেন", "আর কি কি ছবি আছে", "ডিটেইল পিক দেন", "পিকগুলো দাও", "সবগুলো পিকচার দেখান"):
-     উত্তরের শেষে ট্যাগ লিখবে: [SEND_ALL_IMAGES:DF-101] (এটি দিলে স্বয়ংক্রিয়ভাবে মেইন ছবি + হিজাবের ছবি + কাজের ডিটেইল ছবি একসাথেই যাবে)।
-   - কাস্টমার স্পেসিফিক কোনো কোড না বলে সাধারণভাবে বলে "ছবি দেখান" বা "পিক দিন":
-     আমাদের টপ মডেলের ছবি ট্যাগ যোগ করবে: [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]।
-
-Keep replies concise, polite, natural, and never use "আপু" or "ভাইয়া".
+Keep replies concise, friendly, NO dashes/bullets, and never use "আপু" or "ভাইয়া".
 `;
 }
 
@@ -174,65 +207,60 @@ function generateSmartFallback(userText, isFirstMessage) {
   const greeting = isFirstMessage ? 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। ' : 'জি, ';
 
   // Asking for models or collection
-  if (t.includes('model') || t.includes('মডেল') || t.includes('কি কি') || t.includes('design') || t.includes('ডিজাইন') || t.includes('কালেকশন') || t.includes('দেখান')) {
-    return `${greeting}আমাদের কালেকশনে বর্তমানে সেরা মডেলগুলো রয়েছে:
-• DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি সেট (৳২,৪৫০)
-• DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০)
-• DF-103: কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
-• DF-104: সিম্পল এ-লাইন বোরকা (৳১,৬৫০)
-• DF-105: বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
-সবগুলোর সাথেই ম্যাচিং হিজাব ফ্রি! আপনি কোন মডেলটির ছবি বা বিস্তারিত দেখতে চাচ্ছেন?`;
+  if (t.includes('model') || t.includes('মডেল') || t.includes('কি কি') || t.includes('design') || t.includes('ডিজাইন') || t.includes('কালেকশন') || t.includes('total') || t.includes('কয়টা') || t.includes('কয়টা')) {
+    return `${greeting}আমাদের কালেকশনে বর্তমানে সেরা এই মডেলগুলো রয়েছে:
+১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি সেট (৳২,৪৫০)
+২. DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০)
+৩. DF-103: কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
+৪. DF-104: সিম্পল এ-লাইন ক্যাজুয়াল বোরকা (৳১,৬৫০)
+৫. DF-105: বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
+সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি! আপনি কোন মডেলটির ছবি দেখতে চাচ্ছেন?`;
   }
 
   // Asking for all pictures or multiple photos
-  if (t.includes('সব ছবি') || t.includes('একাধিক') || t.includes('সব পিক') || t.includes('ডিটেইল') || t.includes('detail') || t.includes('all pic')) {
-    const codeMatch = t.match(/df-?(\d{3})/i);
-    const code = codeMatch ? `DF-${codeMatch[1]}` : 'DF-101';
-    return `${greeting}অবশ্যই! ${code} এর মেইন লুক, ম্যাচিং হিজাব ও নিখুঁত কাজের সব ছবি নিচে পাঠিয়ে দিচ্ছি 😊 [SEND_ALL_IMAGES:${code}]`;
+  if (isAskingForAllImages(t) && isAskingForImage(t)) {
+    const code = detectModelFromText(t) || 'DF-101';
+    return `${greeting}অবশ্যই! ${code} মডেলের মেইন লুক, ম্যাচিং হিজাব ও নিখুঁত কাজের সব ছবি পাঠিয়ে দেওয়া হলো [SEND_ALL_IMAGES:${code}]`;
   }
 
   // Asking for hijab photo
-  if (t.includes('hijab') || t.includes('হিজাব')) {
-    const codeMatch = t.match(/df-?(\d{3})/i);
-    const code = codeMatch ? `DF-${codeMatch[1]}` : 'DF-101';
-    return `${greeting}আমাদের প্রতিটি আবায়ার সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি! নিচে হিজাবের ছবি পাঠিয়ে দেওয়া হলো: [SEND_HIJAB_IMAGE:${code}]`;
+  if (isAskingForHijab(t)) {
+    const code = detectModelFromText(t) || 'DF-101';
+    return `${greeting}আমাদের প্রতিটি আবায়ার সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি! ${code} এর হিজাবের ছবি নিচে দেওয়া হলো [SEND_HIJAB_IMAGE:${code}]`;
   }
 
-  // Asking for general photo / picture
-  if (t.includes('ছবি') || t.includes('pic') || t.includes('photo') || t.includes('পিক')) {
-    const codeMatch = t.match(/df-?(\d{3})/i);
-    const code = codeMatch ? `DF-${codeMatch[1]}` : 'DF-101';
-    return `${greeting}অবশ্যই! আপনার জন্য ${code} এর রিয়েল ছবি পাঠিয়ে দিচ্ছি: [SEND_IMAGE:${code}]`;
+  // Asking for detail photo
+  if (isAskingForDetail(t)) {
+    const code = detectModelFromText(t) || 'DF-101';
+    return `${greeting}নিশ্চয়ই! ${code} এর নিখুঁত কারচুপি কাজ ও ফেব্রিকের ক্লোজ-আপ ছবি নিচে দেওয়া হলো [SEND_DETAIL_IMAGE:${code}]`;
+  }
+
+  // Asking for general photo / picture of a model
+  if (isAskingForImage(t)) {
+    const code = detectModelFromText(t);
+    if (code) {
+      return `${greeting}${code} মডেলের রিয়েল ছবি পাঠিয়ে দেওয়া হলো [SEND_IMAGE:${code}]`;
+    }
+    return `${greeting}আমাদের সেরা ২টি মডেল—৩-পিস কারচুপি কোটি সেট ও দুবাই চেরি রানি আবায়ার ছবি পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]`;
   }
 
   // Asking for price
   if (t.includes('dam') || t.includes('দাম') || t.includes('price') || t.includes('টাকা') || t.includes('rate') || t.includes('cost')) {
-    const codeMatch = t.match(/df-?(\d{3})/i);
-    if (codeMatch) {
-      const code = `DF-${codeMatch[1]}`;
+    const code = detectModelFromText(t);
+    if (code) {
       const prod = getProductByCode(code);
       if (prod) {
-        return `${greeting}${prod.name} (${prod.model_code}) এর মূল্য ৳${prod.price} টাকা (ম্যাচিং হিজাব একদম ফ্রি)। ঢাকার ভিতরে ডেলিভারি ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}।`;
+        return `${greeting}${prod.name} (${prod.model_code}) এর মূল্য ৳${prod.price} টাকা (ম্যাচিং হিজাব ফ্রি)। ঢাকার ভেতরে ডেলিভারি ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}। [SEND_IMAGE:${code}]`;
       }
     }
-    return `${greeting}আমাদের প্রিমিয়াম আবায়াগুলোর মূল্য ৳১,৬৫০ থেকে ৳২,৪৫০ টাকার মধ্যে (প্রতিটির সাথেই ম্যাচিং হিজাব ফ্রি)। আপনি কোন নির্দিষ্ট মডেলের দাম জানতে চাচ্ছেন জানালে বলে দিচ্ছি।`;
-  }
-
-  // Asking for size
-  if (t.includes('size') || t.includes('সাইজ') || t.includes('ঝুল') || t.includes('হাইট') || t.includes('height')) {
-    return `${greeting}আমাদের সব আবায়া ঝুল ৫০, ৫২, ৫৪, ৫৬ এবং বডি ৩৬-৪৬ সাইজে পেয়ে যাবেন। আপনার উচ্চতা (হাইট) কত ফিট-ইঞ্চি জানালে পারফেক্ট সাইজটি বলে দিচ্ছি।`;
-  }
-
-  // Asking for delivery or bkash
-  if (t.includes('delivery') || t.includes('ডেলিভারি') || t.includes('bkash') || t.includes('বিকাশ') || t.includes('advance') || t.includes('অগ্রিম')) {
-    return `${greeting}ঢাকার ভিতরে ডেলিভারি চার্জ ৳${storeSettings.inside_dhaka_fee} টাকা, ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee} টাকা। অর্ডার কনফার্ম করতে শুধু ডেলিভারি চার্জটি বিকাশ/নগদে (${storeSettings.bkash_number}) অগ্রিম পাঠাতে হয়, বাকি টাকা ক্যাশ অন ডেলিভারিতে দিবেন।`;
+    return `${greeting}আমাদের প্রিমিয়াম আবায়াগুলোর মূল্য ৳১,৬৫০ থেকে ৳২,৪৫০ টাকার মধ্যে (প্রতিটির সাথেই ম্যাচিং হিজাব ফ্রি)। আপনি কোন মডেলের দাম জানতে চাচ্ছেন জানালে ছবি সহ বিস্তারিত জানিয়ে দিচ্ছি।`;
   }
 
   // Default pleasant guidance
   if (isFirstMessage) {
     return 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন?';
   }
-  return 'জি, আপনি কোন মডেলের ছবি, সাইজ বা বিস্তারিত দেখতে চাচ্ছেন জানালে এখনই শেয়ার করছি।';
+  return 'জি, আপনি কোন মডেলের ছবি বা সাইজ দেখতে চাচ্ছেন জানালে এখনই শেয়ার করছি।';
 }
 
 async function callGroqWithFallback(messages, isFirstMessage = false, userText = '') {
@@ -246,7 +274,6 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
     ...messages
   ];
 
-  // Candidates validated for this Groq instance
   const candidateModels = [
     'openai/gpt-oss-120b',
     'qwen/qwen3.8-27b'
@@ -257,7 +284,7 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
       const completion = await groqClient.chat.completions.create({
         model: model,
         messages: chatMessages,
-        temperature: 0.7,
+        temperature: 0.65,
         max_tokens: 500
       });
       const reply = completion.choices[0]?.message?.content;
@@ -269,7 +296,6 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
     }
   }
 
-  // If both models fail, use dynamic smart fallback
   return generateSmartFallback(userText, isFirstMessage);
 }
 
@@ -397,11 +423,45 @@ async function handleIncomingMessage(senderId, userText) {
     aiReply = generateSmartFallback(userText, isFirstMessageForContact);
   }
 
-  // Double-shield: if NOT first message, strip any accidental Salam
+  // 1. Double-shield: if NOT first message, strip any accidental Salam
   if (!isFirstMessageForContact) {
     aiReply = aiReply.replace(/^(আসসালামু\s*আলাইকুম[^\n।!?]*[।!?\n]*|ওয়া\s*আলাইকুম\s*আসসালাম[^\n।!?]*[।!?\n]*|সালাম[^\n।!?]*[।!?\n]*)/gi, '').trim();
     if (!aiReply) {
       aiReply = 'জি, বলুন কীভাবে সাহায্য করতে পারি?';
+    }
+  }
+
+  // 2. Dash & Bullet Clean Shield (Eliminates ugly --, •, —, – without breaking model codes like DF-101)
+  aiReply = aiReply
+    .replace(/[•●▪]/g, '')
+    .replace(/[-–—]{2,}/g, ' ')
+    .replace(/^[ \t]*[-–—][ \t]*/gm, '')
+    .replace(/[ \t]+[-–—][ \t]+/g, ': ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+  // Normalize any tags to canonical [SEND_TAG:DF-XXX] format
+  aiReply = aiReply.replace(/\[(SEND_[A-Z_]+):\s*DF[ :_‑—–-]*(\d{3})\]/gi, '[$1:DF-$2]');
+
+  // 3. Deterministic Photo Guarantee Shield:
+  // If customer is asking to see a model or asking for pics, ensure image tag is 100% attached!
+  const hasImageTag = /\[SEND_(IMAGE|ALL_IMAGES|HIJAB_IMAGE|DETAIL_IMAGE):[A-Za-z0-9_-]+\]/i.test(aiReply);
+  if (!hasImageTag) {
+    const detectedModel = detectModelFromText(userText) || detectModelFromText(aiReply);
+    const wantsImage = isAskingForImage(userText) || /দেখাচ্ছি|পাঠিয়ে দিচ্ছি|ছবি নিচে|পিকচার|দেখুন/i.test(aiReply);
+    
+    if (detectedModel && wantsImage) {
+      if (isAskingForHijab(userText)) {
+        aiReply += ` [SEND_HIJAB_IMAGE:${detectedModel}]`;
+      } else if (isAskingForDetail(userText)) {
+        aiReply += ` [SEND_DETAIL_IMAGE:${detectedModel}]`;
+      } else if (isAskingForAllImages(userText)) {
+        aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
+      } else {
+        aiReply += ` [SEND_IMAGE:${detectedModel}]`;
+      }
+    } else if (isAskingForImage(userText) && !detectedModel) {
+      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]';
     }
   }
 
