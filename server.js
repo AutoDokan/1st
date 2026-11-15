@@ -622,7 +622,6 @@ app.get('/dashboard', async (req, res) => {
               <p class="text-[11px] text-stone-500 font-semibold mt-0.5 flex items-center gap-1">
                 <span>📱 +${connectedNumber || '8801778181418'}</span>
                 <span class="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 text-[10px]">● লাইভ অটোমেশন</span>
-                <span class="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 text-[10px] hidden sm:inline-flex">🎁 ফ্রি: ৩০ নভেম্বর পর্যন্ত</span>
               </p>
             </div>
           </div>
@@ -645,31 +644,6 @@ app.get('/dashboard', async (req, res) => {
       </header>
 
       <main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
-        <!-- Special Free Trial Banner (Valid until November 30, 2026) -->
-        <div class="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/90 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-lg shadow-2xs shrink-0">
-              🎁
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs font-black text-amber-950 uppercase tracking-wide">স্পেশাল পার্টনারশিপ অ্যাক্সেস</span>
-                <span class="bg-amber-200/80 text-amber-950 border border-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full">সম্পূর্ণ ফ্রি ট্রায়াল</span>
-              </div>
-              <p class="text-xs text-amber-900 font-semibold mt-0.5">
-                ফ্রি ব্যবহারের মেয়াদ: <span class="font-black text-stone-900 bg-white/90 px-2 py-0.5 rounded border border-amber-200">৩০ নভেম্বর ২০২৬ পর্যন্ত</span> (সবগুলো অটোমেশন ফিচার সম্পূর্ণ আনলিমিটেড ফ্রি)
-              </p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="text-[11px] bg-white border border-amber-200 text-emerald-800 font-extrabold px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>আনলিমিটেড লাইসেন্স সক্রিয়</span>
-            </span>
-          </div>
-        </div>
-
-
         <!-- 5 KPI Analytics Cards (Mobile 2-col, Desktop 5-col) -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <!-- Total Orders & Customer Breakdown -->
@@ -1258,10 +1232,7 @@ app.get('/qr', (req, res) => {
                 <p style="color: #57534e; font-size: 0.92rem; line-height: 1.6; margin: 0 auto; max-width: 330px;">
                   দাওয়াহ ফ্যাশনের অফিসিয়াল স্মার্ট সেলস অ্যাসিস্ট্যান্ট ২৪/৭ সম্পূর্ণ সক্রিয় রয়েছে।
                 </p>
-                <div style="margin: 1.25rem 0 0.5rem; padding: 0.65rem 1rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.85rem; font-size: 0.82rem; color: #92400e; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
-                  <span>🎁</span>
-                  <span>ফ্রি স্পেশাল অ্যাক্সেস: <b>৩০ নভেম্বর ২০২৬ পর্যন্ত</b> সম্পূর্ণ ফ্রি</span>
-                </div>
+                
                 <div style="margin-top: 1.5rem;">
                   <a href="/dashboard" style="background: linear-gradient(135deg, #d97706, #b45309); color: white; padding: 0.8rem 1.75rem; border-radius: 0.85rem; text-decoration: none; font-weight: 800; font-size: 0.92rem; display: inline-block; box-shadow: 0 4px 12px -2px rgba(217, 119, 6, 0.35);">মাস্টার ড্যাশবোর্ডে প্রবেশ করুন ➔</a>
                 </div>
