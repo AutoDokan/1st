@@ -138,9 +138,25 @@ function isIdentityOrPersonalQuery(text) {
   return /নাম কি|nam ki|married|বিয়ে|meye naki chele|ছেলে না মেয়ে|রোবট|robot|ai naki|মানুষ naki|kotha theke|apni ke|tmr kono nam/i.test(t);
 }
 
+function isPureQuestion(text) {
+  const t = (text || '').toLowerCase();
+  // If explicitly asking for photo, it's not a pure question
+  if (/ছবি\s*(দেন|দেখান|পাঠান|দেখব|চাই|আসে|আসবে)|pic\s*(den|dekhan|pathan|chai)|photo\s*(den|dekhan|chai)|পিক\s*(দেন|দেখান|পাঠান|চাই)|ইমেজ|image/i.test(t)) {
+    return false;
+  }
+  return /দাম কত|প্রাইজ কত|price koto|dam koto|মূল্য কত|সাইজ কি|size ki|কি কি সাইজ|কি সাইজ|ঝুল কত|ফেব্রিক কি|কাপড় কি|কাপড় কি|fabric ki|ডেলিভারি চার্জ|delivery charge|ক্যাশ অন|cash on|অর্ডার করতে চাই|order korte chai|বিকাশ|bkash|নগদ|nogod|পেমেন্ট|payment|চেক করে|ডেলিভারি ম্যানের সামনে|রিটার্ন|ফেরত/i.test(t);
+}
+
+function isAskingForCatalogOverview(text) {
+  const t = (text || '').toLowerCase();
+  if (isPureQuestion(text)) return false;
+  return /কি কি\s*(বোরকা|ডিজাইন|মডেল|কালেকশন)|সব\s*(বোরকা|ডিজাইন|মডেল|কালেকশন)|ক্যাটালগ|catalog|কালেকশনগুলো|বোরকাগুলো|ডিজাইনগুলো|ki ki ache|ki ki design|sob design|sob gulo|সবগুলো|সবগুলা|সব গুলো|মডেলগুলো\s*দেখান/i.test(t);
+}
+
 function isAskingForImage(text) {
   const t = (text || '').toLowerCase();
-  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|dekhao|dekhaw|dekhi|দেখান|দেখাও|দেখব|দেখি|দেখতে|কালেকশন/i.test(t);
+  if (isPureQuestion(text)) return false;
+  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|দেখান|দেখাও|দেখব|দেখি|দেখতে\s*চাই/i.test(t);
 }
 
 function isAskingForHijab(text) {
@@ -371,6 +387,35 @@ function generateSmartFallback(userText, isFirstMessage) {
 ৩. সি-গ্রিন কালার: DF-103 ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
 সবগুলোর চমৎকার ছবি নিচে পাঠিয়ে দেওয়া হলো [SEND_IMAGE:DF-103] [SEND_IMAGE:DF-105] [SEND_IMAGE:DF-106]`;
     }
+  }
+
+  // 4b. Asking for catalog overview / all models
+  if (isAskingForCatalogOverview(t)) {
+    return `${greeting}আমাদের বর্তমান জনপ্রিয় সেরা ৫টি বোরকার ফ্রন্ট লুক উপরে পাঠিয়ে দেওয়া হলো। প্রতিটি ছবির নিচে মডেল কোড ও মূল্য উল্লেখ রয়েছে।
+
+✨ আপনার যে মডেলটি পছন্দ হয়, সেটির *মডেল কোড* (যেমন: *DF-101* বা *১ নম্বর*) লিখে জানালে আমরা সেটির সম্পূর্ণ ৫টি ভিউ (কাজের ক্লোজ-আপ, হিজাব, ঘের ও রিয়েল লুক) ও সকল বিস্তারিত জানিয়ে দেব। 🌸 [SEND_CATALOG_OVERVIEW]`;
+  }
+
+  // 4c. Pure Pricing, Size, Fabric questions (Zero-Image text responses)
+  if (/দাম কত|প্রাইজ কত|price koto|dam koto|মূল্য কত/i.test(t)) {
+    const code = detectModelFromText(t);
+    if (code) {
+      const prod = getProductByCode(code);
+      if (prod) {
+        return `${greeting}${prod.name} (${code}) এর ফিক্সড মূল্য *৳${prod.price}* টাকা। সাথে আকর্ষণীয় ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি পাচ্ছেন! ${code} এর ছবি দেখতে চাইলে লিখে জানান।`;
+      }
+    }
+  }
+
+  if (/সাইজ কি|size ki|কি কি সাইজ|কি সাইজ|ঝুল কত/i.test(t)) {
+    return `${greeting}আমাদের বোরকাগুলোর ঝুল এভেইলেবল রয়েছে: ৫০, ৫২, ৫৪ এবং ৫৬ ইঞ্চি। বডি সাইজ ফ্রি (৩৮ থেকে ৪৬ পর্যন্ত সহজেই এডজাস্টেবল)। আপনার উচ্চতা কত তা জানালে সঠিক ঝুল সাইজ বলে দিতে পারব।`;
+  }
+
+  if (/ফেব্রিক কি|কাপড় কি|কাপড় কি|fabric ki/i.test(t)) {
+    const code = detectModelFromText(t);
+    const prod = code ? getProductByCode(code) : null;
+    const fabricName = prod ? prod.fabric : '১০০% অরিজিনাল প্রিমিয়াম দুবাই চেরি ও কোরিয়ান চেরি কাপড়';
+    return `${greeting}আমাদের এই বোরকাটি অত্যন্ত সফট ও আরামদায়ক ${fabricName} দিয়ে নিখুঁত সেলাইয়ে তৈরি। কাপড় সম্পূর্ণ নন-ট্রান্সপারেন্ট এবং আরামদায়ক প্রিমিয়াম ফলের।`;
   }
 
   // 5. Asking for all pictures or multiple photos
@@ -677,42 +722,33 @@ async function handleIncomingMessage(senderId, userText) {
     aiReply = 'আমাদের প্রতিটি বোরকা ও আবায়া প্রিমিয়াম দুবাই ও কোরিয়ান চেরি ফেব্রিক দিয়ে নিখুঁত কারচুপি ও ফিনিশিংয়ে তৈরি, সাথে আকর্ষণীয় ম্যাচিং হিজাব সম্পূর্ণ ফ্রি পাচ্ছেন! তাই কোয়ালিটি বিবেচনায় প্রাইজটি একদম রিজনেবল ও ফিক্সড রাখা হয়েছে।';
   }
 
-  // 3. Deterministic Photo Guarantee Shield:
-  // If customer is asking to see a model, asking for pics, colors, or confused, ensure image tags are attached!
-  const hasImageTag = /\[\s*SEND_(IMAGE|ALL_IMAGES|HIJAB_IMAGE|DETAIL_IMAGE|FLARE_IMAGE|REAL_IMAGE)\s*:\s*[A-Za-z0-9_-]+\s*\]/i.test(aiReply);
-  if (!hasImageTag) {
-    const detectedModel = detectModelFromText(userText) || detectModelFromText(aiReply);
-    const color = detectColorPreference(userText);
-    const isConfused = isCustomerConfusedOrUndecided(userText);
-    const wantsImage = isAskingForImage(userText) || /দেখাচ্ছি|পাঠিয়ে দিচ্ছি|ছবি নিচে|পিকচার|দেখুন|ছবি|pic/i.test(aiReply);
-    
-    if (detectedModel && (wantsImage || isAskingForImage(userText))) {
-      if (isAskingForHijab(userText)) {
-        aiReply += ` [SEND_HIJAB_IMAGE:${detectedModel}]`;
-      } else if (isAskingForDetail(userText)) {
-        aiReply += ` [SEND_DETAIL_IMAGE:${detectedModel}]`;
-      } else if (isAskingForFlare(userText)) {
-        aiReply += ` [SEND_FLARE_IMAGE:${detectedModel}]`;
-      } else if (isAskingForReal(userText)) {
-        aiReply += ` [SEND_REAL_IMAGE:${detectedModel}]`;
-      } else {
-        // ALWAYS default to sending ALL 5 IMAGES for full visual delight!
-        aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
+  // 3. Smart Image Dispatch & Zero-Image Purity Shield:
+  if (isPureQuestion(userText)) {
+    // Pure Q&A (pricing, size, fabric, delivery, etc.) -> Strictly strip ANY image tags!
+    aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
+  } else if (isAskingForCatalogOverview(userText)) {
+    // Customer wants catalog / all designs -> Send 1 front image per model!
+    aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
+    aiReply += ' [SEND_CATALOG_OVERVIEW]';
+  } else {
+    // If specific model is requested with image intent
+    const hasImageTag = /\[\s*SEND_[A-Z_]+[^\]]*\]/i.test(aiReply);
+    if (!hasImageTag) {
+      const detectedModel = detectModelFromText(userText) || detectModelFromText(aiReply);
+      const wantsImage = isAskingForImage(userText);
+      if (detectedModel && wantsImage) {
+        if (isAskingForHijab(userText)) {
+          aiReply += ` [SEND_HIJAB_IMAGE:${detectedModel}]`;
+        } else if (isAskingForDetail(userText)) {
+          aiReply += ` [SEND_DETAIL_IMAGE:${detectedModel}]`;
+        } else if (isAskingForFlare(userText)) {
+          aiReply += ` [SEND_FLARE_IMAGE:${detectedModel}]`;
+        } else if (isAskingForReal(userText)) {
+          aiReply += ` [SEND_REAL_IMAGE:${detectedModel}]`;
+        } else {
+          aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
+        }
       }
-    } else if (color === 'coffee') {
-      aiReply += ' [SEND_ALL_IMAGES:DF-103] [SEND_ALL_IMAGES:DF-106]';
-    } else if (color === 'black') {
-      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_ALL_IMAGES:DF-102]';
-    } else if (color === 'maroon' || color === 'blue') {
-      aiReply += ' [SEND_ALL_IMAGES:DF-105]';
-    } else if (color === 'green') {
-      aiReply += ' [SEND_ALL_IMAGES:DF-103]';
-    } else if (color === 'any_other_color') {
-      aiReply += ' [SEND_ALL_IMAGES:DF-103] [SEND_ALL_IMAGES:DF-105] [SEND_ALL_IMAGES:DF-106]';
-    } else if (isConfused) {
-      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_ALL_IMAGES:DF-103]';
-    } else if (wantsImage && !detectedModel) {
-      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_ALL_IMAGES:DF-102]';
     }
   }
 
