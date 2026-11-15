@@ -12,8 +12,8 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
@@ -314,6 +314,43 @@ app.post('/api/orders/:id/update-payment', requireAuth, async (req, res) => {
     return res.json({ success: true, id });
   }
   res.redirect('/dashboard');
+});
+
+
+// Direct Photo Upload API (Base64 -> Supabase Storage 'product-images')
+app.post('/api/upload-image', requireAuth, async (req, res) => {
+  try {
+    const { imageBase64, filename, contentType } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ success: false, error: 'No image data provided' });
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+
+    const ext = filename ? path.extname(filename) : '.jpg';
+    const cleanExt = ext && ext.length <= 5 ? ext : '.jpg';
+    const cloudFilename = `product_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${cleanExt}`;
+
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(cloudFilename, buffer, {
+        contentType: contentType || 'image/jpeg',
+        upsert: true
+      });
+
+    if (error) {
+      console.error('[Supabase Storage Upload Error]:', error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/product-images/${cloudFilename}`;
+    console.log(`[Image Uploaded to Supabase] Stored at: ${publicUrl}`);
+    res.json({ success: true, url: publicUrl });
+  } catch (err) {
+    console.error('[Upload Exception]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Add New Product API
@@ -704,8 +741,17 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             <input type="number" name="price" value="${p.price}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-bold">
           </div>
           <div class="sm:col-span-3">
-            <label class="block font-bold text-stone-700 mb-0.5">ছবি লিংক (Image URL)</label>
-            <input type="url" name="image_url" value="${p.image_url || ''}" placeholder="যেমন: https://... বা /images/products/df-101.jpg" class="w-full bg-white border border-stone-300 p-2 rounded-lg font-mono text-xs">
+            <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ছবি পরিবর্তন / আপলোড</label>
+            <div class="flex items-center gap-2.5">
+              ${p.image_url ? `<img id="preview-prod-${p.id}" src="${p.image_url}" class="w-12 h-14 object-cover rounded-lg border border-amber-300 shadow-2xs">` : `<img id="preview-prod-${p.id}" class="hidden w-12 h-14 object-cover rounded-lg border border-amber-300 shadow-2xs">`}
+              <div>
+                <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs transition">
+                  <span>📸 ছবি আপলোড</span>
+                  <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_${p.id}', 'preview-prod-${p.id}')">
+                </label>
+                <input type="text" id="edit_img_${p.id}" name="image_url" value="${p.image_url || ''}" placeholder="অথবা ছবির URL দিন" class="mt-1 w-full bg-white border border-stone-300 p-1.5 rounded-lg font-mono text-[11px]">
+              </div>
+            </div>
           </div>
           <div class="sm:col-span-3 flex justify-between items-center pt-1">
             <button type="button" onclick="toggleProductEdit(${p.id})" class="text-stone-500 font-bold hover:underline">বাতিল</button>
@@ -1032,8 +1078,15 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                     </div>
                   </div>
                   <div>
-                    <label class="block font-bold text-stone-700 mb-1">ছবি লিংক (Image URL)</label>
-                    <input type="url" name="image_url" placeholder="যেমন: https://... বা ফাঁকা রাখুন" class="w-full bg-white border border-stone-300 p-2 rounded-lg font-mono text-xs">
+                    <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ছবি (মোবাইল ক্যামেরা বা গ্যালারি থেকে)</label>
+                    <div class="flex items-center gap-2">
+                      <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs transition">
+                        <span>📸 ছবি আপলোড করুন</span>
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_prod_img_url', 'add_prod_img_preview')">
+                      </label>
+                      <img id="add_prod_img_preview" class="hidden w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs" alt="Preview">
+                    </div>
+                    <input type="text" id="add_prod_img_url" name="image_url" placeholder="অথবা ছবির URL দিন (যেমন: https://...)" class="mt-1.5 w-full bg-white border border-stone-300 p-2 rounded-lg font-mono text-xs">
                   </div>
                   <div class="flex items-center justify-between pt-1">
                     <label class="flex items-center gap-1.5 font-bold text-stone-700 cursor-pointer">
@@ -1081,6 +1134,57 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </div>
 
       <script>
+        
+        // Image Upload Helper (Direct Mobile/PC upload to Supabase Storage)
+        async function handleImageUpload(inputElem, targetInputId, previewImgId) {
+          const file = inputElem.files[0];
+          if (!file) return;
+
+          const btn = inputElem.parentElement;
+          const originalHtml = btn.innerHTML;
+          btn.innerHTML = '<span>⏳ আপলোড হচ্ছে...</span>';
+          btn.style.pointerEvents = 'none';
+
+          try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              const dataUrl = e.target.result;
+              const res = await fetch('/api/upload-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  imageBase64: dataUrl,
+                  filename: file.name,
+                  contentType: file.type
+                })
+              });
+              const data = await res.json();
+              if (data.success && data.url) {
+                document.getElementById(targetInputId).value = data.url;
+                const preview = document.getElementById(previewImgId);
+                if (preview) {
+                  preview.src = data.url;
+                  preview.classList.remove('hidden');
+                }
+                btn.innerHTML = '<span>✅ আপলোড সম্পন্ন!</span>';
+                setTimeout(() => {
+                  btn.innerHTML = originalHtml;
+                  btn.style.pointerEvents = 'auto';
+                }, 2000);
+              } else {
+                alert('আপলোড ব্যর্থ হয়েছে: ' + (data.error || 'Server error'));
+                btn.innerHTML = originalHtml;
+                btn.style.pointerEvents = 'auto';
+              }
+            };
+            reader.readAsDataURL(file);
+          } catch (err) {
+            alert('আপলোড এরর: ' + err.message);
+            btn.innerHTML = originalHtml;
+            btn.style.pointerEvents = 'auto';
+          }
+        }
+
         // Drawer Management
         function openDrawer(id) {
           const drawer = document.getElementById(id);

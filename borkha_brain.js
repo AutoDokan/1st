@@ -78,10 +78,23 @@ async function refreshProductsFromDB() {
 refreshProductsFromDB();
 setInterval(refreshProductsFromDB, 120000);
 
+// Set of contact phone numbers that have already received Salam today
+const greetedContacts = new Set();
+
 // Conversation memory per user (sliding window)
 const conversationMemory = new Map();
 
-function buildSystemPrompt() {
+function buildSystemPrompt(isFirstMessage) {
+  const salamRule = isFirstMessage
+    ? `2. SALAM RULE (FIRST MESSAGE ONLY):
+   - This is the very FIRST message from this customer. Start warmly with: "আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম।"
+   - You will NEVER say Salam again to this customer after this first message.`
+    : `2. STRICT ZERO SALAM RULE (DO NOT GREET WITH SALAM):
+   - You have ALREADY greeted this customer earlier.
+   - ABSOLUTELY NEVER say "আসসালামু আলাইকুম" or "ওয়া আলাইকুম আসসালাম" or "সালাম" under ANY circumstances!
+   - Even if the customer says Salam, DO NOT repeat Salam back. Just say "জি", "অবশ্যই", or directly answer their question!
+   - Start immediately with the direct answer.`;
+
   return `
 You are the official smart sales assistant for "Dawah Fashion" (দাওয়াহ ফ্যাশন) - an exclusive modest clothing & premium Abaya brand in Bangladesh ("Dress with Purpose").
 
@@ -91,11 +104,9 @@ CRITICAL COMMUNICATION RULES (MUST FOLLOW STRICTLY):
    - সব সময় প্রমিত, মার্জিত ও সম্মানসূচক "আপনি", "আপনার", "জি", "অবশ্যই" ব্যবহার করবে।
    - কাস্টমার পুরুষ হোক বা নারী, সবার সাথে অত্যন্ত আন্তরিক ও মার্জিত ইসলামিক শালীনতা বজায় রেখে কথা বলবে।
    - কাস্টমার যদি বলে সে পুরুষ ("আমি পুরুষ কাস্টমার", "আমি ছেলে", "ওয়াইফের জন্য নিব", "মায়ের জন্য দেখব"):
-     খুব হাসিমুখে ও সম্মান দিয়ে বলবে: "আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। অবশ্যই, আপনি আপনার ওয়াইফ, মা বা বোনের জন্য সেরা পছন্দের মডেলটি বেছে নিতে পারেন। তাঁদের পছন্দ বা উচ্চতা জানালে আমরা পারফেক্ট সাইজ ও কালার বেছে নিতে সাহায্য করছি।"
+     খুব হাসিমুখে ও সম্মান দিয়ে বলবে: "অবশ্যই, আপনি আপনার ওয়াইফ, মা বা বোনের জন্য সেরা পছন্দের মডেলটি বেছে নিতে পারেন। তাঁদের পছন্দ বা উচ্চতা জানালে আমরা পারফেক্ট সাইজ ও কালার বেছে নিতে সাহায্য করছি।"
 
-2. SALAM & GREETINGS:
-   - কথোপকথনের শুরুতে সরাসরি সম্মানসূচক সালাম দিয়ে শুরু করবে: "আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম।"
-   - তবে একই চলমান কথোপকথনে প্রতি মেসেজে বারবার সালাম দেওয়ার দরকার নেই। কাস্টমারের প্রশ্নের সরাসরি টু দ্য পয়েন্ট উত্তর দিবে।
+${salamRule}
 
 3. CONCISE & NATURAL REPLIES (টু দ্য পয়েন্ট ও সংক্ষিপ্ত উত্তর):
    - অপ্রয়োজনীয় লম্বা রচনা লিখবে না। কাস্টমার যতটুকু জানতে চেয়েছে ততটুকুর সুন্দর, প্রাসঙ্গিক ও সংক্ষিপ্ত উত্তর দিবে (১ থেকে ৩ লাইনের মধ্যে)।
@@ -159,20 +170,23 @@ ESSENTIAL SHOP GUIDELINES:
      ৫. ডেলিভারি চার্জ প্রদানের পর বিকাশ/নগদের লাস্ট ৪ ডিজিট বা ট্রানজেকশন আইডি (TrxID)
    - সব তথ্য পেলে সুন্দর করে অর্ডারের সামারি (মডেল, মোট দাম, অগ্রিম পেইড, বাকি COD কালেকশন) জানিয়ে কনফার্ম করবে।
 
-6. Product Photos & Pictures (ছবি পাঠানোর নিয়ম):
-   - কাস্টমার যদি কোনো আবায়া/বোরকার ছবি দেখতে চায় (যেমন: "ছবি দেখতে চাই", "পিক দেন", "DF-101 এর ছবি দেন", "রানি আবায়ার ছবি দেন", "ছবি দেখান"):
-   - বলবে যে রিয়েল ছবি পাঠিয়ে দিচ্ছি এবং উত্তরের শেষে অবশ্যই ওই প্রোডাক্টের ছবি ট্যাগটি যোগ করবে: [SEND_IMAGE:DF-XXX] (যেমন: [SEND_IMAGE:DF-101])।
-   - কাস্টমার স্পেসিফিক কোড না বলে সাধারণভাবে ছবি চাইলে জনপ্রিয় মডেলের ট্যাগ দিবে: [SEND_IMAGE:DF-101] [SEND_IMAGE:DF-102]।
-   - এই [SEND_IMAGE:...] ট্যাগটির মাধ্যমেই ব্যাকএন্ড স্বয়ংক্রিয়ভাবে কাস্টমারের হোয়াটসঅ্যাপে ছবি ডেলিভার করবে।
+6. Product Photos & Customer Picture Queries (ছবি ও পিকচার সংক্রান্ত নিয়ম):
+   - কাস্টমাররা প্রায়শই জিজ্ঞেস করে: "ছবি দেখতে চাই", "পিক দেন", "কি কি ছবি আছে?", "কোন কোন ডিজাইনের ছবি আছে?", "সব ছবি দেন", "DF-101 এর ছবি দেন", "রানি আবায়ার ছবি দেন", "পিক দেখবো"।
+   - যখনই কাস্টমার কোনো নির্দিষ্ট মডেলের ছবি চাইবে:
+     * খুব হাসিমুখে বলবে যে রিয়েল ছবি পাঠিয়ে দিচ্ছি এবং উত্তরের শেষে অবশ্যই ওই প্রোডাক্টের ছবি ট্যাগটি যোগ করবে: [SEND_IMAGE:DF-XXX] (যেমন: [SEND_IMAGE:DF-101])।
+   - যখন কাস্টমার সাধারণভাবে বলবে "কি কি ছবি আছে?" বা "নতুন কালেকশনের ছবি দেখান" বা "সবগুলোর ছবি দেন" বা "পিক দেখবো":
+     * আমাদের কালেকশনের জনপ্রিয় সেরা মডেলগুলোর বিবরণ দিবে এবং ছবি ট্যাগ যোগ করবে: [SEND_IMAGE:DF-101] [SEND_IMAGE:DF-102]।
+     * সাথে বলবে: "আমাদের সেরা ২টি মডেল—৩-পিস কারচুপি কোটি সেট (DF-101) ও দুবাই চেরি রানি আবায়া (DF-102)-এর রিয়েল ছবি পাঠিয়ে দিয়েছি। এছাড়া কোরিয়ান কাফতান (DF-103) ও বাটারফ্লাই আবায়াও (DF-105) রয়েছে। আপনার কোন স্টাইলের ড্রেস বেশি পছন্দ জানালে সেটির ছবিও পাঠিয়ে দিচ্ছি 😊"
+   - এই [SEND_IMAGE:...] ট্যাগটির মাধ্যমেই ব্যাকএন্ড স্বয়ংক্রিয়ভাবে কাস্টমারের হোয়াটসঅ্যাপে ছবি ডেলিভার করবে, তাই ছবি সংক্রান্ত যেকোনো প্রশ্ন আসলেই সঠিক মডেল কোড দিয়ে এই ট্যাগটি নিশ্চিত করবে।
 
 Keep replies concise, polite, natural, and never use "আপু" or "ভাইয়া".
 `;
 }
 
-async function callGroqWithFallback(messages) {
+async function callGroqWithFallback(messages, isFirstMessage = false) {
   if (!groqClient) throw new Error('Groq client not initialized');
 
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(isFirstMessage);
   const chatMessages = [
     { role: 'system', content: systemPrompt },
     ...messages
@@ -312,6 +326,11 @@ JSON Format:
 
 async function handleIncomingMessage(senderId, userText) {
   const cleanPhone = senderId.replace(/[^0-9]/g, '');
+  const isFirstMessageForContact = !greetedContacts.has(cleanPhone);
+
+  if (isFirstMessageForContact) {
+    greetedContacts.add(cleanPhone);
+  }
 
   if (!conversationMemory.has(cleanPhone)) {
     conversationMemory.set(cleanPhone, []);
@@ -323,10 +342,22 @@ async function handleIncomingMessage(senderId, userText) {
   let aiReply = '';
 
   try {
-    aiReply = await callGroqWithFallback(history);
+    aiReply = await callGroqWithFallback(history, isFirstMessageForContact);
   } catch (error) {
     console.error('[AI Error]:', error.message);
-    aiReply = 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। আপনি কোন ডিজাইনটি দেখতে চাচ্ছেন বা কার জন্য দেখছেন জানালে সঠিক সাইজ ও ছবি দেখিয়ে দিচ্ছি।';
+    if (isFirstMessageForContact) {
+      aiReply = 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। আপনি কোন ডিজাইনটি দেখতে চাচ্ছেন জানালে সঠিক সাইজ ও ছবি দেখিয়ে দিচ্ছি।';
+    } else {
+      aiReply = 'জি অবশ্যই! আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সাথে ম্যাচিং হিজাব ফ্রি)। আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন জানালে দেখিয়ে দিচ্ছি।';
+    }
+  }
+
+  // Double-shield: if NOT first message, strip any accidental Salam
+  if (!isFirstMessageForContact) {
+    aiReply = aiReply.replace(/^(আসসালামু\s*আলাইকুম[^\n।!?]*[।!?\n]*|ওয়া\s*আলাইকুম\s*আসসালাম[^\n।!?]*[।!?\n]*|সালাম[^\n।!?]*[।!?\n]*)/gi, '').trim();
+    if (!aiReply) {
+      aiReply = 'জি, বলুন কীভাবে সাহায্য করতে পারি?';
+    }
   }
 
   history.push({ role: 'assistant', content: aiReply });
