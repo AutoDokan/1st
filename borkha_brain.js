@@ -158,7 +158,7 @@ function isAskingForReal(text) {
 
 function isAskingForAllImages(text) {
   const t = (text || '').toLowerCase();
-  return /সব|all|একাধিক|কয়েকটা|আরও|আর কি|ডিটেইল/i.test(t);
+  return /সব|all|একাধিক|কয়েকটা|আরও|আর কি|ডিটেইল|আর ছবি নাই|ar pic nai|আরো ছবি|aro pic|pic dekhan|ছবি দেখান|ছবি দেন|পিক দেন/i.test(t);
 }
 
 function buildSystemPrompt(isFirstMessage) {
@@ -235,12 +235,15 @@ ${salamRule}
    - যেমন: "৪ নাম্বার এর পিক দেন" / "4 number er pic daw" -> কাস্টমার DF-104 চাচ্ছে! সরাসরি বলবে:
      "DF-104 সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার বোরকার ছবি পাঠিয়ে দিচ্ছি [SEND_IMAGE:DF-104]"
 
-7. IMMEDIATE SPECIFIC PHOTO TAG ATTACHMENT:
-   - কাস্টমার যখনই কোনো মডেল বা ছবি দেখতে চাইবে, উত্তরের শেষে অবশ্যই ফটো ট্যাগ লিখবে:
-     * মেইন ছবি: [SEND_IMAGE:DF-XXX]
-     * সব ছবি / একাধিক ছবি: [SEND_ALL_IMAGES:DF-XXX]
-     * হিজাবের ছবি: [SEND_HIJAB_IMAGE:DF-XXX]
-     * কাজের ডিটেইল ছবি: [SEND_DETAIL_IMAGE:DF-XXX]
+7. GOLDEN 5-SHOT PHOTO RULE (সম্পূর্ণ ৫টি প্রফেশনাল ফটো প্রদান):
+   - কাস্টমার যখনই কোনো মডেল বা নির্দিষ্ট ড্রেসের ছবি দেখতে চাইবে (যেমন "১ এর ছবি দেন", "ছবি দেখান", "pic dekhan", "DF-101 এর ছবি দেন", "ছবি দেন", "আর ছবি নাই", "পিক দেখতে চাই"):
+     * অবশ্যই [SEND_ALL_IMAGES:DF-XXX] ট্যাগ দিবে! কারণ কাস্টমারকে একবারে ৫টি প্রফেশনাল ছবি (ফ্রন্ট লুক, কাজের ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের ভিউ, এবং আনফিল্টার্ড রিয়েল ডে-লাইট লুক) পাঠানো আবশ্যক।
+     * শুধুমাত্র কাস্টমার যদি নির্দিষ্ট কোনো একটি পার্ট চেয়ে থাকে:
+       - শুধু হিজাব চাইলে: [SEND_HIJAB_IMAGE:DF-XXX]
+       - শুধু কাজের বা হাতার ক্লোজ-আপ চাইলে: [SEND_DETAIL_IMAGE:DF-XXX]
+       - শুধু ঘের চাইলে: [SEND_FLARE_IMAGE:DF-XXX]
+       - শুধু রিয়েল বা ক্যামেরার ছবি চাইলে: [SEND_REAL_IMAGE:DF-XXX]
+     * অতি জরুরি (CRITICAL FORMAT): ব্র্যাকেটের ভেতরে কোনো অতিরিক্ত স্পেস দেওয়া যাবে না। হুবহু [SEND_ALL_IMAGES:DF-101] লিখবে, কখনোই [ SEND_ALL_IMAGES:DF-101 ] বা কোড টেক্সটে লিখবে না। কাস্টমারের সাথে আলাপে কোনো কোড বা ট্যাগ দৃশ্যমান হবে না।
 
 8. STRICT PRICING & ZERO-ADVANCE COD POLICY (ভুল হিসাব বা জামার টাকা অগ্রিম চাওয়া সম্পূর্ণ নিষিদ্ধ):
    - জামার জন্য ১ টাকাও অগ্রিম নেওয়া হয় না! জামার সম্পূর্ণ দাম পণ্য হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দিতে হয়।
@@ -373,14 +376,14 @@ function generateSmartFallback(userText, isFirstMessage) {
   }
 
   // 8. Asking for general photo / picture of a model
-  if (isAskingForImage(t)) {
+  if (isAskingForImage(t) || /ar pic nai|আর ছবি নাই|pic|ছবি/i.test(t)) {
     const code = detectModelFromText(t);
     if (code) {
       const prod = getProductByCode(code);
       const name = prod ? prod.name : code;
-      return `${greeting}${name} এর সুন্দর রিয়েল ছবি পাঠিয়ে দেওয়া হলো [SEND_IMAGE:${code}]`;
+      return `${greeting}${name} এর ৫টি সুন্দর অ্যাঙ্গেলের প্রফেশনাল ছবি (মেইন ফ্রন্ট লুক, কাজের ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের ও স্বাভাবিক আলোর রিয়েল লুক) নিচে পাঠিয়ে দেওয়া হলো [SEND_ALL_IMAGES:${code}]`;
     }
-    return `${greeting}আমাদের সেরা ২টি মডেল—৩-পিস কারচুপি কোটি সেট ও দুবাই চেরি রানি আবায়ার ছবি পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]`;
+    return `${greeting}আমাদের সেরা মডেল ৩-পিস কারচুপি কোটি সেটের ৫টি সম্পূর্ণ অ্যাঙ্গেলের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:DF-101]`;
   }
 
   // 9. Asking for models or collection
@@ -613,12 +616,12 @@ async function handleIncomingMessage(senderId, userText) {
 
   // 3. Deterministic Photo Guarantee Shield:
   // If customer is asking to see a model, asking for pics, colors, or confused, ensure image tags are attached!
-  const hasImageTag = /\[SEND_(IMAGE|ALL_IMAGES|HIJAB_IMAGE|DETAIL_IMAGE|FLARE_IMAGE|REAL_IMAGE):[A-Za-z0-9_-]+\]/i.test(aiReply);
+  const hasImageTag = /\[\s*SEND_(IMAGE|ALL_IMAGES|HIJAB_IMAGE|DETAIL_IMAGE|FLARE_IMAGE|REAL_IMAGE)\s*:\s*[A-Za-z0-9_-]+\s*\]/i.test(aiReply);
   if (!hasImageTag) {
     const detectedModel = detectModelFromText(userText) || detectModelFromText(aiReply);
     const color = detectColorPreference(userText);
     const isConfused = isCustomerConfusedOrUndecided(userText);
-    const wantsImage = isAskingForImage(userText) || /দেখাচ্ছি|পাঠিয়ে দিচ্ছি|ছবি নিচে|পিকচার|দেখুন|ছবি/i.test(aiReply);
+    const wantsImage = isAskingForImage(userText) || /দেখাচ্ছি|পাঠিয়ে দিচ্ছি|ছবি নিচে|পিকচার|দেখুন|ছবি|pic/i.test(aiReply);
     
     if (detectedModel && (wantsImage || isAskingForImage(userText))) {
       if (isAskingForHijab(userText)) {
@@ -629,25 +632,24 @@ async function handleIncomingMessage(senderId, userText) {
         aiReply += ` [SEND_FLARE_IMAGE:${detectedModel}]`;
       } else if (isAskingForReal(userText)) {
         aiReply += ` [SEND_REAL_IMAGE:${detectedModel}]`;
-      } else if (isAskingForAllImages(userText)) {
-        aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
       } else {
-        aiReply += ` [SEND_IMAGE:${detectedModel}]`;
+        // ALWAYS default to sending ALL 5 IMAGES for full visual delight!
+        aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
       }
     } else if (color === 'coffee') {
-      aiReply += ' [SEND_IMAGE:DF-103] [SEND_IMAGE:DF-106]';
+      aiReply += ' [SEND_ALL_IMAGES:DF-103] [SEND_ALL_IMAGES:DF-106]';
     } else if (color === 'black') {
-      aiReply += ' [SEND_IMAGE:DF-101] [SEND_IMAGE:DF-102]';
+      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_ALL_IMAGES:DF-102]';
     } else if (color === 'maroon' || color === 'blue') {
-      aiReply += ' [SEND_IMAGE:DF-105]';
+      aiReply += ' [SEND_ALL_IMAGES:DF-105]';
     } else if (color === 'green') {
-      aiReply += ' [SEND_IMAGE:DF-103]';
+      aiReply += ' [SEND_ALL_IMAGES:DF-103]';
     } else if (color === 'any_other_color') {
-      aiReply += ' [SEND_IMAGE:DF-103] [SEND_IMAGE:DF-105] [SEND_IMAGE:DF-106]';
+      aiReply += ' [SEND_ALL_IMAGES:DF-103] [SEND_ALL_IMAGES:DF-105] [SEND_ALL_IMAGES:DF-106]';
     } else if (isConfused) {
-      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-103]';
+      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_ALL_IMAGES:DF-103]';
     } else if (wantsImage && !detectedModel) {
-      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]';
+      aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_ALL_IMAGES:DF-102]';
     }
   }
 

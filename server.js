@@ -2179,13 +2179,13 @@ async function processBufferedUserMessages(remoteJid) {
       }
     }
 
-    // 5. Detect and extract all image tags (Main, Detail, Hijab, Flare, Real, All)
-    const allImagesRegex = /\[SEND_ALL_IMAGES:\s*([A-Za-z0-9_-]+)\]/gi;
-    const hijabRegex = /\[SEND_HIJAB_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
-    const detailRegex = /\[SEND_DETAIL_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
-    const flareRegex = /\[SEND_FLARE_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
-    const realRegex = /\[SEND_REAL_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
-    const mainImageRegex = /\[SEND_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
+    // 5. Detect and extract all image tags (with complete whitespace & format resilience)
+    const allImagesRegex = /\[\s*SEND_ALL_IMAGES\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi;
+    const hijabRegex = /\[\s*SEND_HIJAB_IMAGE\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi;
+    const detailRegex = /\[\s*SEND_DETAIL_IMAGE\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi;
+    const flareRegex = /\[\s*SEND_FLARE_IMAGE\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi;
+    const realRegex = /\[\s*SEND_REAL_IMAGE\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi;
+    const mainImageRegex = /\[\s*SEND_IMAGE\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi;
 
     const allMatches = [...replyText.matchAll(allImagesRegex)];
     const hijabMatches = [...replyText.matchAll(hijabRegex)];
@@ -2194,13 +2194,11 @@ async function processBufferedUserMessages(remoteJid) {
     const realMatches = [...replyText.matchAll(realRegex)];
     const mainMatches = [...replyText.matchAll(mainImageRegex)];
 
+    // Aggressively clean ALL send tags and leaked code from reply text so customer NEVER sees raw tags
     const cleanReplyText = replyText
-      .replace(allImagesRegex, '')
-      .replace(hijabRegex, '')
-      .replace(detailRegex, '')
-      .replace(flareRegex, '')
-      .replace(realRegex, '')
-      .replace(mainImageRegex, '')
+      .replace(/\[\s*SEND_[A-Z_]+\s*:\s*[^\]]+\s*\]/gi, '')
+      .replace(/\[\s*SEND_[A-Z_]+\s*\]/gi, '')
+      .replace(/\s{2,}/g, ' ')
       .trim();
 
     // 6. Realistic human typing duration
@@ -2225,27 +2223,33 @@ async function processBufferedUserMessages(remoteJid) {
       return p;
     }
 
+    // Helper to send all 5 photos of a product
+    async function sendAllFivePhotos(p) {
+      if (!p) return;
+      if (p.image_url) {
+        await sendWaPhoto(p.image_url, `👗 *${p.name} (১/৫: মেইন ফ্রন্ট লুক)*\n💰 মূল্য: *৳${p.price}* টাকা (ম্যাচিং হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
+      }
+      if (p.detail_image_url) {
+        await sendWaPhoto(p.detail_image_url, `🔍 *${p.name} (২/৫: নিখুঁত কারচুপি কাজ ও কাপড় ক্লোজ-আপ)*`);
+      }
+      if (p.hijab_image_url) {
+        await sendWaPhoto(p.hijab_image_url, `🧕 *${p.name} (৩/৫: ম্যাচিং প্রিমিয়াম হিজাব)*\n✨ ড্রেসের সাথে ম্যাচিং হিজাব সম্পূর্ণ ফ্রি পাচ্ছেন!`);
+      }
+      if (p.flare_image_url) {
+        await sendWaPhoto(p.flare_image_url, `✨ *${p.name} (৪/৫: ঘের ও সাইড অ্যাঙ্গেল ফল)*`);
+      }
+      if (p.real_image_url) {
+        await sendWaPhoto(p.real_image_url, `📸 *${p.name} (৫/৫: স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল লুক)*`);
+      }
+    }
+
     // 8. Dispatch images
     // Handle ALL IMAGES requested (5 Complete Golden Photos: Main + Detail + Hijab + Flare + Real)
     for (const match of allMatches) {
       const code = match[1].toUpperCase().trim();
       const p = findProd(code);
       if (p) {
-        if (p.image_url) {
-          await sendWaPhoto(p.image_url, `👗 *${p.name} (১. মেইন ফ্রন্ট ভিউ)*\n🏷️ মডেল কোড: *${p.model_code}*\n💰 মূল্য: *৳${p.price}* টাকা (ম্যাচিং হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
-        }
-        if (p.detail_image_url) {
-          await sendWaPhoto(p.detail_image_url, `🔍 *${p.name} (২. নিখুঁত কারচুপি কাজ ও কাপড় ক্লোজ-আপ)*\n🏷️ মডেল: *${p.model_code}*`);
-        }
-        if (p.hijab_image_url) {
-          await sendWaPhoto(p.hijab_image_url, `🧕 *${p.name} (৩. ম্যাচিং প্রিমিয়াম হিজাব)*\n🏷️ মডেল: *${p.model_code}* (ড্রেসের সাথে একদম ফ্রি)`);
-        }
-        if (p.flare_image_url) {
-          await sendWaPhoto(p.flare_image_url, `✨ *${p.name} (৪. ঘের ও সাইড অ্যাঙ্গেল ভিউ)*\n🏷️ মডেল: *${p.model_code}*`);
-        }
-        if (p.real_image_url) {
-          await sendWaPhoto(p.real_image_url, `📸 *${p.name} (৫. আনফিল্টার্ড রিয়েল লুক)*\n🏷️ মডেল: *${p.model_code}*`);
-        }
+        await sendAllFivePhotos(p);
       }
     }
 
@@ -2256,7 +2260,7 @@ async function processBufferedUserMessages(remoteJid) {
       if (p) {
         const url = p.hijab_image_url || p.image_url;
         if (url) {
-          await sendWaPhoto(url, `🧕 *${p.name} - ম্যাচিং প্রিমিয়াম হিজাব*\n🏷️ মডেল: *${p.model_code}* (ড্রেসের সাথে ফ্রি)`);
+          await sendWaPhoto(url, `🧕 *${p.name} - ম্যাচিং প্রিমিয়াম হিজাব*\n✨ ড্রেসের সাথে ম্যাচিং হিজাব সম্পূর্ণ ফ্রি পাচ্ছেন!`);
         }
       }
     }
@@ -2268,7 +2272,7 @@ async function processBufferedUserMessages(remoteJid) {
       if (p) {
         const url = p.detail_image_url || p.image_url;
         if (url) {
-          await sendWaPhoto(url, `🔍 *${p.name} - নিখুঁত কারচুপি ও কাপড়ের ডিটেইল ভিউ*\n🏷️ মডেল: *${p.model_code}*`);
+          await sendWaPhoto(url, `🔍 *${p.name} - নিখুঁত কারচুপি ও কাপড়ের ক্লোজ-আপ ভিউ*`);
         }
       }
     }
@@ -2280,7 +2284,7 @@ async function processBufferedUserMessages(remoteJid) {
       if (p) {
         const url = p.flare_image_url || p.image_url;
         if (url) {
-          await sendWaPhoto(url, `✨ *${p.name} - ঘের ও সাইড অ্যাঙ্গেল ভিউ*\n🏷️ মডেল: *${p.model_code}*`);
+          await sendWaPhoto(url, `✨ *${p.name} - ঘের ও সাইড অ্যাঙ্গেল ভিউ*`);
         }
       }
     }
@@ -2292,18 +2296,22 @@ async function processBufferedUserMessages(remoteJid) {
       if (p) {
         const url = p.real_image_url || p.image_url;
         if (url) {
-          await sendWaPhoto(url, `📸 *${p.name} - স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল ছবি*\n🏷️ মডেল: *${p.model_code}*`);
+          await sendWaPhoto(url, `📸 *${p.name} - স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল ছবি*`);
         }
       }
     }
 
-    // Handle Single Main Image (if not already handled in allMatches)
+    // Handle Main Image: if single product requested, promote to ALL 5 PHOTOS!
     for (const match of mainMatches) {
       const code = match[1].toUpperCase().trim();
       if (allMatches.some(m => m[1].toUpperCase().trim() === code)) continue;
       const p = findProd(code);
-      if (p && p.image_url) {
-        await sendWaPhoto(p.image_url, `👗 *${p.name}*\n🏷️ মডেল কোড: *${p.model_code}*\n💰 মূল্য: *৳${p.price}* টাকা (হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
+      if (p) {
+        if (mainMatches.length === 1 && (p.detail_image_url || p.hijab_image_url || p.flare_image_url || p.real_image_url)) {
+          await sendAllFivePhotos(p);
+        } else if (p.image_url) {
+          await sendWaPhoto(p.image_url, `👗 *${p.name}*\n💰 মূল্য: *৳${p.price}* টাকা (হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
+        }
       }
     }
   } catch (err) {
