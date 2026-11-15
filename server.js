@@ -171,6 +171,34 @@ app.post('/api/settings/update', async (req, res) => {
   res.redirect('/dashboard');
 });
 
+
+// Disconnect / Change WhatsApp Account API
+app.post('/api/whatsapp/disconnect', async (req, res) => {
+  try {
+    console.log('[WhatsApp] Disconnect requested by merchant. Cleaning session...');
+    if (sock) {
+      try { await sock.logout(); } catch (e) {
+        try { sock.end(); } catch (err) {}
+      }
+      sock = null;
+    }
+    // Delete Supabase session rows
+    await supabase.from('whatsapp_sessions').delete().eq('session_id', 'autodokan_seller_1');
+    connectionStatus = 'disconnected';
+    connectedNumber = null;
+    currentQR = null;
+
+    setTimeout(() => {
+      connectToWhatsApp();
+    }, 1500);
+
+    res.json({ success: true, message: 'Disconnected. Preparing fresh QR code...' });
+  } catch (err) {
+    console.error('[WhatsApp Disconnect Error]:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update Specific Order Payment & Delivery Details API (supports AJAX & Form)
 app.post('/api/orders/:id/update-payment', async (req, res) => {
   const { id } = req.params;
@@ -827,6 +855,19 @@ app.get('/dashboard', async (req, res) => {
                 </button>
               </div>
             </form>
+
+            <!-- WhatsApp Number Management -->
+            <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-stone-800">📱 সংযুক্ত WhatsApp</span>
+                <span class="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">সক্রিয়</span>
+              </div>
+              <div class="font-mono text-xs font-black text-stone-900">+${connectedNumber || '8801778181418'}</div>
+              <p class="text-[10px] text-stone-500">অন্য কোনো হোয়াটসঅ্যাপ নাম্বার পরিবর্তন বা কানেক্ট করতে চান?</p>
+              <button type="button" onclick="disconnectWhatsAppLive()" class="w-full text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-xs font-bold py-2 rounded-lg transition cursor-pointer">
+                🔄 নাম্বার পরিবর্তন / ডিসকানেক্ট করুন
+              </button>
+            </div>
           </div>
 
           <div class="text-[11px] text-stone-400 text-center pt-6 border-t border-stone-100">
@@ -1070,6 +1111,17 @@ app.get('/dashboard', async (req, res) => {
 
         // Filtering
         let currentFilter = 'ALL';
+        async function disconnectWhatsAppLive() {
+          if (!confirm('আপনি কি নিশ্চিত বর্তমান WhatsApp নাম্বারটি পরিবর্তন বা ডিসকানেক্ট করতে চান? এর ফলে নতুন QR কোড স্ক্যান করতে হবে।')) return;
+          try {
+            showToast('সেশন রিসেট হচ্ছে... QR পেজে নেওয়া হচ্ছে');
+            await fetch('/api/whatsapp/disconnect', { method: 'POST' });
+            setTimeout(() => { window.location.href = '/qr'; }, 1500);
+          } catch (e) {
+            alert('এরর: ' + e.message);
+          }
+        }
+
         function setFilter(status) {
           currentFilter = status;
           document.querySelectorAll('.filter-tab').forEach(b => {
@@ -1211,7 +1263,12 @@ app.get('/qr', (req, res) => {
                   <span>ফ্রি স্পেশাল অ্যাক্সেস: <b>৩০ নভেম্বর ২০২৬ পর্যন্ত</b> সম্পূর্ণ ফ্রি</span>
                 </div>
                 <div style="margin-top: 1.5rem;">
-                  <a href="/dashboard" style="background: #d97706; color: white; padding: 0.75rem 1.5rem; border-radius: 0.75rem; text-decoration: none; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.2);">মাস্টার ড্যাশবোর্ডে প্রবেশ করুন ➔</a>
+                  <a href="/dashboard" style="background: linear-gradient(135deg, #d97706, #b45309); color: white; padding: 0.8rem 1.75rem; border-radius: 0.85rem; text-decoration: none; font-weight: 800; font-size: 0.92rem; display: inline-block; box-shadow: 0 4px 12px -2px rgba(217, 119, 6, 0.35);">মাস্টার ড্যাশবোর্ডে প্রবেশ করুন ➔</a>
+                </div>
+                <div style="margin-top: 1.25rem;">
+                  <button type="button" onclick="disconnectWhatsApp()" style="background: none; border: none; color: #dc2626; font-size: 0.84rem; font-weight: 700; cursor: pointer; text-decoration: underline;">
+                    🔄 অন্য কোনো নাম্বার কানেক্ট করতে চান? এখানে চাপুন
+                  </button>
                 </div>
               \`;
               clearInterval(checkTimer);
@@ -1229,6 +1286,17 @@ app.get('/qr', (req, res) => {
             }
           } catch (e) {
             console.error('Status check error:', e);
+          }
+        }
+
+        async function disconnectWhatsApp() {
+          if (!confirm('আপনি কি নিশ্চিত বর্তমান WhatsApp নাম্বারটি ডিসকানেক্ট করে নতুন নাম্বার কানেক্ট করতে চান?')) return;
+          try {
+            document.getElementById('mainCard').innerHTML = '<div style="padding: 2.5rem 1rem; color: #78716c; font-weight: bold; font-size: 0.95rem;">সেশন রিসেট হচ্ছে, নতুন কিউআর কোড আসছে...</div>';
+            await fetch('/api/whatsapp/disconnect', { method: 'POST' });
+            setTimeout(() => window.location.reload(), 2500);
+          } catch (e) {
+            alert('এরর: ' + e.message);
           }
         }
 
