@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const qrcode = require('qrcode');
@@ -5,13 +7,14 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings } = require('./borkha_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts } = require('./borkha_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co';
@@ -315,7 +318,7 @@ app.post('/api/orders/:id/update-payment', requireAuth, async (req, res) => {
 
 // Add New Product API
 app.post('/api/add-product', requireAuth, async (req, res) => {
-  const { model_code, name, fabric, price, sizes, hijab_included } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, image_url } = req.body;
   if (name && price) {
     await supabase.from('products').insert({
       model_code: model_code ? model_code.toUpperCase().trim() : 'DF-' + Math.floor(Math.random() * 899 + 100),
@@ -324,6 +327,7 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
       price: parseFloat(price),
       sizes: sizes || '৫০, ৫২, ৫৪, ৫৬',
       hijab_included: hijab_included !== 'false',
+      image_url: image_url ? image_url.trim() : null,
       in_stock: true
     });
     await refreshProductsFromDB();
@@ -334,7 +338,7 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
 // Update Existing Product API
 app.post('/api/products/:id/update', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { model_code, name, fabric, price, sizes, hijab_included } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, image_url } = req.body;
   if (id && name && price) {
     await supabase.from('products').update({
       model_code: model_code ? model_code.toUpperCase().trim() : undefined,
@@ -342,7 +346,8 @@ app.post('/api/products/:id/update', requireAuth, async (req, res) => {
       fabric: fabric || 'দুবাই চেরি',
       price: parseFloat(price),
       sizes: sizes || '৫০, ৫২, ৫৪, ৫৬',
-      hijab_included: hijab_included === 'true' || hijab_included === true
+      hijab_included: hijab_included === 'true' || hijab_included === true,
+      image_url: image_url !== undefined ? (image_url ? image_url.trim() : null) : undefined
     }).eq('id', id);
     await refreshProductsFromDB();
   }
@@ -395,6 +400,11 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const totalProducts = products ? products.length : 0;
   const inStockProducts = products ? products.filter(p => p.in_stock).length : 0;
   const totalRevenue = (orders || []).filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 2200), 0);
+
+  const productsMap = {};
+  (products || []).forEach(p => {
+    if (p.model_code) productsMap[p.model_code.toUpperCase().trim()] = p;
+  });
 
   // Generate Mobile Order Cards (Optimized for Smartphone Screens)
   const mobileOrderCards = (orders || []).map(o => {
@@ -456,6 +466,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       <!-- Product & SKU -->
       <div class="bg-amber-50/40 p-2.5 rounded-xl border border-amber-200/70 text-xs space-y-1">
         <div class="flex items-center gap-2 flex-wrap">
+          ${(() => {
+            const mp = o.model_code ? productsMap[o.model_code.toUpperCase().trim()] : null;
+            return mp && mp.image_url ? `<img src="${mp.image_url}" class="w-8 h-10 object-cover rounded-md border border-amber-300 shadow-2xs cursor-pointer hover:scale-110 transition" onclick="window.open('${mp.image_url}', '_blank')">` : '';
+          })()}
           <span class="bg-amber-100 text-amber-950 font-mono font-black text-xs px-2 py-0.5 rounded border border-amber-300">${o.model_code || 'DF-101'}</span>
           <span class="font-extrabold text-stone-900">${o.product_details || 'দুবাই চেরি আবায়া'}</span>
         </div>
@@ -557,7 +571,11 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         ${o.address ? `<div class="bg-stone-50/80 p-2 rounded-lg border border-stone-200">${o.address}</div>` : '<span class="text-stone-400 italic">ঠিকানা এখনও পাওয়া যায়নি</span>'}
       </td>
       <td class="p-3.5 text-stone-800 text-xs">
-        <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
+          ${(() => {
+            const mp = o.model_code ? productsMap[o.model_code.toUpperCase().trim()] : null;
+            return mp && mp.image_url ? `<img src="${mp.image_url}" class="w-7 h-9 object-cover rounded border border-amber-300 shadow-2xs cursor-pointer hover:scale-125 transition" onclick="window.open('${mp.image_url}', '_blank')">` : '';
+          })()}
           <span class="bg-amber-100 text-amber-950 font-mono font-extrabold text-[11px] px-2 py-0.5 rounded border border-amber-300">${o.model_code || 'DF-101'}</span>
           <span class="font-extrabold text-stone-900">${o.product_details || '-'}</span>
         </div>
@@ -634,6 +652,15 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
   const productRows = (products || []).map(p => `
     <tr class="border-b border-stone-100 hover:bg-amber-50/20 transition">
+      <td class="p-2.5">
+        ${p.image_url ? `
+          <img src="${p.image_url}" class="w-10 h-12 object-cover rounded-lg border border-amber-200 shadow-2xs hover:scale-125 transition cursor-pointer" onclick="window.open('${p.image_url}', '_blank')" title="ক্লিক করে বড় ছবি দেখুন">
+        ` : `
+          <div class="w-10 h-12 bg-stone-100 border border-dashed border-stone-300 rounded-lg flex items-center justify-center text-[10px] text-stone-400">
+            ছবি নাই
+          </div>
+        `}
+      </td>
       <td class="p-3">
         <span class="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-stone-100 text-stone-900 border border-stone-300">
           ${p.model_code || 'DF-' + p.id}
@@ -662,7 +689,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </td>
     </tr>
     <tr id="edit-product-${p.id}" class="hidden bg-[#fdfbf7] border-b border-amber-200">
-      <td colspan="6" class="p-4">
+      <td colspan="7" class="p-4">
         <form method="POST" action="/api/products/${p.id}/update" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
           <div>
             <label class="block font-bold text-stone-700 mb-0.5">মডেল কোড</label>
@@ -675,6 +702,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           <div>
             <label class="block font-bold text-stone-700 mb-0.5">মূল্য (টাকা)</label>
             <input type="number" name="price" value="${p.price}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-bold">
+          </div>
+          <div class="sm:col-span-3">
+            <label class="block font-bold text-stone-700 mb-0.5">ছবি লিংক (Image URL)</label>
+            <input type="url" name="image_url" value="${p.image_url || ''}" placeholder="যেমন: https://... বা /images/products/df-101.jpg" class="w-full bg-white border border-stone-300 p-2 rounded-lg font-mono text-xs">
           </div>
           <div class="sm:col-span-3 flex justify-between items-center pt-1">
             <button type="button" onclick="toggleProductEdit(${p.id})" class="text-stone-500 font-bold hover:underline">বাতিল</button>
@@ -1000,6 +1031,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                       <input type="text" name="sizes" value="৫০, ৫২, ৫৪, ৫৬" class="w-full bg-white border border-stone-300 p-2 rounded-lg">
                     </div>
                   </div>
+                  <div>
+                    <label class="block font-bold text-stone-700 mb-1">ছবি লিংক (Image URL)</label>
+                    <input type="url" name="image_url" placeholder="যেমন: https://... বা ফাঁকা রাখুন" class="w-full bg-white border border-stone-300 p-2 rounded-lg font-mono text-xs">
+                  </div>
                   <div class="flex items-center justify-between pt-1">
                     <label class="flex items-center gap-1.5 font-bold text-stone-700 cursor-pointer">
                       <input type="checkbox" name="hijab_included" value="true" checked class="rounded text-amber-600">
@@ -1018,6 +1053,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
               <table class="w-full text-left text-xs">
                 <thead class="bg-[#fbf9f5] text-stone-500 font-extrabold uppercase border-b border-stone-200">
                   <tr>
+                    <th class="p-2.5">ছবি</th>
                     <th class="p-2.5">SKU</th>
                     <th class="p-2.5">নাম</th>
                     <th class="p-2.5">ফেব্রিক</th>
@@ -1425,16 +1461,65 @@ async function processBufferedUserMessages(remoteJid) {
     // 4. Generate AI reply
     const replyText = await handleIncomingMessage(remoteJid, combinedText);
 
-    // 5. Realistic human typing duration
-    const typingDuration = Math.min(Math.max(replyText.length * 35, 2500), 5500);
+    // 5. Detect and extract image tags: [SEND_IMAGE:DF-XXX]
+    const imageTagRegex = /\[SEND_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
+    const imageMatches = [...replyText.matchAll(imageTagRegex)];
+    const cleanReplyText = replyText.replace(imageTagRegex, '').trim();
+
+    // 6. Realistic human typing duration
+    const typingDuration = Math.min(Math.max(cleanReplyText.length * 35, 2000), 5000);
     await new Promise(r => setTimeout(r, typingDuration));
 
-    // 6. Send message
-    if (sock) {
-      await sock.sendMessage(remoteJid, { text: replyText });
+    // 7. Send text reply
+    if (sock && cleanReplyText) {
+      await sock.sendMessage(remoteJid, { text: cleanReplyText });
       await sock.sendPresenceUpdate('available', remoteJid);
       console.log(`[WhatsApp Outbound Done] To: ${remoteJid}`);
       incrementStats('messages_out');
+    }
+
+    // 8. Send product images if requested
+    if (sock && imageMatches.length > 0) {
+      const sentCodes = new Set();
+      for (const match of imageMatches) {
+        const modelCode = match[1].toUpperCase().trim();
+        if (sentCodes.has(modelCode)) continue;
+        sentCodes.add(modelCode);
+
+        let product = (typeof getProductByCode === 'function') ? getProductByCode(modelCode) : null;
+        if (!product) {
+          const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
+          product = allProds.find(p => p.model_code && p.model_code.toUpperCase().trim() === modelCode);
+        }
+
+        if (product && product.image_url) {
+          try {
+            await sock.sendPresenceUpdate('composing', remoteJid);
+            await new Promise(r => setTimeout(r, 1200));
+
+            let imageMessagePayload;
+            const urlPath = product.image_url.replace(/^https?:\/\/[^\/]+/, '');
+            const localFile = path.join(__dirname, 'public', urlPath);
+            if (fs.existsSync(localFile)) {
+              imageMessagePayload = fs.readFileSync(localFile);
+            } else {
+              imageMessagePayload = { url: product.image_url };
+            }
+
+            await sock.sendMessage(remoteJid, {
+              image: imageMessagePayload,
+              caption: `👗 *${product.name}*\n🏷️ মডেল কোড: *${product.model_code}*\n💰 মূল্য: *৳${product.price}* টাকা (হিজাব ফ্রি)\n✨ ফেব্রিক: ${product.fabric || 'দুবাই চেরি'}`
+            });
+            await sock.sendPresenceUpdate('available', remoteJid);
+            console.log(`[WhatsApp Outbound Image Sent] Sent ${product.model_code} photo to ${remoteJid}`);
+            incrementStats('messages_out');
+          } catch (imgErr) {
+            console.error(`[WhatsApp Image Send Error] Failed to send photo for ${modelCode}:`, imgErr.message);
+          }
+        } else {
+          console.log(`[WhatsApp Photo Notice] No image_url found for product ${modelCode}`);
+        }
+      }
     }
   } catch (err) {
     console.error('[WhatsApp Send Error]:', err.message);

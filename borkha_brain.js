@@ -64,8 +64,9 @@ async function refreshProductsFromDB() {
     if (!error && data && data.length > 0) {
       cachedProductList = data;
       cachedProductsText = data.map((p, idx) => 
-        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric}, ঝুল সাইজ: ${p.sizes}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'})`
+        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric}, ঝুল সাইজ: ${p.sizes}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'}${p.image_url ? ', ছবি এভেইলেবল: হ্যাঁ' : ''})`
       ).join('\n');
+      console.log(`[Products Sync] Loaded ${data.length} active products from Supabase`);
     }
   } catch (e) {
     console.warn('[Products Sync] Using cached products:', e.message);
@@ -128,6 +129,13 @@ ESSENTIAL SHOP GUIDELINES:
      d) Burkha model, Size & Color (বোরকার নাম ও সাইজ)
      e) Advance Delivery Charge (বিকাশ/নগদ লাস্ট ৪ ডিজিট বা TrxID)
    - When all details are provided, summarize the order beautifully with: Product Name & Model, Total Price, Advance Paid, and Due COD amount, then warmly confirm that Dawah Fashion will dispatch the parcel soon!
+
+6. Product Photos & Pictures (ছবি ও পিকচার পাঠানোর নিয়ম):
+   - কাস্টমার যদি কোনো আবায়া/বোরকার ছবি দেখতে চায় (যেমন: "ছবি দেখতে চাই", "পিক দেন", "DF-101 এর ছবি দেন", "রানি আবায়ার ছবি দেন", "কালার কেমন দেখি", "ছবি দেখান"):
+   - খুব হাসিমুখে বলবে যে রিয়েল ছবি পাঠিয়ে দিচ্ছি এবং উত্তরের শেষে অবশ্যই ওই প্রোডাক্টের ছবি ট্যাগটি যোগ করবে: [SEND_IMAGE:DF-XXX] (যেমন: [SEND_IMAGE:DF-101])।
+   - স্পেসিফিক কোনো মডেলের নাম বললে (যেমন DF-101 বা রানি আবায়া ইত্যাদি), সেই মডেল কোডের ট্যাগ দিবে।
+   - যদি কাস্টমার স্পেসিফিক কোড না বলে সাধারণভাবে "বোরকার ছবি দেন" বা "নতুন কালেকশন দেখান" বলে, তবে আমাদের জনপ্রিয় মডেলের ছবি ট্যাগ দিবে: [SEND_IMAGE:DF-101] [SEND_IMAGE:DF-102]।
+   - এই [SEND_IMAGE:...] ট্যাগটির মাধ্যমেই ব্যাকএন্ড স্বয়ংক্রিয়ভাবে কাস্টমারের হোয়াটসঅ্যাপে ছবি ডেলিভার করবে, তাই ছবি চাইলেই ট্যাগটি সঠিকভাবে লিখবে।
 
 Keep replies concise, friendly, and natural.
 `;
@@ -303,9 +311,21 @@ async function handleIncomingMessage(senderId, userText) {
   return aiReply;
 }
 
+function getProductByCode(code) {
+  if (!code) return null;
+  const clean = code.toUpperCase().trim();
+  return cachedProductList.find(p => p.model_code && p.model_code.toUpperCase().trim() === clean) || null;
+}
+
+function getAllCachedProducts() {
+  return cachedProductList;
+}
+
 module.exports = { 
   handleIncomingMessage, 
   refreshProductsFromDB, 
   refreshSettingsFromDB, 
-  getStoreSettings: () => storeSettings 
+  getStoreSettings: () => storeSettings,
+  getProductByCode,
+  getAllCachedProducts
 };
