@@ -2239,7 +2239,7 @@ async function processBufferedUserMessages(remoteJid) {
 🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee}, বাইরে ৳${outsideFee}
 ✨ শুধু ডেলিভারি চার্জ অগ্রিম দিয়ে কনফার্ম করতে হয়। বোরকার পুরো দাম ক্যাশ অন ডেলিভারি। পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে-শুনে নিতে পারবেন—পছন্দ হলে মূল্য পরিশোধ করবেন, পছন্দ না হলে পেমেন্ট করতে হবে না!
 
-🛍️ পছন্দ হলে আপনার *সাইজ, নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নাম্বার* দিলে আমরা অর্ডারটি কনফার্ম করে নিব।`;
+🛍️ অর্ডার করতে চাইলে আপনার পছন্দের *সাইজ, নাম, সম্পূর্ণ ঠিকানা (গ্রাম/এলাকা, থানা, জেলা) ও মোবাইল নাম্বার* লিখে জানিয়ে দিন।`;
     }
 
     // Helper to send a product's photos as a unified WhatsApp Album with complete details
@@ -2441,67 +2441,39 @@ async function connectToWhatsApp() {
         unwrappedMsg?.extendedTextMessage?.text ||
         '';
 
-      const imageMsg = unwrappedMsg?.imageMessage;
-      const isImage = !!imageMsg;
-
-      // Handle Customer Payment Screenshots & Receipt Images
-      if (isImage) {
-        console.log(`[WhatsApp Image Received] From: ${remoteJid} | Downloading media...`);
-        try {
-          const imageBuffer = await downloadMediaMessage(
-            { ...msg, message: unwrappedMsg },
-            'buffer',
-            {},
-            { 
-              logger: pino({ level: 'silent' }),
-              reuploadRequest: sock.updateMediaMessage 
-            }
-          );
-
-          if (imageBuffer && imageBuffer.length > 0) {
-            const cleanPhone = remoteJid.replace(/[^0-9]/g, '');
-            const filename = `screenshot_${cleanPhone}_${Date.now()}.jpg`;
-            const screenshotsDir = path.join(__dirname, 'public', 'screenshots');
-            if (!fs.existsSync(screenshotsDir)) {
-              fs.mkdirSync(screenshotsDir, { recursive: true });
-            }
-            const filePath = path.join(screenshotsDir, filename);
-            fs.writeFileSync(filePath, imageBuffer);
-            const screenshotUrl = `/screenshots/${filename}`;
-            console.log(`[Screenshot Saved] Saved to ${filePath} (${imageBuffer.length} bytes)`);
-
-            registerScreenshotReceived(cleanPhone, screenshotUrl, imageMsg.caption || '');
-
-            if (sock) {
-              await sock.sendMessage(remoteJid, {
-                text: 'আলহামদুলিল্লাহ! আপনার পেমেন্ট স্লিপ/স্ক্রিনশটটি আমরা পেয়েছি। 🌸\n\nআমাদের শপ ম্যানেজার এখনই স্ক্রিনশট ও ট্রানজেকশন ভেরিফাই করে আপনার অর্ডারটি কনফার্ম করে দিচ্ছেন। অল্প সময়ের মধ্যে ডেলিভারি ট্র্যাকিং ও আপডেট জানিয়ে দেওয়া হবে। Dawah Fashion-এর সাথে থাকার জন্য ধন্যবাদ! 😊'
-              });
-            }
-
-            await syncScreenshotToOrder(cleanPhone, screenshotUrl);
-            incrementStats('messages_in');
-            incrementStats('messages_out');
-            return;
-          }
-        } catch (imgErr) {
-          console.error('[WhatsApp Image Download Error]:', imgErr.message);
-        }
+      // Check for media captions if main text is empty
+      if (!messageContent.trim()) {
+        messageContent = unwrappedMsg?.imageMessage?.caption ||
+                         unwrappedMsg?.videoMessage?.caption ||
+                         unwrappedMsg?.documentMessage?.caption ||
+                         '';
       }
 
-      // Voice Note Handling: Crisp, natural 1-line guidance with 1-min spam cooldown
-      const audioMsg = unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage || (unwrappedMsg?.documentMessage?.mimetype?.startsWith('audio/') ? unwrappedMsg.documentMessage : null);
-      if (audioMsg) {
-        console.log(`[WhatsApp Voice Note] Audio received from ${remoteJid}`);
+      // Check if incoming is non-text media (photo, voice note, video, sticker, document)
+      const hasMedia = !!(
+        unwrappedMsg?.imageMessage ||
+        unwrappedMsg?.audioMessage ||
+        unwrappedMsg?.pttMessage ||
+        unwrappedMsg?.videoMessage ||
+        unwrappedMsg?.stickerMessage ||
+        unwrappedMsg?.documentMessage
+      );
+
+      // If user sent media without text (or voice note/video), send polite text-only guidance
+      if (hasMedia && !messageContent.trim()) {
+        console.log(`[WhatsApp Non-Text Media] Media received from ${remoteJid}`);
         const now = Date.now();
         const lastSent = lastVoiceReplyTime.get(remoteJid) || 0;
-        if (now - lastSent > 60000 && sock) {
+        if (now - lastSent > 45000 && sock) {
           lastVoiceReplyTime.set(remoteJid, now);
           try {
             await sock.sendMessage(remoteJid, {
-              text: 'জি, অনুগ্রহ করে একটু লিখে মেসেজ করুন, আমরা এখনই ছবি ও সকল বিস্তারিত জানিয়ে দিচ্ছি 🌸'
+              text: 'আসসালামু আলাইকুম! আমাদের এই হোয়াটসঅ্যাপ নাম্বারে শুধুমাত্র লিখে মেসেজ দেওয়া যায়, কোনো ছবি, ভয়েস বা ভিডিও মেসেজ এখানে দেখা বা শোনা যায় না।\n\nঅনুগ্রহ করে আপনি যে বোরকাটি নিতে চাচ্ছেন বা যে বিষয়ে জানতে চাচ্ছেন তা লিখে মেসেজ করুন, আমরা দ্রুত ছবি ও সকল বিস্তারিত জানিয়ে সাহায্য করছি। ধন্যবাদ! 🌸'
             });
             incrementStats('messages_out');
-          } catch (e) {}
+          } catch (e) {
+            console.error('[Media Reply Error]:', e.message);
+          }
         }
         return;
       }
