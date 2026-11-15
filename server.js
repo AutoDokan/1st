@@ -2044,18 +2044,28 @@ async function connectToWhatsApp() {
       const remoteJid = msg.key.remoteJid;
       if (!remoteJid || remoteJid.includes('@g.us') || remoteJid === 'status@broadcast') return;
 
+      // WhatsApp Voice Note & Push-To-Talk (PTT) Deep Unwrapping
+      let unwrappedMsg = msg.message;
+      while (unwrappedMsg && (unwrappedMsg.ephemeralMessage || unwrappedMsg.viewOnceMessage || unwrappedMsg.viewOnceMessageV2 || unwrappedMsg.documentWithCaptionMessage)) {
+        unwrappedMsg = unwrappedMsg.ephemeralMessage?.message || 
+                       unwrappedMsg.viewOnceMessage?.message || 
+                       unwrappedMsg.viewOnceMessageV2?.message || 
+                       unwrappedMsg.documentWithCaptionMessage?.message;
+      }
+
       let messageContent =
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
+        unwrappedMsg?.conversation ||
+        unwrappedMsg?.extendedTextMessage?.text ||
         '';
 
-      // WhatsApp Voice Note / Audio Message Listener (Groq Whisper Turbo)
-      const isAudio = !!msg.message?.audioMessage;
+      const audioMsg = unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage || (unwrappedMsg?.documentMessage?.mimetype?.startsWith('audio/') ? unwrappedMsg.documentMessage : null);
+      const isAudio = !!audioMsg;
+
       if (isAudio) {
-        console.log(`[WhatsApp Voice Note Received] From: ${remoteJid} | Downloading & transcribing with Groq Whisper...`);
+        console.log(`[WhatsApp Voice Note Received] From: ${remoteJid} | Downloading & transcribing with Groq Whisper Turbo...`);
         try {
           const audioBuffer = await downloadMediaMessage(
-            msg,
+            { ...msg, message: unwrappedMsg },
             'buffer',
             {},
             { 
@@ -2065,10 +2075,13 @@ async function connectToWhatsApp() {
           );
 
           if (audioBuffer && audioBuffer.length > 0) {
+            console.log(`[WhatsApp Audio Downloaded] Size: ${audioBuffer.length} bytes. Transcribing via Groq Whisper...`);
             const transcribed = await transcribeAudioVoiceNote(audioBuffer);
             if (transcribed && transcribed.trim()) {
               messageContent = transcribed.trim();
               console.log(`[WhatsApp Voice Transcribed] From: ${remoteJid} | Transcribed: "${messageContent}"`);
+            } else {
+              console.warn(`[WhatsApp Voice Note Warning] Transcription returned empty for ${remoteJid}`);
             }
           }
         } catch (audioErr) {

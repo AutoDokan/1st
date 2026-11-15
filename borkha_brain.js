@@ -481,12 +481,13 @@ async function transcribeAudioVoiceNote(audioBuffer) {
   try {
     const file = await toFile(audioBuffer, 'voice.ogg', { type: 'audio/ogg' });
     
-    // Primary: whisper-large-v3-turbo (ultrafast, <0.4s)
+    // Primary: whisper-large-v3-turbo (ultrafast, <0.4s) with Bengali domain priming
     const transcription = await Promise.race([
       groqClient.audio.transcriptions.create({
         file: file,
         model: 'whisper-large-v3-turbo',
         temperature: 0.0,
+        prompt: 'বোরকা, আবায়া, সাইজ, ডেলিভারি, দাম, DF-101, DF-102, DF-103, DF-104, DF-105, কাফতান, রানি আবায়া, হিজাব',
         response_format: 'json'
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Whisper timeout after 8s')), 8000))
