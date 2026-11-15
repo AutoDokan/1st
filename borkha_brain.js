@@ -245,14 +245,16 @@ ${salamRule}
        - শুধু রিয়েল বা ক্যামেরার ছবি চাইলে: [SEND_REAL_IMAGE:DF-XXX]
      * অতি জরুরি (CRITICAL FORMAT): ব্র্যাকেটের ভেতরে কোনো অতিরিক্ত স্পেস দেওয়া যাবে না। হুবহু [SEND_ALL_IMAGES:DF-101] লিখবে, কখনোই [ SEND_ALL_IMAGES:DF-101 ] বা কোড টেক্সটে লিখবে না। কাস্টমারের সাথে আলাপে কোনো কোড বা ট্যাগ দৃশ্যমান হবে না।
 
-8. STRICT PRICING & ZERO-ADVANCE COD POLICY (ভুল হিসাব বা বোরকার টাকা অগ্রিম চাওয়া সম্পূর্ণ নিষিদ্ধ):
-   - বোরকার জন্য ১ টাকাও অগ্রিম নেওয়া হয় না! বোরকার সম্পূর্ণ দাম পণ্য হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দিতে হয়।
+8. STRICT PRICING, DELIVERY & 100% RISK-FREE CUSTOMER TRUST POLICY:
+   - বোরকার আসল দাম সম্পূর্ণ ক্যাশ অন ডেলিভারি (COD)। বোরকার জন্য ১ টাকাও অগ্রিম নেওয়া হয় না!
    - অগ্রিম শুধুমাত্র এবং শুধুমাত্র ডেলিভারি চার্জ:
      * ঢাকার ভেতরে ডেলিভারি চার্জ: ঠিক ৳${storeSettings.inside_dhaka_fee} টাকা (৮০ টাকা)।
      * ঢাকার বাইরে ডেলিভারি চার্জ: ঠিক ৳${storeSettings.outside_dhaka_fee} টাকা (১৫০ টাকা)।
      * বিকাশ ও নগদ পার্সোনাল নাম্বার: ${storeSettings.bkash_number}
+   - সম্পূর্ণ ঝুঁকিমুক্ত কাস্টমার ট্রাস্ট গ্যারান্টি:
+     * পার্সেল হাতে পেয়ে কাস্টমার ডেলিভারি ম্যানের সামনে প্রোডাক্ট দেখে-শুনে চেক করে নিতে পারবেন।
+     * পছন্দ হলে বোরকার দাম ডেলিভারি ম্যানকে পরিশোধ করবেন। আর কোনো কারণে পছন্দ না হলে রেখে দিতে পারবেন, কোনো পেমেন্ট করতে হবে না (শুধুমাত্র ডেলিভারি চার্জ প্রযোজ্য)।
    - সম্পূর্ণ নিষিদ্ধ (CRITICAL ERROR): কখনোই কাস্টমারের কাছে ১,০০০ টাকা বা ৫০% বা বোরকার কোনো দাম অগ্রিম চাইবে না! অগ্রিম শুধুমাত্র ৮০ টাকা অথবা ১৫০ টাকা!
-   - ডেলিভারির সময় বকেয়া (Due COD): কাস্টমার পার্সেল হাতে পেয়ে ডেলিভারি ম্যানকে ঠিক বোরকার আসল দাম পরিশোধ করবেন।
 
 9. CLEAN, CONCISE & STRUCTURED FORMAT:
    - উত্তর কখনোই এলোমেলো বা বড় অনুচ্ছেদ হবে না।
@@ -397,9 +399,14 @@ function generateSmartFallback(userText, isFirstMessage) {
 সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি! আপনি কোন মডেলটির ছবি দেখতে চাচ্ছেন?`;
   }
 
-  // 10. Asking for payment / bKash / Nagad
+  // 9b. Customer asking about checking in front of delivery man / return policy / trust
+  if (/দেখে নিতে পারব|dekhe nite|চেক করে|check kore|পছন্দ না হলে|pochondo na hole|ফেরত|return|খারাপ হলে|আগে চেক/i.test(t)) {
+    return `${greeting}অবশ্যই! পার্সেল হাতে পেয়ে আপনি ডেলিভারি ম্যানের সামনে দেখে-শুনে চেক করে নিতে পারবেন। পছন্দ হলে বোরকার মূল্য পরিশোধ করবেন, আর পছন্দ না হলে কোনো পেমেন্ট করতে হবে না! অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) অগ্রিম দিতে হয়, বোরকার সম্পূর্ণ টাকা ক্যাশ অন ডেলিভারি।`;
+  }
+
+  // 10. Asking for payment / bKash / Nagad / advance
   if (t.includes('pay') || t.includes('বিকাশ') || t.includes('bkash') || t.includes('nagad') || t.includes('নগদ') || t.includes('advance') || t.includes('অগ্রিম') || t.includes('টাকা পাঠাব')) {
-    return `${greeting}অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee}) আমাদের বিকাশ বা নগদ পার্সোনাল নাম্বারে (${storeSettings.bkash_number}) সেন্ড মানি করে লাস্ট ৪ ডিজিট অথবা একটি স্ক্রিনশট দিলেই হবে। বোরকার কোনো টাকা অগ্রিম নয়, পুরো টাকাই ডেলিভারির সময় ক্যাশ অন ডেলিভারিতে দিবেন।`;
+    return `${greeting}অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee}) আমাদের বিকাশ বা নগদ পার্সোনাল নাম্বারে (${storeSettings.bkash_number}) সেন্ড মানি করে লাস্ট ৪ ডিজিট দিলেই হবে। বোরকার কোনো টাকা অগ্রিম নয়—পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে-শুনে নিবেন, পছন্দ হলে বোরকার মূল্য পরিশোধ করবেন, পছন্দ না হলে পেমেন্ট করতে হবে না!`;
   }
 
   // 11. Asking for price
@@ -408,7 +415,7 @@ function generateSmartFallback(userText, isFirstMessage) {
     if (code) {
       const prod = getProductByCode(code);
       if (prod) {
-        return `${greeting}${prod.name} (${prod.model_code}) এর মূল্য ৳${prod.price} টাকা (ম্যাচিং হিজাব ফ্রি)। বোরকার কোনো টাকা অগ্রিম নেওয়া হয় না। শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) অগ্রিম দিয়ে কনফার্ম করতে হয়, বাকি পুরো টাকা পণ্য হাতে পেয়ে দিবেন। [SEND_ALL_IMAGES:${code}]`;
+        return `${greeting}${prod.name} (${prod.model_code}) এর মূল্য ৳${prod.price} টাকা (ম্যাচিং হিজাব একদম ফ্রি)। বোরকার কোনো টাকা অগ্রিম নেই—শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) অগ্রিম দিয়ে কনফার্ম করতে হয়। পার্সেল হাতে পেয়ে দেখে-শুনে নিবেন, পছন্দ হলে বোরকার টাকা দিবেন, পছন্দ না হলে পেমেন্ট করতে হবে না! [SEND_ALL_IMAGES:${code}]`;
       }
     }
     return `${greeting}আমাদের প্রিমিয়াম আবায়াগুলোর মূল্য ৳১,৬৫০ থেকে ৳২,৪৫০ টাকার মধ্যে (প্রতিটির সাথেই ম্যাচিং হিজাব ফ্রি)। আপনি কোন মডেলের দাম জানতে চাচ্ছেন জানালে ছবি সহ বিস্তারিত জানিয়ে দিচ্ছি।`;
