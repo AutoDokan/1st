@@ -353,9 +353,9 @@ app.post('/api/upload-image', requireAuth, async (req, res) => {
   }
 });
 
-// Add New Product API
+// Add New Product API (supports Main, Hijab & Detail photos)
 app.post('/api/add-product', requireAuth, async (req, res) => {
-  const { model_code, name, fabric, price, sizes, hijab_included, image_url } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url } = req.body;
   if (name && price) {
     await supabase.from('products').insert({
       model_code: model_code ? model_code.toUpperCase().trim() : 'DF-' + Math.floor(Math.random() * 899 + 100),
@@ -365,6 +365,8 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
       sizes: sizes || '৫০, ৫২, ৫৪, ৫৬',
       hijab_included: hijab_included !== 'false',
       image_url: image_url ? image_url.trim() : null,
+      hijab_image_url: hijab_image_url ? hijab_image_url.trim() : null,
+      detail_image_url: detail_image_url ? detail_image_url.trim() : null,
       in_stock: true
     });
     await refreshProductsFromDB();
@@ -372,10 +374,10 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
   res.redirect('/dashboard#products');
 });
 
-// Update Existing Product API
+// Update Existing Product API (supports Main, Hijab & Detail photos)
 app.post('/api/products/:id/update', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { model_code, name, fabric, price, sizes, hijab_included, image_url } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url } = req.body;
   if (id && name && price) {
     await supabase.from('products').update({
       model_code: model_code ? model_code.toUpperCase().trim() : undefined,
@@ -384,21 +386,69 @@ app.post('/api/products/:id/update', requireAuth, async (req, res) => {
       price: parseFloat(price),
       sizes: sizes || '৫০, ৫২, ৫৪, ৫৬',
       hijab_included: hijab_included === 'true' || hijab_included === true,
-      image_url: image_url !== undefined ? (image_url ? image_url.trim() : null) : undefined
+      image_url: image_url !== undefined ? (image_url ? image_url.trim() : null) : undefined,
+      hijab_image_url: hijab_image_url !== undefined ? (hijab_image_url ? hijab_image_url.trim() : null) : undefined,
+      detail_image_url: detail_image_url !== undefined ? (detail_image_url ? detail_image_url.trim() : null) : undefined
     }).eq('id', id);
     await refreshProductsFromDB();
   }
   res.redirect('/dashboard#products');
 });
 
-// Delete Product API
+// 1-Click Delete Product API
 app.post('/api/products/:id/delete', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (id) {
     await supabase.from('products').delete().eq('id', id);
     await refreshProductsFromDB();
   }
+  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+    return res.json({ success: true, id });
+  }
   res.redirect('/dashboard#products');
+});
+
+// Bulk Delete Products API
+app.post('/api/products/bulk-delete', requireAuth, async (req, res) => {
+  let { ids } = req.body;
+  if (typeof ids === 'string') {
+    ids = ids.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (Array.isArray(ids) && ids.length > 0) {
+    await supabase.from('products').delete().in('id', ids);
+    await refreshProductsFromDB();
+  }
+  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+    return res.json({ success: true, count: ids ? ids.length : 0 });
+  }
+  res.redirect('/dashboard#products');
+});
+
+// 1-Click Delete Order API
+app.post('/api/orders/:id/delete', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (id) {
+    await supabase.from('orders').delete().eq('id', id);
+  }
+  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+    return res.json({ success: true, id });
+  }
+  res.redirect('/dashboard');
+});
+
+// Bulk Delete Orders API
+app.post('/api/orders/bulk-delete', requireAuth, async (req, res) => {
+  let { ids } = req.body;
+  if (typeof ids === 'string') {
+    ids = ids.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (Array.isArray(ids) && ids.length > 0) {
+    await supabase.from('orders').delete().in('id', ids);
+  }
+  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+    return res.json({ success: true, count: ids ? ids.length : 0 });
+  }
+  res.redirect('/dashboard');
 });
 
 // Toggle In-Stock Status
@@ -457,7 +507,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     <div class="order-item-card bg-white rounded-2xl border border-[#ede6db] p-4 shadow-xs space-y-3 transition hover:border-amber-300" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
       <!-- Top Card Header: ID, Customer Type Badge, Live Status Select -->
       <div class="flex items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
-        <div class="flex items-center gap-1.5 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input type="checkbox" class="order-select-checkbox w-4 h-4 rounded accent-amber-700 cursor-pointer" value="${o.id}" onchange="updateOrderBulkBar()">
           <span class="font-mono font-black text-xs text-stone-400">#${o.id}</span>
           ${isRepeat 
             ? `<span class="bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1">🔄 রিপিট কাস্টমার</span>` 
@@ -490,6 +541,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           </a>
           <button onclick="copyCourierData('${courierData}')" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold border border-amber-300 shadow-2xs cursor-pointer inline-flex items-center gap-1">
             <span>📋 কুরিয়ার কপি</span>
+          </button>
+          <button onclick="deleteSingleOrder(${o.id})" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 rounded-lg font-bold border border-rose-200 inline-flex items-center gap-1 shadow-2xs transition ml-auto cursor-pointer" title="অর্ডার ডিলিট করুন">
+            <span>🗑️ মুছুন</span>
           </button>
         </div>
       </div>
@@ -586,6 +640,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
     return `
     <tr class="order-table-row border-b border-stone-100 hover:bg-amber-50/25 transition" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
+      <td class="p-3.5 text-center">
+        <input type="checkbox" class="order-select-checkbox w-4 h-4 rounded accent-amber-700 cursor-pointer" value="${o.id}" onchange="updateOrderBulkBar()">
+      </td>
       <td class="p-3.5 font-bold text-stone-400 text-xs font-mono">#${o.id}</td>
       <td class="p-3.5">
         <div class="flex items-center gap-2">
@@ -647,10 +704,15 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         </select>
       </td>
       <td class="p-3.5 text-xs text-stone-400 font-medium whitespace-nowrap">${new Date(o.created_at).toLocaleString('bn-BD')}</td>
+      <td class="p-3.5 text-right whitespace-nowrap">
+        <button onclick="deleteSingleOrder(${o.id})" class="text-rose-600 hover:text-rose-800 text-xs font-bold hover:underline cursor-pointer">
+          🗑️ মুছুন
+        </button>
+      </td>
     </tr>
     <!-- Collapsible Desktop Payment Edit Row -->
     <tr id="desktop-payment-${o.id}" class="hidden bg-[#fdfbf7] border-b border-amber-200">
-      <td colspan="7" class="p-4">
+      <td colspan="9" class="p-4">
         <div class="bg-white p-4 rounded-xl border border-amber-300 shadow-sm space-y-3 max-w-4xl mx-auto">
           <div class="flex items-center justify-between border-b border-stone-100 pb-2">
             <h5 class="text-xs font-black text-stone-800">✏️ অর্ডার #${o.id} — ডেলিভারি চার্জ ও পেমেন্ট আপডেট করুন</h5>
@@ -689,6 +751,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
   const productRows = (products || []).map(p => `
     <tr class="border-b border-stone-100 hover:bg-amber-50/20 transition">
+      <td class="p-2.5 text-center">
+        <input type="checkbox" class="product-select-checkbox w-4 h-4 rounded accent-amber-700 cursor-pointer" value="${p.id}" onchange="updateProductBulkBar()">
+      </td>
       <td class="p-2.5">
         ${p.image_url ? `
           <img src="${p.image_url}" class="w-10 h-12 object-cover rounded-lg border border-amber-200 shadow-2xs hover:scale-125 transition cursor-pointer" onclick="window.open('${p.image_url}', '_blank')" title="ক্লিক করে বড় ছবি দেখুন">
@@ -705,7 +770,11 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </td>
       <td class="p-3">
         <div class="font-extrabold text-stone-900 text-xs">${p.name}</div>
-        ${p.hijab_included ? '<span class="text-[9px] bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded font-bold">ম্যাচিং হিজাব ফ্রি</span>' : ''}
+        <div class="flex items-center gap-1 mt-0.5 flex-wrap">
+          ${p.hijab_included ? '<span class="text-[9px] bg-amber-100 text-amber-900 border border-amber-300 px-1 py-0.2 rounded font-bold">হিজাব ফ্রি</span>' : ''}
+          ${p.hijab_image_url ? '<span class="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-1 py-0.2 rounded font-bold">🧕 হিজাব পিক</span>' : ''}
+          ${p.detail_image_url ? '<span class="text-[9px] bg-sky-50 text-sky-800 border border-sky-300 px-1 py-0.2 rounded font-bold">🔍 কাজের পিক</span>' : ''}
+        </div>
       </td>
       <td class="p-3 text-stone-600 text-xs">${p.fabric || '-'}</td>
       <td class="p-3 font-black text-amber-900 text-xs">৳${p.price}</td>
@@ -719,43 +788,80 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           </button>
         </form>
       </td>
-      <td class="p-3 text-right">
-        <button onclick="toggleProductEdit(${p.id})" class="text-amber-900 font-bold text-xs hover:underline cursor-pointer">
+      <td class="p-3 text-right whitespace-nowrap">
+        <button onclick="toggleProductEdit(${p.id})" class="text-amber-900 font-bold text-xs hover:underline cursor-pointer mr-2">
           ✏️ এডিট
+        </button>
+        <button onclick="deleteSingleProduct(${p.id}, '${(p.name || '').replace(/'/g, "\\'")}')" class="text-rose-600 hover:text-rose-800 font-bold text-xs hover:underline cursor-pointer">
+          🗑️ ডিলিট
         </button>
       </td>
     </tr>
     <tr id="edit-product-${p.id}" class="hidden bg-[#fdfbf7] border-b border-amber-200">
-      <td colspan="7" class="p-4">
-        <form method="POST" action="/api/products/${p.id}/update" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-          <div>
-            <label class="block font-bold text-stone-700 mb-0.5">মডেল কোড</label>
-            <input type="text" name="model_code" value="${p.model_code || 'DF-' + p.id}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-mono font-bold">
+      <td colspan="8" class="p-4">
+        <form method="POST" action="/api/products/${p.id}/update" class="space-y-3 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label class="block font-bold text-stone-700 mb-0.5">মডেল কোড</label>
+              <input type="text" name="model_code" value="${p.model_code || 'DF-' + p.id}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-mono font-bold">
+            </div>
+            <div>
+              <label class="block font-bold text-stone-700 mb-0.5">মডেল নাম</label>
+              <input type="text" name="name" value="${p.name}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-bold">
+            </div>
+            <div>
+              <label class="block font-bold text-stone-700 mb-0.5">মূল্য (টাকা)</label>
+              <input type="number" name="price" value="${p.price}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-bold">
+            </div>
           </div>
+
           <div>
-            <label class="block font-bold text-stone-700 mb-0.5">মডেল নাম</label>
-            <input type="text" name="name" value="${p.name}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-bold">
-          </div>
-          <div>
-            <label class="block font-bold text-stone-700 mb-0.5">মূল্য (টাকা)</label>
-            <input type="number" name="price" value="${p.price}" required class="w-full bg-white border border-stone-300 p-2 rounded-lg font-bold">
-          </div>
-          <div class="sm:col-span-3">
-            <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ছবি পরিবর্তন / আপলোড</label>
-            <div class="flex items-center gap-2.5">
-              ${p.image_url ? `<img id="preview-prod-${p.id}" src="${p.image_url}" class="w-12 h-14 object-cover rounded-lg border border-amber-300 shadow-2xs">` : `<img id="preview-prod-${p.id}" class="hidden w-12 h-14 object-cover rounded-lg border border-amber-300 shadow-2xs">`}
-              <div>
-                <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs transition">
-                  <span>📸 ছবি আপলোড</span>
-                  <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_${p.id}', 'preview-prod-${p.id}')">
-                </label>
-                <input type="text" id="edit_img_${p.id}" name="image_url" value="${p.image_url || ''}" placeholder="অথবা ছবির URL দিন" class="mt-1 w-full bg-white border border-stone-300 p-1.5 rounded-lg font-mono text-[11px]">
+            <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ৩টি ছবি (মেইন ডিজাইন, হিজাব ও কাজের নিখুঁত ক্লোজ-আপ)</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <!-- 1. Main Photo -->
+              <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
+                <span class="text-[11px] font-bold text-stone-700 block">👗 ১. মেইন ড্রেসের ছবি</span>
+                <div class="flex items-center gap-2">
+                  <img id="preview-prod-main-${p.id}" src="${p.image_url || ''}" class="${p.image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
+                  <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                    <span>📸 আপলোড</span>
+                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_${p.id}', 'preview-prod-main-${p.id}')">
+                  </label>
+                </div>
+                <input type="text" id="edit_img_${p.id}" name="image_url" value="${p.image_url || ''}" placeholder="মেইন ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
+              </div>
+
+              <!-- 2. Hijab Photo -->
+              <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
+                <span class="text-[11px] font-bold text-stone-700 block">🧕 ২. ম্যাচিং হিজাবের ছবি</span>
+                <div class="flex items-center gap-2">
+                  <img id="preview-prod-hijab-${p.id}" src="${p.hijab_image_url || ''}" class="${p.hijab_image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
+                  <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                    <span>📸 আপলোড</span>
+                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_hijab_${p.id}', 'preview-prod-hijab-${p.id}')">
+                  </label>
+                </div>
+                <input type="text" id="edit_hijab_${p.id}" name="hijab_image_url" value="${p.hijab_image_url || ''}" placeholder="হিজাব ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
+              </div>
+
+              <!-- 3. Detail Work Photo -->
+              <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
+                <span class="text-[11px] font-bold text-stone-700 block">🔍 ৩. কাজের নিখুঁত ক্লোজ-আপ</span>
+                <div class="flex items-center gap-2">
+                  <img id="preview-prod-detail-${p.id}" src="${p.detail_image_url || ''}" class="${p.detail_image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
+                  <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                    <span>📸 আপলোড</span>
+                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_detail_${p.id}', 'preview-prod-detail-${p.id}')">
+                  </label>
+                </div>
+                <input type="text" id="edit_detail_${p.id}" name="detail_image_url" value="${p.detail_image_url || ''}" placeholder="কাজের ক্লোজ-আপ URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
               </div>
             </div>
           </div>
-          <div class="sm:col-span-3 flex justify-between items-center pt-1">
+
+          <div class="flex justify-between items-center pt-1 border-t border-stone-200">
             <button type="button" onclick="toggleProductEdit(${p.id})" class="text-stone-500 font-bold hover:underline">বাতিল</button>
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-black px-4 py-1.5 rounded-lg shadow-2xs">সেভ করুন</button>
+            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-black px-4 py-1.5 rounded-lg shadow-2xs">💾 সেভ করুন</button>
           </div>
         </form>
       </td>
@@ -920,6 +1026,20 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           </div>
         </div>
 
+        <!-- Orders Bulk Action Bar -->
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="selectAllMobileOrders" class="w-4 h-4 rounded accent-amber-700 cursor-pointer" onclick="toggleSelectAllOrders(this)">
+            <label for="selectAllMobileOrders" class="text-xs font-bold text-stone-600 cursor-pointer select-none">সব অর্ডার সিলেক্ট করুন</label>
+          </div>
+          <div id="orderBulkBar" class="hidden items-center gap-2 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl text-xs">
+            <span class="font-bold text-rose-900"><span id="orderSelectedCount">0</span> টি অর্ডার সিলেক্টেড</span>
+            <button onclick="bulkDeleteOrders()" class="bg-rose-600 hover:bg-rose-700 text-white font-black px-3 py-1 rounded-lg shadow-2xs transition cursor-pointer">
+              🗑️ বাল্ক ডিলিট
+            </button>
+          </div>
+        </div>
+
         <!-- Orders View (Mobile Cards on Phone, Clean Table on Desktop) -->
         <div id="ordersContainer">
           <!-- Mobile Card Stream (Phones) -->
@@ -932,6 +1052,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             <table class="w-full text-left text-sm" id="desktopOrdersTable">
               <thead class="bg-[#fbf9f5] text-stone-500 text-xs uppercase font-extrabold tracking-wider border-b border-stone-200">
                 <tr>
+                  <th class="p-3.5 text-center w-8">
+                    <input type="checkbox" id="selectAllDesktopOrders" class="w-4 h-4 rounded accent-amber-700 cursor-pointer" onclick="toggleSelectAllOrders(this)" title="সব অর্ডার সিলেক্ট করুন">
+                  </th>
                   <th class="p-3.5">ID</th>
                   <th class="p-3.5">কাস্টমার নাম ও ফোন</th>
                   <th class="p-3.5">ডেলিভারি ঠিকানা</th>
@@ -939,6 +1062,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                   <th class="p-3.5">পেমেন্ট ও Due COD</th>
                   <th class="p-3.5">স্ট্যাটাস</th>
                   <th class="p-3.5">তারিখ</th>
+                  <th class="p-3.5 text-right">মুছুন</th>
                 </tr>
               </thead>
               <tbody id="desktopTableBody">
@@ -1078,15 +1202,47 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                     </div>
                   </div>
                   <div>
-                    <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ছবি (মোবাইল ক্যামেরা বা গ্যালারি থেকে)</label>
-                    <div class="flex items-center gap-2">
-                      <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs transition">
-                        <span>📸 ছবি আপলোড করুন</span>
-                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_prod_img_url', 'add_prod_img_preview')">
-                      </label>
-                      <img id="add_prod_img_preview" class="hidden w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs" alt="Preview">
+                    <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ৩টি ছবি (মোবাইল ক্যামেরা বা গ্যালারি থেকে সরাসরি আপলোড)</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+                      <!-- 1. Main Photo -->
+                      <div class="bg-white p-2 rounded-xl border border-stone-200 space-y-1">
+                        <span class="text-[10px] font-bold text-stone-700 block">👗 ১. মেইন ড্রেস</span>
+                        <div class="flex items-center gap-1.5">
+                          <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2 py-1 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                            <span>📸 আপলোড</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_prod_img_url', 'add_prod_img_preview')">
+                          </label>
+                          <img id="add_prod_img_preview" class="hidden w-8 h-10 object-cover rounded border border-amber-300" alt="Preview">
+                        </div>
+                        <input type="text" id="add_prod_img_url" name="image_url" placeholder="মেইন ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1 rounded font-mono text-[9px]">
+                      </div>
+
+                      <!-- 2. Hijab Photo -->
+                      <div class="bg-white p-2 rounded-xl border border-stone-200 space-y-1">
+                        <span class="text-[10px] font-bold text-stone-700 block">🧕 ২. ম্যাচিং হিজাব</span>
+                        <div class="flex items-center gap-1.5">
+                          <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2 py-1 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                            <span>📸 আপলোড</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_prod_hijab_url', 'add_prod_hijab_preview')">
+                          </label>
+                          <img id="add_prod_hijab_preview" class="hidden w-8 h-10 object-cover rounded border border-amber-300" alt="Preview">
+                        </div>
+                        <input type="text" id="add_prod_hijab_url" name="hijab_image_url" placeholder="হিজাব ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1 rounded font-mono text-[9px]">
+                      </div>
+
+                      <!-- 3. Detail Work Photo -->
+                      <div class="bg-white p-2 rounded-xl border border-stone-200 space-y-1">
+                        <span class="text-[10px] font-bold text-stone-700 block">🔍 ৩. কাজের ক্লোজ-আপ</span>
+                        <div class="flex items-center gap-1.5">
+                          <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2 py-1 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                            <span>📸 আপলোড</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_prod_detail_url', 'add_prod_detail_preview')">
+                          </label>
+                          <img id="add_prod_detail_preview" class="hidden w-8 h-10 object-cover rounded border border-amber-300" alt="Preview">
+                        </div>
+                        <input type="text" id="add_prod_detail_url" name="detail_image_url" placeholder="কাজের ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1 rounded font-mono text-[9px]">
+                      </div>
                     </div>
-                    <input type="text" id="add_prod_img_url" name="image_url" placeholder="অথবা ছবির URL দিন (যেমন: https://...)" class="mt-1.5 w-full bg-white border border-stone-300 p-2 rounded-lg font-mono text-xs">
                   </div>
                   <div class="flex items-center justify-between pt-1">
                     <label class="flex items-center gap-1.5 font-bold text-stone-700 cursor-pointer">
@@ -1102,17 +1258,28 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             </div>
 
             <!-- Product Table -->
+            <!-- Products Bulk Action Toolbar -->
+            <div id="productBulkBar" class="hidden items-center justify-between bg-rose-50 border border-rose-200 p-2.5 rounded-xl mb-3 text-xs">
+              <span class="font-bold text-rose-900"><span id="productSelectedCount">0</span> টি প্রোডাক্ট সিলেক্টেড</span>
+              <button onclick="bulkDeleteProducts()" class="bg-rose-600 hover:bg-rose-700 text-white font-black px-3.5 py-1.5 rounded-lg shadow-2xs transition cursor-pointer">
+                🗑️ বাল্ক ডিলিট করুন
+              </button>
+            </div>
+
             <div class="overflow-x-auto rounded-xl border border-stone-200">
               <table class="w-full text-left text-xs">
                 <thead class="bg-[#fbf9f5] text-stone-500 font-extrabold uppercase border-b border-stone-200">
                   <tr>
+                    <th class="p-2.5 text-center w-8">
+                      <input type="checkbox" id="selectAllProducts" class="w-4 h-4 rounded accent-amber-700 cursor-pointer" onclick="toggleSelectAllProducts(this)" title="সব প্রোডাক্ট সিলেক্ট করুন">
+                    </th>
                     <th class="p-2.5">ছবি</th>
                     <th class="p-2.5">SKU</th>
                     <th class="p-2.5">নাম</th>
                     <th class="p-2.5">ফেব্রিক</th>
                     <th class="p-2.5">মূল্য</th>
                     <th class="p-2.5">স্টক</th>
-                    <th class="p-2.5 text-right">এডিট</th>
+                    <th class="p-2.5 text-right">অ্যাকশন</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1409,6 +1576,136 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           }
         }
 
+        // ============================================
+        // 1-Click & Bulk Deletion Handlers
+        // ============================================
+        async function deleteSingleProduct(id, name) {
+          if (!confirm('আপনি কি নিশ্চিত যে "' + name + '" প্রোডাক্টটি ডিলিট করতে চান?')) return;
+          try {
+            const res = await fetch('/api/products/' + id + '/delete', {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ajax: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('🗑️ প্রোডাক্টটি সফলভাবে মুছে ফেলা হয়েছে!');
+              setTimeout(() => window.location.reload(), 800);
+            }
+          } catch (e) {
+            alert('ডিলিট করতে সমস্যা হয়েছে: ' + e.message);
+          }
+        }
+
+        function toggleSelectAllProducts(el) {
+          const checkboxes = document.querySelectorAll('.product-select-checkbox');
+          checkboxes.forEach(cb => cb.checked = el.checked);
+          updateProductBulkBar();
+        }
+
+        function updateProductBulkBar() {
+          const selected = document.querySelectorAll('.product-select-checkbox:checked');
+          const bar = document.getElementById('productBulkBar');
+          const countSpan = document.getElementById('productSelectedCount');
+          if (selected.length > 0) {
+            bar.classList.remove('hidden');
+            bar.classList.add('flex');
+            countSpan.textContent = selected.length;
+          } else {
+            bar.classList.add('hidden');
+            bar.classList.remove('flex');
+          }
+        }
+
+        async function bulkDeleteProducts() {
+          const selected = document.querySelectorAll('.product-select-checkbox:checked');
+          const ids = Array.from(selected).map(cb => cb.value);
+          if (ids.length === 0) return;
+          if (!confirm('আপনি কি নির্বাচিত ' + ids.length + ' টি প্রোডাক্ট স্থায়ীভাবে ডিলিট করতে চান?')) return;
+          try {
+            const res = await fetch('/api/products/bulk-delete', {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: ids, ajax: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('🗑️ ' + ids.length + ' টি প্রোডাক্ট সফলভাবে মোছা হয়েছে!');
+              setTimeout(() => window.location.reload(), 800);
+            }
+          } catch (e) {
+            alert('বাল্ক ডিলিট করতে সমস্যা হয়েছে: ' + e.message);
+          }
+        }
+
+        async function deleteSingleOrder(id) {
+          if (!confirm('অর্ডার #' + id + ' স্থায়ীভাবে ডিলিট করতে চান?')) return;
+          try {
+            const res = await fetch('/api/orders/' + id + '/delete', {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ajax: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              const cards = document.querySelectorAll('[data-order-id="' + id + '"]');
+              cards.forEach(c => c.remove());
+              showToast('🗑️ অর্ডার #' + id + ' মুছে ফেলা হয়েছে!');
+            }
+          } catch (e) {
+            alert('ডিলিট করতে সমস্যা হয়েছে: ' + e.message);
+          }
+        }
+
+        function toggleSelectAllOrders(el) {
+          const checkboxes = document.querySelectorAll('.order-select-checkbox');
+          checkboxes.forEach(cb => cb.checked = el.checked);
+          const otherSelectAll = el.id === 'selectAllMobileOrders' 
+            ? document.getElementById('selectAllDesktopOrders') 
+            : document.getElementById('selectAllMobileOrders');
+          if (otherSelectAll) otherSelectAll.checked = el.checked;
+          updateOrderBulkBar();
+        }
+
+        function updateOrderBulkBar() {
+          const selected = document.querySelectorAll('.order-select-checkbox:checked');
+          const bar = document.getElementById('orderBulkBar');
+          const countSpan = document.getElementById('orderSelectedCount');
+          if (selected.length > 0) {
+            bar.classList.remove('hidden');
+            bar.classList.add('flex');
+            countSpan.textContent = selected.length;
+          } else {
+            bar.classList.add('hidden');
+            bar.classList.remove('flex');
+          }
+        }
+
+        async function bulkDeleteOrders() {
+          const selected = document.querySelectorAll('.order-select-checkbox:checked');
+          const ids = Array.from(selected).map(cb => cb.value);
+          if (ids.length === 0) return;
+          if (!confirm('আপনি কি নির্বাচিত ' + ids.length + ' টি অর্ডার স্থায়ীভাবে ডিলিট করতে চান?')) return;
+          try {
+            const res = await fetch('/api/orders/bulk-delete', {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: ids, ajax: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              ids.forEach(id => {
+                const elements = document.querySelectorAll('[data-order-id="' + id + '"]');
+                elements.forEach(el => el.remove());
+              });
+              updateOrderBulkBar();
+              showToast('🗑️ ' + ids.length + ' টি অর্ডার মুছে ফেলা হয়েছে!');
+            }
+          } catch (e) {
+            alert('বাল্ক ডিলিট করতে সমস্যা হয়েছে: ' + e.message);
+          }
+        }
+
         setInterval(() => pollLiveData(false), 7000);
       </script>
     </body>
@@ -1565,13 +1862,53 @@ async function processBufferedUserMessages(remoteJid) {
     // 4. Generate AI reply
     const replyText = await handleIncomingMessage(remoteJid, combinedText);
 
-    // 5. Detect and extract image tags: [SEND_IMAGE:DF-XXX]
-    const imageTagRegex = /\[SEND_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
-    const imageMatches = [...replyText.matchAll(imageTagRegex)];
-    const cleanReplyText = replyText.replace(imageTagRegex, '').trim();
+    // Helper to send individual WhatsApp photo with caption
+    async function sendWaPhoto(url, caption) {
+      if (!sock || !url) return false;
+      try {
+        await sock.sendPresenceUpdate('composing', remoteJid);
+        await new Promise(r => setTimeout(r, 1100));
+        let imagePayload;
+        const urlPath = url.replace(/^https?:\/\/[^\/]+/, '');
+        const localFile = path.join(__dirname, 'public', urlPath);
+        if (fs.existsSync(localFile)) {
+          imagePayload = fs.readFileSync(localFile);
+        } else {
+          imagePayload = { url: url };
+        }
+        await sock.sendMessage(remoteJid, {
+          image: imagePayload,
+          caption: caption || ''
+        });
+        await sock.sendPresenceUpdate('available', remoteJid);
+        incrementStats('messages_out');
+        return true;
+      } catch (err) {
+        console.error('[WhatsApp Photo Send Error]:', err.message);
+        return false;
+      }
+    }
+
+    // 5. Detect and extract all image tags (Main, Hijab, Detail, All)
+    const allImagesRegex = /\[SEND_ALL_IMAGES:\s*([A-Za-z0-9_-]+)\]/gi;
+    const hijabRegex = /\[SEND_HIJAB_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
+    const detailRegex = /\[SEND_DETAIL_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
+    const mainImageRegex = /\[SEND_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
+
+    const allMatches = [...replyText.matchAll(allImagesRegex)];
+    const hijabMatches = [...replyText.matchAll(hijabRegex)];
+    const detailMatches = [...replyText.matchAll(detailRegex)];
+    const mainMatches = [...replyText.matchAll(mainImageRegex)];
+
+    const cleanReplyText = replyText
+      .replace(allImagesRegex, '')
+      .replace(hijabRegex, '')
+      .replace(detailRegex, '')
+      .replace(mainImageRegex, '')
+      .trim();
 
     // 6. Realistic human typing duration
-    const typingDuration = Math.min(Math.max(cleanReplyText.length * 35, 2000), 5000);
+    const typingDuration = Math.min(Math.max(cleanReplyText.length * 35, 1800), 4500);
     await new Promise(r => setTimeout(r, typingDuration));
 
     // 7. Send text reply
@@ -1582,47 +1919,65 @@ async function processBufferedUserMessages(remoteJid) {
       incrementStats('messages_out');
     }
 
-    // 8. Send product images if requested
-    if (sock && imageMatches.length > 0) {
-      const sentCodes = new Set();
-      for (const match of imageMatches) {
-        const modelCode = match[1].toUpperCase().trim();
-        if (sentCodes.has(modelCode)) continue;
-        sentCodes.add(modelCode);
+    // Helper to find product by code
+    function findProd(code) {
+      let p = (typeof getProductByCode === 'function') ? getProductByCode(code) : null;
+      if (!p) {
+        const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
+        p = allProds.find(item => item.model_code && item.model_code.toUpperCase().trim() === code.toUpperCase().trim());
+      }
+      return p;
+    }
 
-        let product = (typeof getProductByCode === 'function') ? getProductByCode(modelCode) : null;
-        if (!product) {
-          const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
-          product = allProds.find(p => p.model_code && p.model_code.toUpperCase().trim() === modelCode);
+    // 8. Dispatch images
+    // Handle ALL IMAGES requested (Main + Hijab + Detail)
+    for (const match of allMatches) {
+      const code = match[1].toUpperCase().trim();
+      const p = findProd(code);
+      if (p) {
+        if (p.image_url) {
+          await sendWaPhoto(p.image_url, `👗 *${p.name} (মেইন ভিউ)*\n🏷️ মডেল কোড: *${p.model_code}*\n💰 মূল্য: *৳${p.price}* টাকা (হিজাব সহ)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
         }
-
-        if (product && product.image_url) {
-          try {
-            await sock.sendPresenceUpdate('composing', remoteJid);
-            await new Promise(r => setTimeout(r, 1200));
-
-            let imageMessagePayload;
-            const urlPath = product.image_url.replace(/^https?:\/\/[^\/]+/, '');
-            const localFile = path.join(__dirname, 'public', urlPath);
-            if (fs.existsSync(localFile)) {
-              imageMessagePayload = fs.readFileSync(localFile);
-            } else {
-              imageMessagePayload = { url: product.image_url };
-            }
-
-            await sock.sendMessage(remoteJid, {
-              image: imageMessagePayload,
-              caption: `👗 *${product.name}*\n🏷️ মডেল কোড: *${product.model_code}*\n💰 মূল্য: *৳${product.price}* টাকা (হিজাব ফ্রি)\n✨ ফেব্রিক: ${product.fabric || 'দুবাই চেরি'}`
-            });
-            await sock.sendPresenceUpdate('available', remoteJid);
-            console.log(`[WhatsApp Outbound Image Sent] Sent ${product.model_code} photo to ${remoteJid}`);
-            incrementStats('messages_out');
-          } catch (imgErr) {
-            console.error(`[WhatsApp Image Send Error] Failed to send photo for ${modelCode}:`, imgErr.message);
-          }
-        } else {
-          console.log(`[WhatsApp Photo Notice] No image_url found for product ${modelCode}`);
+        if (p.hijab_image_url) {
+          await sendWaPhoto(p.hijab_image_url, `🧕 *${p.name} - ম্যাচিং প্রিমিয়াম হিজাব*\n🏷️ মডেল: *${p.model_code}* (ড্রেসের সাথে একদম ফ্রি)`);
         }
+        if (p.detail_image_url) {
+          await sendWaPhoto(p.detail_image_url, `🔍 *${p.name} - নিখুঁত কারচুপি কাজ ও কাপড় ক্লোজ-আপ*\n🏷️ মডেল: *${p.model_code}*`);
+        }
+      }
+    }
+
+    // Handle Hijab Image requested
+    for (const match of hijabMatches) {
+      const code = match[1].toUpperCase().trim();
+      const p = findProd(code);
+      if (p) {
+        const url = p.hijab_image_url || p.image_url;
+        if (url) {
+          await sendWaPhoto(url, `🧕 *${p.name} - ম্যাচিং প্রিমিয়াম হিজাব*\n🏷️ মডেল: *${p.model_code}* (ড্রেসের সাথে ফ্রি)`);
+        }
+      }
+    }
+
+    // Handle Detail Image requested
+    for (const match of detailMatches) {
+      const code = match[1].toUpperCase().trim();
+      const p = findProd(code);
+      if (p) {
+        const url = p.detail_image_url || p.image_url;
+        if (url) {
+          await sendWaPhoto(url, `🔍 *${p.name} - নিখুঁত কারচুপি ও কাপড়ের ডিটেইল ভিউ*\n🏷️ মডেল: *${p.model_code}*`);
+        }
+      }
+    }
+
+    // Handle Single Main Image (if not already handled in allMatches)
+    for (const match of mainMatches) {
+      const code = match[1].toUpperCase().trim();
+      if (allMatches.some(m => m[1].toUpperCase().trim() === code)) continue;
+      const p = findProd(code);
+      if (p && p.image_url) {
+        await sendWaPhoto(p.image_url, `👗 *${p.name}*\n🏷️ মডেল কোড: *${p.model_code}*\n💰 মূল্য: *৳${p.price}* টাকা (হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
       }
     }
   } catch (err) {

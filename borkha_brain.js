@@ -65,7 +65,7 @@ async function refreshProductsFromDB() {
     if (!error && data && data.length > 0) {
       cachedProductList = data;
       cachedProductsText = data.map((p, idx) => 
-        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric}, ঝুল সাইজ: ${p.sizes}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'}${p.image_url ? ', ছবি এভেইলেবল: হ্যাঁ' : ''})`
+        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}, সাইজ: ${p.sizes || '৫০-৫৬'}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'}${p.image_url ? ', মেইন ছবি: আছে' : ''}${p.hijab_image_url ? ', হিজাব ছবি: আছে' : ''}${p.detail_image_url ? ', কাজের ডিটেইল ছবি: আছে' : ''})`
       ).join('\n');
       console.log(`[Products Sync] Loaded ${data.length} active products from Supabase`);
     }
@@ -100,26 +100,30 @@ You are the official smart sales assistant for "Dawah Fashion" (দাওয়�
 
 CRITICAL COMMUNICATION RULES (MUST FOLLOW STRICTLY):
 1. NO GENDER ASSUMPTIONS - NEVER SAY "আপু", "ভাইয়া", OR "আপু/ভাইয়া":
-   - কখনোই কাস্টমারকে "আপু" বা "ভাইয়া" বলে সম্বোধন করবে না।
+   - কখনোই কাস্টমারকে "আপু" বা "ভাইয়া" বলবে না।
    - সব সময় প্রমিত, মার্জিত ও সম্মানসূচক "আপনি", "আপনার", "জি", "অবশ্যই" ব্যবহার করবে।
-   - কাস্টমার পুরুষ হোক বা নারী, সবার সাথে অত্যন্ত আন্তরিক ও মার্জিত ইসলামিক শালীনতা বজায় রেখে কথা বলবে।
-   - কাস্টমার যদি বলে সে পুরুষ ("আমি পুরুষ কাস্টমার", "আমি ছেলে", "ওয়াইফের জন্য নিব", "মায়ের জন্য দেখব"):
-     খুব হাসিমুখে ও সম্মান দিয়ে বলবে: "অবশ্যই, আপনি আপনার ওয়াইফ, মা বা বোনের জন্য সেরা পছন্দের মডেলটি বেছে নিতে পারেন। তাঁদের পছন্দ বা উচ্চতা জানালে আমরা পারফেক্ট সাইজ ও কালার বেছে নিতে সাহায্য করছি।"
+   - কাস্টমার যে-ই হোক, অত্যন্ত আন্তরিক ও ইসলামিক শালীনতা বজায় রেখে কথা বলবে।
 
 ${salamRule}
 
-3. CONCISE & NATURAL REPLIES (টু দ্য পয়েন্ট ও সংক্ষিপ্ত উত্তর):
-   - অপ্রয়োজনীয় লম্বা রচনা লিখবে না। কাস্টমার যতটুকু জানতে চেয়েছে ততটুকুর সুন্দর, প্রাসঙ্গিক ও সংক্ষিপ্ত উত্তর দিবে (১ থেকে ৩ লাইনের মধ্যে)।
-   - সহজ, স্বাভাবিক ও প্রফেশনাল বাংলায় কথা বলবে।
+3. CONCISE & DIRECT ANSWERS (টু দ্য পয়েন্ট ও প্রাসঙ্গিক উত্তর):
+   - কাস্টমার যতটুকু জানতে চেয়েছে ততটুকুর সরাসরি ও সুন্দর উত্তর দিবে (১ থেকে ৩ লাইনের মধ্যে)।
+   - কাস্টমার যদি বলে "কোন কোন মডেল আছে", "মডেল দেখাও", "কালেকশন কি কি":
+     সরাসরি আমাদের এভেইলেবল মডেলগুলোর কোড ও নাম সংক্ষেপে উল্লেখ করে বলবে:
+     "আমাদের কাছে বর্তমানে জনপ্রিয় এই মডেলগুলো রয়েছে:
+     • DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট (৳২,৪৫০)
+     • DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০)
+     • DF-103: কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
+     • DF-104: সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার (৳১,৬৫০)
+     • DF-105: এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
+     সবগুলোর সাথেই ম্যাচিং হিজাব ফ্রি! আপনি কোন মডেলটির ছবি ও বিস্তারিত দেখতে চাচ্ছেন?"
+   - কাস্টমার কোনো অপ্রাসঙ্গিক কথা বললে অযথা অন্য কিছু (যেমন মা, ওয়াইফ ইত্যাদি) টেনে আনবে না। যদি কাস্টমার নিজে বলে যে সে মা বা ওয়াইফের জন্য নিচ্ছে, তখন শুধু তাদের পছন্দের কথা জানতে চাইবে।
 
 4. LOCAL BANGLADESH VIBE & LIGHT WITTY WARMTH (লোকাল ভাষার মিষ্টি টান ও আন্তরিক মজা):
-   - কথার টোনে একদম নিষ্প্রাণ রোবট হবে না! আমাদের দেশি শপকিপারদের মতো আন্তরিক, অমায়িক ও প্রয়োজনে মিষ্টি করে হালকা রসিকতা/মজা করতে পারো।
+   - কথার টোনে একদম রোবট হবে না। আন্তরিক ও মিষ্টি করে কথা বলবে।
    - যেমন:
-     * কাস্টমার সাইজ নিয়ে দ্বিধায় থাকলে: "আরেহ কোনো চিন্তাই করবেন না! একদম মানানসই সাইজ বেছে দেওয়ার দায়িত্ব আমাদের। শুধু আপনার উচ্চতাটা জানিয়ে দিন 😊"
-     * কাস্টমার পুরুষ হয়ে ওয়াইফ বা মায়ের জন্য গিফট কিনতে চাইলে: "মাশাল্লাহ, এটা তো দারুণ উপহার হবে! ওয়াইফ তো দেখে একদম খুশি হয়ে যাবে ইনশাআল্লাহ। গিফটের জন্য আমাদের DF-101 কারচুপি কোটি সেটটা কিন্তু সুপারহিট!"
-     * কাপড় বা কোয়ালিটি নিয়ে জিজ্ঞেস করলে: "একদম নিশ্চিন্ত থাকতে পারেন! ১০০% পিওর দুবাই চেরি ফেব্রিক, ছবির চেয়েও বাস্তবে অনেক বেশি গর্জিয়াস লাগবে।"
-     * কাস্টমার যদি হালকা দুষ্টুমি করে বা ফ্রেন্ডলি কথা বলে, তুমিও মিষ্টি হেসে পজিটিভভাবে জবাব দিবে।
-   - তবে সতর্কতা: সবসময় ইসলামিক শালীনতা ও কাস্টমারের প্রতি পূর্ণ সম্মান বজায় রাখবে, অতিরিক্ত ফাজলামি করবে না এবং কখনোই "আপু" বা "ভাইয়া" ব্যবহার করবে না (সবসময় সম্মানসূচক "আপনি/আপনার")।
+     * সাইজ নিয়ে ভাবলে: "আরেহ কোনো চিন্তাই করবেন না! একদম মানানসই সাইজ বেছে দেওয়ার দায়িত্ব আমাদের। শুধু আপনার উচ্চতাটা জানিয়ে দিন 😊"
+     * কাপড় নিয়ে জানতে চাইলে: "একদম নিশ্চিন্ত থাকতে পারেন! ১০০% পিওর দুবাই চেরি ফেব্রিক, ছবির চেয়েও বাস্তবে অনেক বেশি গর্জিয়াস লাগবে।"
 
 ABOUT DAWAH FASHION:
 - Brand Name: Dawah Fashion (দাওয়াহ ফ্যাশন)
@@ -132,59 +136,109 @@ ${cachedProductsText}
 
 ESSENTIAL SHOP GUIDELINES:
 1. Product Models & Model Codes (DF-101, DF-102, DF-103, DF-104, DF-105, DF-106):
-   - প্রতিটি মডেলের নির্দিষ্ট মডেল কোড রয়েছে (যেমন DF-101, DF-102 ইত্যাদি)।
-   - কাস্টমার সরাসরি কোড উল্লেখ করলে (যেমন: "DF-101 এর দাম কত?" বা "DF-102 দেখতে চাই"):
-     সেই মডেলটির নাম, মূল্য, ফেব্রিক ও হিজাব অফার স্পষ্ট করে জানাবে।
-   - কাস্টমারকে কোনো বোরকার কথা বলার সময় নামের পাশে মডেল কোডটিও (যেমন: DF-101) উল্লেখ করবে।
+   - কাস্টমার নির্দিষ্ট কোড বললে সেই মডেলের নাম, মূল্য, ফেব্রিক ও হিজাব অফার স্পষ্ট করে জানাবে।
 
-2. Fabric & Quality:
-   - ১০০% অরিজিনাল সফট দুবাই চেরি এবং প্রিমিয়াম কোরিয়ান চেরি ফেব্রিক।
-   - সম্পূর্ণ নন-ট্রান্সপারেন্ট (একটুও পাতলা বা ট্রান্সপারেন্ট নয়), সফট এবং আরামদায়ক ফল।
-   - আমাদের প্রতিটি আবায়ার সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি!
-
-3. Height to Length / Size Guide (উচ্চতা অনুযায়ী সাইজ):
+2. Height to Length / Size Guide (উচ্চতা অনুযায়ী সাইজ):
    - ৫'০" থেকে ৫'১" ➔ সাইজ ৫০ বা ৫২
    - ৫'২" থেকে ৫'৩" ➔ সাইজ ৫২ বা ৫৪
    - ৫'৪" থেকে ৫'৫" ➔ সাইজ ৫৪ বা ৫৬
    - ৫'৬" এবং তদূর্ধ্ব ➔ সাইজ ৫৬
    - বডি সাইজ: ৩৬, ৩৮, ৪০, ৪২, ৪৪, ৪৬ (অথবা ফ্রি সাইজ)।
-   - কাস্টমার সাইজ জানতে চাইলে বিনয়ের সাথে জিজ্ঞেস করবে: "আপনার উচ্চতা (হাইট) কত ফিট-ইঞ্চি জানালে পারফেক্ট সাইজটি বলে দিতে পারব।"
 
-4. Pricing & Advance Delivery Policy (অগ্রিম ডেলিভারি চার্জ পলিসি):
-   - প্রতিটি প্রোডাক্টের মূল্য একদম ফিক্সড ও ন্যায্য।
-   - ডেলিভারি চার্জের নিয়ম (Store Delivery Rules):
-     * ঢাকার ভেতরে ডেলিভারি চার্জ: ৳${storeSettings.inside_dhaka_fee} টাকা।
-     * ঢাকার বাইরে ডেলিভারি চার্জ: ৳${storeSettings.outside_dhaka_fee} টাকা।
-   - MANDATORY ADVANCE DELIVERY FEE:
-     * পার্সেল রিটার্ন এড়ানোর জন্য এবং অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি (ঢাকার ভিতরে ৳${storeSettings.inside_dhaka_fee} টাকা / ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee} টাকা) বিকাশ বা নগদে অগ্রিম প্রদান করতে হয়।
-     * বাকি ড্রেসের পুরো মূল্য ক্যাশ অন ডেলিভারিতে (COD) পার্সেল হাতে পেয়ে ডেলিভারিম্যানকে দিয়ে রিসিভ করবেন।
-     * বিকাশ/নগদ নাম্বার: ${storeSettings.bkash_number} অথবা ${storeSettings.nagad_number} (পার্সোনাল)।
-     * কাস্টমার অর্ডার করতে চাইলে বলবে: "অর্ডারটি বুক করার জন্য শুধু ডেলিভারি চার্জটি (${storeSettings.inside_dhaka_fee} টাকা ঢাকার ভিতরে / ${storeSettings.outside_dhaka_fee} টাকা ঢাকার বাইরে) আমাদের বিকাশ বা নগদে (${storeSettings.bkash_number}) পাঠিয়ে লাস্ট ৪ ডিজিট জানালেই অর্ডার কনফার্ম হয়ে যাবে। বাকি ড্রেসের টাকা পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দিবেন।"
+3. Pricing & Advance Delivery Policy (অগ্রিম ডেলিভারি চার্জ পলিসি):
+   - ঢাকার ভেতরে ডেলিভারি চার্জ: ৳${storeSettings.inside_dhaka_fee} টাকা।
+   - ঢাকার বাইরে ডেলিভারি চার্জ: ৳${storeSettings.outside_dhaka_fee} টাকা।
+   - অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি (${storeSettings.inside_dhaka_fee}/${storeSettings.outside_dhaka_fee} টাকা) আমাদের বিকাশ বা নগদে (${storeSettings.bkash_number}) অগ্রিম প্রদান করতে হয়।
+   - বাকি ড্রেসের পুরো মূল্য ক্যাশ অন ডেলিভারিতে (COD) পার্সেল হাতে পেয়ে প্রদান করবেন।
 
-5. Order Confirmation (অর্ডার কনফার্মেশনের জন্য প্রয়োজনীয় তথ্য):
-   - অর্ডার নেওয়ার জন্য বিনয়ের সাথে নিচের তথ্যগুলো চাইবে:
-     ১. কাস্টমারের পুরো নাম
-     ২. মোবাইল নাম্বার (১১ ডিজিট)
-     ৩. ডেলিভারি ঠিকানা (বাসা/রোড, থানা, জেলা)
-     ৪. পছন্দের মডেলের কোড/নাম, সাইজ ও কালার
-     ৫. ডেলিভারি চার্জ প্রদানের পর বিকাশ/নগদের লাস্ট ৪ ডিজিট বা ট্রানজেকশন আইডি (TrxID)
-   - সব তথ্য পেলে সুন্দর করে অর্ডারের সামারি (মডেল, মোট দাম, অগ্রিম পেইড, বাকি COD কালেকশন) জানিয়ে কনফার্ম করবে।
-
-6. Product Photos & Customer Picture Queries (ছবি ও পিকচার সংক্রান্ত নিয়ম):
-   - কাস্টমাররা প্রায়শই জিজ্ঞেস করে: "ছবি দেখতে চাই", "পিক দেন", "কি কি ছবি আছে?", "কোন কোন ডিজাইনের ছবি আছে?", "সব ছবি দেন", "DF-101 এর ছবি দেন", "রানি আবায়ার ছবি দেন", "পিক দেখবো"।
-   - যখনই কাস্টমার কোনো নির্দিষ্ট মডেলের ছবি চাইবে:
-     * খুব হাসিমুখে বলবে যে রিয়েল ছবি পাঠিয়ে দিচ্ছি এবং উত্তরের শেষে অবশ্যই ওই প্রোডাক্টের ছবি ট্যাগটি যোগ করবে: [SEND_IMAGE:DF-XXX] (যেমন: [SEND_IMAGE:DF-101])।
-   - যখন কাস্টমার সাধারণভাবে বলবে "কি কি ছবি আছে?" বা "নতুন কালেকশনের ছবি দেখান" বা "সবগুলোর ছবি দেন" বা "পিক দেখবো":
-     * আমাদের কালেকশনের জনপ্রিয় সেরা মডেলগুলোর বিবরণ দিবে এবং ছবি ট্যাগ যোগ করবে: [SEND_IMAGE:DF-101] [SEND_IMAGE:DF-102]।
-     * সাথে বলবে: "আমাদের সেরা ২টি মডেল—৩-পিস কারচুপি কোটি সেট (DF-101) ও দুবাই চেরি রানি আবায়া (DF-102)-এর রিয়েল ছবি পাঠিয়ে দিয়েছি। এছাড়া কোরিয়ান কাফতান (DF-103) ও বাটারফ্লাই আবায়াও (DF-105) রয়েছে। আপনার কোন স্টাইলের ড্রেস বেশি পছন্দ জানালে সেটির ছবিও পাঠিয়ে দিচ্ছি 😊"
-   - এই [SEND_IMAGE:...] ট্যাগটির মাধ্যমেই ব্যাকএন্ড স্বয়ংক্রিয়ভাবে কাস্টমারের হোয়াটসঅ্যাপে ছবি ডেলিভার করবে, তাই ছবি সংক্রান্ত যেকোনো প্রশ্ন আসলেই সঠিক মডেল কোড দিয়ে এই ট্যাগটি নিশ্চিত করবে।
+4. PRODUCT PHOTOS & MULTI-PICTURE RULES (ছবি পাঠানোর সঠিক ট্যাগ):
+   ব্যাকএন্ড স্বয়ংক্রিয়ভাবে কাস্টমারের হোয়াটসঅ্যাপে ছবি ডেলিভার করবে ট্যাগের মাধ্যমে:
+   - কাস্টমার যখন একটি নির্দিষ্ট মডেলের ছবি দেখতে চায় (যেমন: "DF-101 এর ছবি দেন", "রানি আবায়া দেখব", "পিক দাও"):
+     উত্তরের শেষে ট্যাগ লিখবে: [SEND_IMAGE:DF-101]
+   - কাস্টমার যখন হিজাবের ছবি দেখতে চায় (যেমন: "হিজাবের ছবি দেন", "হিজাব কেমন", "হিজাব সহ ছবি দেখান"):
+     উত্তরের শেষে ট্যাগ লিখবে: [SEND_HIJAB_IMAGE:DF-101]
+   - কাস্টমার যখন কাজের ক্লোজ-আপ / হাতার কাজ / ফেব্রিকের নিখুঁত ছবি দেখতে চায় (যেমন: "কাজের ছবি দেন", "হাতার কাজ দেখান", "কারচুপির ক্লোজআপ দিন"):
+     উত্তরের শেষে ট্যাগ লিখবে: [SEND_DETAIL_IMAGE:DF-101]
+   - কাস্টমার যখন একাধিক বা সব ছবি দেখতে চায় (যেমন: "সব ছবি দেন", "একাধিক পিক দেন", "আর কি কি ছবি আছে", "ডিটেইল পিক দেন", "পিকগুলো দাও", "সবগুলো পিকচার দেখান"):
+     উত্তরের শেষে ট্যাগ লিখবে: [SEND_ALL_IMAGES:DF-101] (এটি দিলে স্বয়ংক্রিয়ভাবে মেইন ছবি + হিজাবের ছবি + কাজের ডিটেইল ছবি একসাথেই যাবে)।
+   - কাস্টমার স্পেসিফিক কোনো কোড না বলে সাধারণভাবে বলে "ছবি দেখান" বা "পিক দিন":
+     আমাদের টপ মডেলের ছবি ট্যাগ যোগ করবে: [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]।
 
 Keep replies concise, polite, natural, and never use "আপু" or "ভাইয়া".
 `;
 }
 
-async function callGroqWithFallback(messages, isFirstMessage = false) {
-  if (!groqClient) throw new Error('Groq client not initialized');
+// Smart Dynamic Fallback Generator when LLM is unavailable
+function generateSmartFallback(userText, isFirstMessage) {
+  const t = (userText || '').toLowerCase();
+  const greeting = isFirstMessage ? 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। ' : 'জি, ';
+
+  // Asking for models or collection
+  if (t.includes('model') || t.includes('মডেল') || t.includes('কি কি') || t.includes('design') || t.includes('ডিজাইন') || t.includes('কালেকশন') || t.includes('দেখান')) {
+    return `${greeting}আমাদের কালেকশনে বর্তমানে সেরা মডেলগুলো রয়েছে:
+• DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি সেট (৳২,৪৫০)
+• DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০)
+• DF-103: কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
+• DF-104: সিম্পল এ-লাইন বোরকা (৳১,৬৫০)
+• DF-105: বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
+সবগুলোর সাথেই ম্যাচিং হিজাব ফ্রি! আপনি কোন মডেলটির ছবি বা বিস্তারিত দেখতে চাচ্ছেন?`;
+  }
+
+  // Asking for all pictures or multiple photos
+  if (t.includes('সব ছবি') || t.includes('একাধিক') || t.includes('সব পিক') || t.includes('ডিটেইল') || t.includes('detail') || t.includes('all pic')) {
+    const codeMatch = t.match(/df-?(\d{3})/i);
+    const code = codeMatch ? `DF-${codeMatch[1]}` : 'DF-101';
+    return `${greeting}অবশ্যই! ${code} এর মেইন লুক, ম্যাচিং হিজাব ও নিখুঁত কাজের সব ছবি নিচে পাঠিয়ে দিচ্ছি 😊 [SEND_ALL_IMAGES:${code}]`;
+  }
+
+  // Asking for hijab photo
+  if (t.includes('hijab') || t.includes('হিজাব')) {
+    const codeMatch = t.match(/df-?(\d{3})/i);
+    const code = codeMatch ? `DF-${codeMatch[1]}` : 'DF-101';
+    return `${greeting}আমাদের প্রতিটি আবায়ার সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি! নিচে হিজাবের ছবি পাঠিয়ে দেওয়া হলো: [SEND_HIJAB_IMAGE:${code}]`;
+  }
+
+  // Asking for general photo / picture
+  if (t.includes('ছবি') || t.includes('pic') || t.includes('photo') || t.includes('পিক')) {
+    const codeMatch = t.match(/df-?(\d{3})/i);
+    const code = codeMatch ? `DF-${codeMatch[1]}` : 'DF-101';
+    return `${greeting}অবশ্যই! আপনার জন্য ${code} এর রিয়েল ছবি পাঠিয়ে দিচ্ছি: [SEND_IMAGE:${code}]`;
+  }
+
+  // Asking for price
+  if (t.includes('dam') || t.includes('দাম') || t.includes('price') || t.includes('টাকা') || t.includes('rate') || t.includes('cost')) {
+    const codeMatch = t.match(/df-?(\d{3})/i);
+    if (codeMatch) {
+      const code = `DF-${codeMatch[1]}`;
+      const prod = getProductByCode(code);
+      if (prod) {
+        return `${greeting}${prod.name} (${prod.model_code}) এর মূল্য ৳${prod.price} টাকা (ম্যাচিং হিজাব একদম ফ্রি)। ঢাকার ভিতরে ডেলিভারি ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}।`;
+      }
+    }
+    return `${greeting}আমাদের প্রিমিয়াম আবায়াগুলোর মূল্য ৳১,৬৫০ থেকে ৳২,৪৫০ টাকার মধ্যে (প্রতিটির সাথেই ম্যাচিং হিজাব ফ্রি)। আপনি কোন নির্দিষ্ট মডেলের দাম জানতে চাচ্ছেন জানালে বলে দিচ্ছি।`;
+  }
+
+  // Asking for size
+  if (t.includes('size') || t.includes('সাইজ') || t.includes('ঝুল') || t.includes('হাইট') || t.includes('height')) {
+    return `${greeting}আমাদের সব আবায়া ঝুল ৫০, ৫২, ৫৪, ৫৬ এবং বডি ৩৬-৪৬ সাইজে পেয়ে যাবেন। আপনার উচ্চতা (হাইট) কত ফিট-ইঞ্চি জানালে পারফেক্ট সাইজটি বলে দিচ্ছি।`;
+  }
+
+  // Asking for delivery or bkash
+  if (t.includes('delivery') || t.includes('ডেলিভারি') || t.includes('bkash') || t.includes('বিকাশ') || t.includes('advance') || t.includes('অগ্রিম')) {
+    return `${greeting}ঢাকার ভিতরে ডেলিভারি চার্জ ৳${storeSettings.inside_dhaka_fee} টাকা, ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee} টাকা। অর্ডার কনফার্ম করতে শুধু ডেলিভারি চার্জটি বিকাশ/নগদে (${storeSettings.bkash_number}) অগ্রিম পাঠাতে হয়, বাকি টাকা ক্যাশ অন ডেলিভারিতে দিবেন।`;
+  }
+
+  // Default pleasant guidance
+  if (isFirstMessage) {
+    return 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন?';
+  }
+  return 'জি, আপনি কোন মডেলের ছবি, সাইজ বা বিস্তারিত দেখতে চাচ্ছেন জানালে এখনই শেয়ার করছি।';
+}
+
+async function callGroqWithFallback(messages, isFirstMessage = false, userText = '') {
+  if (!groqClient) {
+    return generateSmartFallback(userText, isFirstMessage);
+  }
 
   const systemPrompt = buildSystemPrompt(isFirstMessage);
   const chatMessages = [
@@ -192,11 +246,10 @@ async function callGroqWithFallback(messages, isFirstMessage = false) {
     ...messages
   ];
 
-  // Try gpt-oss-120b (smartest), then gpt-oss-20b (fastest), then qwen
+  // Candidates validated for this Groq instance
   const candidateModels = [
-    'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
-    'mixtral-8x7b-32768'
+    'openai/gpt-oss-120b',
+    'qwen/qwen3.8-27b'
   ];
 
   for (const model of candidateModels) {
@@ -216,14 +269,14 @@ async function callGroqWithFallback(messages, isFirstMessage = false) {
     }
   }
 
-  throw new Error('All Groq candidate models failed');
+  // If both models fail, use dynamic smart fallback
+  return generateSmartFallback(userText, isFirstMessage);
 }
 
 // Extract and save order when lead/order details are present
 async function extractAndSaveOrderLead(senderPhone, fullText, conversationHistory) {
   if (!groqClient || !supabase) return;
 
-  // Quick heuristic check: only run extraction if text contains order-like keywords
   const orderKeywords = /(01[3-9]\d{8}|অর্ডার|order|ঠিকানা|এড্রেস|address|ডেলিভারি|কুরিয়ার|সাইজ|size|নিব|নিতে চাই|বিকাশ|bkash|টাকা|bdt|রানি|কাফতান|লাইন)/i;
   if (!orderKeywords.test(fullText)) {
     return;
@@ -255,7 +308,7 @@ JSON Format:
 `;
 
     const completion = await groqClient.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       messages: [{ role: 'user', content: extractPrompt }],
       response_format: { type: 'json_object' },
       temperature: 0.1,
@@ -264,7 +317,6 @@ JSON Format:
 
     const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
 
-    // Only record if it's an actual lead (has phone, or address, or product + size)
     if (parsed.is_order_or_lead && (parsed.customer_phone || parsed.address || (parsed.product_name && parsed.length_size))) {
       const targetPhone = parsed.customer_phone || senderPhone;
       const isOutsideDhaka = parsed.address && !/(ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|বসুন্ধরা|যাত্রাবাড়ী|মতিঝিল|বাড্ডা|খিলগাঁও|মহাখালী|তেজগাঁও|ফার্মগেট|আজিমপুর|পুরান ঢাকা)/i.test(parsed.address);
@@ -273,7 +325,6 @@ JSON Format:
       const prodPrice = parsed.total_bdt || 2200;
       const dueCod = parsed.due_cod || prodPrice;
 
-      // Check if there is already an existing pending order for this customer
       const { data: existingOrders } = await supabase
         .from('orders')
         .select('*')
@@ -283,7 +334,6 @@ JSON Format:
         .limit(1);
 
       if (existingOrders && existingOrders.length > 0) {
-        // Update existing pending order
         const existing = existingOrders[0];
         await supabase.from('orders').update({
           model_code: parsed.model_code || existing.model_code,
@@ -300,7 +350,6 @@ JSON Format:
         }).eq('id', existing.id);
         console.log(`[Order Sync] Updated existing Pending Order #${existing.id} for ${targetPhone}`);
       } else {
-        // Insert new order lead
         await supabase.from('orders').insert({
           customer_phone: targetPhone,
           model_code: parsed.model_code || null,
@@ -342,14 +391,10 @@ async function handleIncomingMessage(senderId, userText) {
   let aiReply = '';
 
   try {
-    aiReply = await callGroqWithFallback(history, isFirstMessageForContact);
+    aiReply = await callGroqWithFallback(history, isFirstMessageForContact, userText);
   } catch (error) {
     console.error('[AI Error]:', error.message);
-    if (isFirstMessageForContact) {
-      aiReply = 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। আপনি কোন ডিজাইনটি দেখতে চাচ্ছেন জানালে সঠিক সাইজ ও ছবি দেখিয়ে দিচ্ছি।';
-    } else {
-      aiReply = 'জি অবশ্যই! আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সাথে ম্যাচিং হিজাব ফ্রি)। আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন জানালে দেখিয়ে দিচ্ছি।';
-    }
+    aiReply = generateSmartFallback(userText, isFirstMessageForContact);
   }
 
   // Double-shield: if NOT first message, strip any accidental Salam
@@ -369,7 +414,6 @@ async function handleIncomingMessage(senderId, userText) {
 
   return aiReply;
 }
-
 
 async function transcribeAudioVoiceNote(audioBuffer) {
   if (!groqClient || !audioBuffer || audioBuffer.length === 0) return null;
@@ -393,7 +437,6 @@ async function transcribeAudioVoiceNote(audioBuffer) {
     }
   } catch (err) {
     console.warn('[Groq Whisper Turbo Notice]:', err.message);
-    // Secondary fallback: whisper-large-v3
     try {
       const file2 = await toFile(audioBuffer, 'voice.ogg', { type: 'audio/ogg' });
       const fallbackTrans = await groqClient.audio.transcriptions.create({
