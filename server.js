@@ -46,16 +46,21 @@ app.get('/api/export-csv', async (req, res) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="autodokan_orders.csv"');
     
-    // CSV Header row with distinct Model Code column
-    let csv = '\uFEFFOrder ID,Date Time,Model Code,Phone Number,Customer Name,Address,Product Details,Size/Length,Total BDT,Payment Mode,TrxID/Last4,Status\r\n';
+    // CSV Header row with distinct financial breakdown
+    let csv = '\uFEFFOrder ID,Date Time,Model Code,Phone Number,Customer Name,Address,Product Details,Size/Length,Dress Price,Delivery Fee,Advance Paid,Due COD,Payment Status,TrxID/Last4,Order Status\r\n';
     
     (orders || []).forEach(o => {
       const cleanDetails = (o.product_details || '').replace(/"/g, '""').replace(/\r?\n|\r/g, ' ');
       const cleanAddress = (o.address || '').replace(/"/g, '""').replace(/\r?\n|\r/g, ' ');
       const cleanName = (o.customer_name || '').replace(/"/g, '""');
       const dateStr = new Date(o.created_at).toLocaleString('en-GB');
+      const prodPrice = Number(o.total_bdt) || 2200;
+      const deliveryFee = Number(o.delivery_fee) || 80;
+      const isAdvancePaid = !!o.trx_id_or_last4 || (Number(o.advance_paid) > 0);
+      const advancePaid = isAdvancePaid ? (Number(o.advance_paid) || deliveryFee) : 0;
+      const dueCod = Number(o.due_cod) || prodPrice;
 
-      csv += `"#${o.id}","${dateStr}","${o.model_code || ''}","${o.customer_phone || ''}","${cleanName}","${cleanAddress}","${cleanDetails}","${o.length_size || ''}","${o.total_bdt || ''}","${o.payment_method || 'COD'}","${o.trx_id_or_last4 || ''}","${o.status || 'Pending'}"\r\n`;
+      csv += `"#${o.id}","${dateStr}","${o.model_code || ''}","${o.customer_phone || ''}","${cleanName}","${cleanAddress}","${cleanDetails}","${o.length_size || ''}","${prodPrice}","${deliveryFee}","${advancePaid}","${dueCod}","${o.payment_method || 'COD'}","${o.trx_id_or_last4 || ''}","${o.status || 'Pending'}"\r\n`;
     });
 
     res.send(csv);
@@ -144,8 +149,13 @@ app.get('/dashboard', async (req, res) => {
   const totalRevenue = (orders || []).filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 2200), 0);
 
   const orderRows = (orders || []).map(o => {
-    const courierData = `কাস্টমার: ${o.customer_name || 'কাস্টমার'}\\nফোন: ${o.customer_phone || ''}\\nঠিকানা: ${o.address || ''}\\nপ্রোডাক্ট: ${o.product_details || ''} (সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'})\\nকালেকশন: ৳${o.total_bdt || 2200}\\nপেমেন্ট: ${o.payment_method || 'COD'}`;
-    const searchMeta = `${o.id} ${o.customer_name || ''} ${o.customer_phone || ''} ${o.address || ''} ${o.product_details || ''}`.toLowerCase();
+    const prodPrice = Number(o.total_bdt) || 2200;
+    const deliveryFee = Number(o.delivery_fee) || 80;
+    const isAdvancePaid = !!o.trx_id_or_last4 || (Number(o.advance_paid) > 0);
+    const dueCod = Number(o.due_cod) || prodPrice;
+
+    const courierData = `কাস্টমার: ${o.customer_name || 'কাস্টমার'}\\nফোন: ${o.customer_phone || ''}\\nঠিকানা: ${o.address || ''}\\nপ্রোডাক্ট: [${o.model_code || 'DF-Model'}] ${o.product_details || ''} (সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'})\\nকুরিয়ার কালেকশন (Due COD): ৳${dueCod}\\nডেলিভারি চার্জ: ${isAdvancePaid ? 'অগ্রিম পেইড' : 'বকেয়া'}`;
+    const searchMeta = `${o.id} ${o.model_code || ''} ${o.customer_name || ''} ${o.customer_phone || ''} ${o.address || ''} ${o.product_details || ''}`.toLowerCase();
 
     return `
     <tr class="order-table-row border-b border-stone-100 hover:bg-amber-50/30 transition" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
@@ -173,8 +183,17 @@ app.get('/dashboard', async (req, res) => {
         ${o.length_size ? `<div class="text-[11px] text-stone-600">সাইজ: <span class="font-extrabold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-300">${o.length_size}</span></div>` : ''}
       </td>
       <td class="p-3.5 text-xs">
-        <div class="font-black text-amber-900 text-sm">৳${o.total_bdt || 2200}</div>
-        <div class="text-[11px] text-stone-500 font-semibold">${o.payment_method || 'COD'}${o.trx_id_or_last4 ? ` (${o.trx_id_or_last4})` : ''}</div>
+        <div class="font-bold text-stone-700 text-xs">ড্রেস: ৳${prodPrice}</div>
+        <div class="my-1">
+          ${isAdvancePaid 
+            ? `<span class="bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1"><span>✅ ডেলিভারি চার্জ পেইড (৳${deliveryFee})</span></span>`
+            : `<span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1"><span>⏳ ডেলিভারি ফি বাকি (৳${deliveryFee})</span></span>`
+          }
+          ${o.trx_id_or_last4 ? `<span class="text-[10px] text-stone-500 font-mono block mt-0.5">Trx: ${o.trx_id_or_last4}</span>` : ''}
+        </div>
+        <div class="font-black text-amber-950 text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+          Due COD: ৳${dueCod}
+        </div>
       </td>
       <td class="p-3.5">
         <form method="POST" action="/api/orders/${o.id}/status" class="inline">
@@ -377,67 +396,6 @@ app.get('/dashboard', async (req, res) => {
           </div>
         </div>
 
-        <!-- Google Sheets™ Enterprise Live Sync Hub -->
-        <div class="bg-gradient-to-br from-white via-[#fcfaf6] to-amber-50/60 p-6 md:p-7 rounded-2xl border border-amber-200/90 shadow-xs relative overflow-hidden">
-          <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div class="space-y-2.5 max-w-3xl">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full text-[11px] font-black tracking-wide uppercase shadow-2xs">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Enterprise Live Sync Active
-                </span>
-                <span class="text-xs font-bold text-stone-400">|</span>
-                <span class="text-xs font-bold text-amber-900 bg-amber-100/70 border border-amber-300 px-2.5 py-0.5 rounded-md">
-                  Google Sheets™ Live Data Stream
-                </span>
-              </div>
-              <h2 class="text-xl font-black text-stone-900 tracking-tight">
-                গুগল স্প্রেডশিটে প্রতিটি অর্ডার স্বয়ংক্রিয় রিয়েল-টাইম সিঙ্ক
-              </h2>
-              <p class="text-xs md:text-sm text-stone-600 leading-relaxed font-medium">
-                আপনার যেকোনো গুগল স্প্রেডশিটের প্রথম ঘর <b>(Cell A1)</b> এ নিচের সিকিউর সিঙ্ক ফর্মুলাটি পেস্ট করুন। ফর্মুলাটি যুক্ত করার সাথে সাথেই আপনার স্টোরের প্রতিটি নতুন কাস্টমার অর্ডার, মডেল কোড (SKU), সাইজ, মোবাইল নম্বর ও ডেলিভারি ঠিকানা স্বয়ংক্রিয়ভাবে লাইভ শিটে সাজিয়ে যাবে। কোনো ম্যানুয়াল ডেটা এন্ট্রি প্রয়োজন নেই।
-              </p>
-
-              <!-- 3-Step Setup Guide Badges -->
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
-                <div class="bg-white/90 border border-stone-200 p-2.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
-                  <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">১</span>
-                  <span class="text-stone-700 font-bold">নতুন গুগল শিট খুলুন</span>
-                </div>
-                <div class="bg-white/90 border border-stone-200 p-2.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
-                  <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">২</span>
-                  <span class="text-stone-700 font-bold">প্রথম সেল (A1) সিলেক্ট করুন</span>
-                </div>
-                <div class="bg-white/90 border border-stone-200 p-2.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
-                  <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">৩</span>
-                  <span class="text-stone-700 font-bold">পেস্ট করে Enter চাপুন</span>
-                </div>
-              </div>
-
-              <!-- Formula Box -->
-              <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div class="relative flex-1">
-                  <code class="block w-full bg-white px-4 py-3 rounded-xl text-stone-900 text-xs md:text-sm font-mono border-2 border-amber-300/80 shadow-inner select-all overflow-x-auto whitespace-nowrap" id="sheetFormula">=IMPORTDATA("https://autodokan-engine.onrender.com/api/export-csv")</code>
-                </div>
-                <button onclick="navigator.clipboard.writeText(document.getElementById('sheetFormula').innerText.trim()); showToast('✅ ফর্মুলা কপি হয়েছে! গুগল শিটের A1 সেলে পেস্ট করুন।')" class="bg-stone-900 hover:bg-black text-white text-xs md:text-sm px-5 py-3 rounded-xl font-black transition shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 shrink-0">
-                  <span>📋 ফর্মুলা কপি করুন</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Side Actions / Manual CSV -->
-            <div class="flex flex-col sm:flex-row lg:flex-col gap-3 w-full lg:w-auto shrink-0 pt-2 lg:pt-0">
-              <a href="/api/export-csv" class="bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 px-5 py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-xs">
-                <span>📥 অফলাইন CSV ফাইল ডাউনলোড</span>
-              </a>
-              <div class="text-[11px] text-stone-500 font-medium text-center space-y-1">
-                <div>⚡ লাইভ অটো-রিফ্রেশ: প্রতি ঘন্টায় গুগল ড্রাইভ অটো-আপডেট করে</div>
-                <div class="text-stone-400">এক্সেল ও কুরিয়ার পোর্টালের সাথে ১০০% কম্প্যাটিবল</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Section: Live Orders with Instant Search & Status Tabs -->
         <div class="bg-white rounded-2xl border border-[#ede6db] shadow-xs overflow-hidden">
           <div class="p-5 border-b border-stone-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -445,10 +403,19 @@ app.get('/dashboard', async (req, res) => {
               <h2 class="font-black text-lg text-stone-900 flex items-center gap-2">
                 <span>📦 লাইভ কাস্টমার অর্ডার ও ডেলিভারি তালিকা</span>
               </h2>
-              <p class="text-xs text-stone-500 font-semibold">হোয়াটসঅ্যাপ থেকে স্বয়ংক্রিয়ভাবে ক্যাপচার করা রিয়েল-টাইম অর্ডারসমূহ</p>
+              <p class="text-xs text-stone-500 font-semibold">হোয়াটসঅ্যাপ থেকে স্বয়ংক্রিয়ভাবে ক্যাপচার করা রিয়েল-টাইম অর্ডারসমূহ (অগ্রিম ডেলিভারি চার্জ ভেরিফিকেশন সহ)</p>
             </div>
             <!-- Search & Actions -->
-            <div class="flex items-center gap-3 w-full md:w-auto">
+            <div class="flex items-center gap-2.5 w-full md:w-auto">
+              <input type="text" id="orderSearchInput" onkeyup="filterOrders()" placeholder="🔍 নাম, ফোন বা ঠিকানা দিয়ে খুঁজুন..." class="bg-[#fcfaf7] border border-stone-300 text-stone-800 text-xs px-3.5 py-2 rounded-xl w-full md:w-64 focus:outline-none focus:border-amber-500 focus:bg-white transition">
+              <a href="/api/export-csv" title="অফলাইন হিসাবের জন্য এক্সেল/CSV ডাউনলোড করুন" class="text-xs bg-white hover:bg-stone-50 text-stone-700 font-bold px-3 py-2 rounded-xl border border-stone-300 transition shadow-2xs whitespace-nowrap flex items-center gap-1.5">
+                <span>📥 এক্সেল</span>
+              </a>
+              <button onclick="window.location.reload()" class="text-xs bg-[#fbf9f5] hover:bg-stone-100 text-stone-700 font-bold px-3.5 py-2 rounded-xl border border-stone-300 transition cursor-pointer whitespace-nowrap">
+                🔄 রিফ্রেশ
+              </button>
+            </div>
+          </div>
               <input type="text" id="orderSearchInput" onkeyup="filterOrders()" placeholder="🔍 নাম, ফোন বা ঠিকানা দিয়ে খুঁজুন..." class="bg-[#fcfaf7] border border-stone-300 text-stone-800 text-xs px-3.5 py-2 rounded-xl w-full md:w-64 focus:outline-none focus:border-amber-500 focus:bg-white transition">
               <button onclick="window.location.reload()" class="text-xs bg-[#fbf9f5] hover:bg-stone-100 text-stone-700 font-bold px-3.5 py-2 rounded-xl border border-stone-300 transition cursor-pointer whitespace-nowrap">
                 🔄 রিফ্রেশ
@@ -484,7 +451,7 @@ app.get('/dashboard', async (req, res) => {
                   <th class="p-3.5">কাস্টমার নাম ও ফোন</th>
                   <th class="p-3.5">ডেলিভারি ঠিকানা</th>
                   <th class="p-3.5">মডেল কোড (SKU) ও বিবরণ</th>
-                  <th class="p-3.5">টাকা ও পেমেন্ট</th>
+                  <th class="p-3.5">পেমেন্ট ও হিসাব (অগ্রিম + COD)</th>
                   <th class="p-3.5">অর্ডার স্ট্যাটাস</th>
                   <th class="p-3.5">তারিখ ও সময়</th>
                 </tr>

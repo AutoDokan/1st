@@ -79,17 +79,22 @@ ESSENTIAL SHOP GUIDELINES:
    - 5'4" to 5'5" ➔ Size 54 or 56
    - 5'6" and above ➔ Size 56
    - Body sizes: 36, 38, 40, 42, 44, 46 (অথবা ফ্রি সাইজ)।
-4. Pricing & Delivery:
-   - Authentic quality with reasonable fixed price.
-   - Delivery charge: Inside Dhaka 80 BDT, Outside Dhaka 130 BDT.
-   - Cash on Delivery (COD) available nationwide.
+4. Pricing & Advance Delivery Policy (অগ্রিম ডেলিভারি চার্জ পলিসি):
+   - প্রতিটি প্রোডাক্টের মূল্য একদম ফিক্সড ও ন্যায্য।
+   - ডেলিভারি চার্জ: ঢাকার ভেতরে ৮০ টাকা, ঢাকার বাইরে ১৫০ টাকা।
+   - MANDATORY ADVANCE DELIVERY FEE:
+     * পার্সেল রিটার্ন এড়ানোর জন্য এবং অর্ডার কনফার্ম করতে কাস্টমারকে অবশ্যই ডেলিভারি চার্জটি (ঢাকার ভিতরে ৮০ টাকা, ঢাকার বাইরে ১৫০ টাকা) বিকাশ বা নগদে অগ্রিম প্রদান করতে হবে।
+     * ড্রেসের বাকি পুরো মূল্য (ক্যাশ অন ডেলিভারি - COD) পার্সেল হাতে পেয়ে ডেলিভারিম্যানকে দিয়ে রিসিভ করবেন।
+     * বিকাশ/নগদ নাম্বার: 01613-129192 অথবা 01677-557292 (পার্সোনাল)।
+     * কাস্টমারকে বলবে: "আপু আপনার অর্ডারটি কনফার্ম করার জন্য শুধু ডেলিভারি চার্জটি (ঢাকার ভিতরে ৮০ টাকা / ঢাকার বাইরে ১৫০ টাকা) আমাদের বিকাশ/নগদে পাঠিয়ে লাস্ট ৪ ডিজিট বা ট্রানজেকশন আইডি (TrxID) জানালেই পার্সেল বুক হয়ে যাবে। বাকি ড্রেসের পুরো টাকা পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে চেক করে দিবেন।"
 5. Order Confirmation:
    - To confirm an order, ask politely for:
      a) Full Name (কাস্টমারের নাম)
      b) Mobile Number (১১ ডিজিটের মোবাইল নাম্বার)
-     c) Delivery Address (বাসা/রোড, থানা, জেলা)
+     c) Delivery Address (বাসা/রোড, থানা, জেলা - বিশেষ করে ঢাকা নাকি ঢাকার বাইরে)
      d) Burkha model, Size & Color (বোরকার নাম ও সাইজ)
-   - When all details are provided, summarize the order beautifully and warmly confirm that Dawah Fashion will dispatch the parcel soon!
+     e) Advance Delivery Charge (বিকাশ/নগদ লাস্ট ৪ ডিজিট বা TrxID)
+   - When all details are provided, summarize the order beautifully with: Product Name & Model, Total Price, Advance Paid, and Due COD amount, then warmly confirm that Dawah Fashion will dispatch the parcel soon!
 
 Keep replies concise, friendly, and natural.
 `;
@@ -158,7 +163,10 @@ JSON Format:
   "product_name": string or null,
   "length_size": string or null,
   "total_bdt": number or null,
-  "payment_method": "COD" or "bKash" or null,
+  "delivery_fee": 80 or 150 or null,
+  "advance_paid": number or null,
+  "due_cod": number or null,
+  "payment_method": "COD (Advance Delivery Paid)" or "COD" or null,
   "trx_id_or_last4": string or null
 }
 `;
@@ -168,7 +176,7 @@ JSON Format:
       messages: [{ role: 'user', content: extractPrompt }],
       response_format: { type: 'json_object' },
       temperature: 0.1,
-      max_tokens: 300
+      max_tokens: 350
     });
 
     const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
@@ -176,6 +184,11 @@ JSON Format:
     // Only record if it's an actual lead (has phone, or address, or product + size)
     if (parsed.is_order_or_lead && (parsed.customer_phone || parsed.address || (parsed.product_name && parsed.length_size))) {
       const targetPhone = parsed.customer_phone || senderPhone;
+      const isOutsideDhaka = parsed.address && !/(ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|মিরপুর|বসুন্ধরা|যাত্রাবাড়ী)/i.test(parsed.address);
+      const deliveryFee = parsed.delivery_fee || (isOutsideDhaka ? 150 : 80);
+      const advancePaid = parsed.advance_paid !== undefined && parsed.advance_paid !== null ? parsed.advance_paid : (parsed.trx_id_or_last4 ? deliveryFee : 0);
+      const prodPrice = parsed.total_bdt || 2200;
+      const dueCod = parsed.due_cod || prodPrice;
 
       // Check if there is already an existing pending order for this customer
       const { data: existingOrders } = await supabase
@@ -195,8 +208,11 @@ JSON Format:
           address: parsed.address || existing.address,
           product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : existing.product_details,
           length_size: parsed.length_size || existing.length_size,
-          total_bdt: parsed.total_bdt || existing.total_bdt,
-          payment_method: parsed.payment_method || existing.payment_method || 'COD',
+          total_bdt: parsed.total_bdt || existing.total_bdt || prodPrice,
+          delivery_fee: deliveryFee || existing.delivery_fee,
+          advance_paid: advancePaid || existing.advance_paid,
+          due_cod: dueCod || existing.due_cod,
+          payment_method: parsed.trx_id_or_last4 ? 'COD (Advance Delivery Paid)' : (parsed.payment_method || existing.payment_method || 'COD (Pending Advance)'),
           trx_id_or_last4: parsed.trx_id_or_last4 || existing.trx_id_or_last4
         }).eq('id', existing.id);
         console.log(`[Order Sync] Updated existing Pending Order #${existing.id} for ${targetPhone}`);
@@ -209,8 +225,11 @@ JSON Format:
           address: parsed.address || null,
           product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : fullText.substring(0, 200),
           length_size: parsed.length_size || null,
-          total_bdt: parsed.total_bdt || 2200,
-          payment_method: parsed.payment_method || 'COD',
+          total_bdt: prodPrice,
+          delivery_fee: deliveryFee,
+          advance_paid: advancePaid,
+          due_cod: dueCod,
+          payment_method: parsed.trx_id_or_last4 ? 'COD (Advance Delivery Paid)' : 'COD (Pending Advance)',
           trx_id_or_last4: parsed.trx_id_or_last4 || null,
           status: 'Pending'
         });
