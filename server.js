@@ -5,7 +5,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB } = require('./borkha_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings } = require('./borkha_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -79,6 +79,36 @@ app.post('/api/orders/:id/status', async (req, res) => {
   res.redirect('/dashboard');
 });
 
+// Update Global Store & Delivery Rules API
+app.post('/api/settings/update', async (req, res) => {
+  const { inside_dhaka_fee, outside_dhaka_fee, bkash_number, nagad_number } = req.body;
+  await supabase.from('store_settings').upsert({
+    id: 1,
+    inside_dhaka_fee: Number(inside_dhaka_fee) || 80,
+    outside_dhaka_fee: Number(outside_dhaka_fee) || 150,
+    bkash_number: (bkash_number || '01613-129192').trim(),
+    nagad_number: (nagad_number || '01677-557292').trim(),
+    updated_at: new Date().toISOString()
+  });
+  await refreshSettingsFromDB();
+  res.redirect('/dashboard');
+});
+
+// Update Specific Order Payment & Delivery Details API
+app.post('/api/orders/:id/update-payment', async (req, res) => {
+  const { id } = req.params;
+  const { delivery_fee, advance_paid, trx_id_or_last4, due_cod } = req.body;
+  const isPaid = Number(advance_paid) > 0 || !!trx_id_or_last4;
+  await supabase.from('orders').update({
+    delivery_fee: Number(delivery_fee) || 80,
+    advance_paid: Number(advance_paid) || 0,
+    trx_id_or_last4: (trx_id_or_last4 || '').trim() || null,
+    due_cod: Number(due_cod) || 2200,
+    payment_method: isPaid ? 'COD (Advance Delivery Paid)' : 'COD (Pending Advance)'
+  }).eq('id', id);
+  res.redirect('/dashboard');
+});
+
 // Add New Product API
 app.post('/api/add-product', async (req, res) => {
   const { model_code, name, fabric, price, sizes, hijab_included } = req.body;
@@ -138,6 +168,8 @@ app.post('/api/products/:id/toggle-stock', async (req, res) => {
 app.get('/dashboard', async (req, res) => {
   const { data: orders } = await supabase.from('orders').select('*').order('id', { ascending: false });
   const { data: products } = await supabase.from('products').select('*').order('id', { ascending: true });
+  const { data: storeSettings } = await supabase.from('store_settings').select('*').eq('id', 1).single();
+  const curSettings = storeSettings || { inside_dhaka_fee: 80, outside_dhaka_fee: 150, bkash_number: '01613-129192', nagad_number: '01677-557292' };
 
   const totalOrders = orders ? orders.length : 0;
   const pendingOrders = orders ? orders.filter(o => o.status === 'Pending').length : 0;
@@ -194,6 +226,9 @@ app.get('/dashboard', async (req, res) => {
         <div class="font-black text-amber-950 text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
           Due COD: ৳${dueCod}
         </div>
+        <button type="button" onclick="togglePaymentEdit(${o.id})" class="text-[10px] text-amber-900 hover:text-amber-950 font-bold hover:underline cursor-pointer block mt-1.5">
+          ✏️ ডেলিভারি ফি / Trx এডিট
+        </button>
       </td>
       <td class="p-3.5">
         <form method="POST" action="/api/orders/${o.id}/status" class="inline">
@@ -210,6 +245,44 @@ app.get('/dashboard', async (req, res) => {
         </form>
       </td>
       <td class="p-3.5 text-xs text-stone-400 font-medium whitespace-nowrap">${new Date(o.created_at).toLocaleString('bn-BD')}</td>
+    </tr>
+    <!-- Collapsible Payment Edit Drawer for Order #${o.id} -->
+    <tr id="edit-payment-${o.id}" class="hidden bg-[#fdfbf7] border-b border-amber-200">
+      <td colspan="7" class="p-4">
+        <div class="bg-white p-4 rounded-xl border border-amber-300 shadow-sm space-y-3 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+            <h5 class="text-xs font-black text-stone-800 flex items-center gap-1.5">
+              <span>✏️ অর্ডার #${o.id} — ডেলিভারি চার্জ ও পেমেন্ট আপডেট করুন</span>
+            </h5>
+            <button type="button" onclick="togglePaymentEdit(${o.id})" class="text-xs text-stone-400 hover:text-stone-700 font-bold cursor-pointer">✕ বন্ধ করুন</button>
+          </div>
+          <form method="POST" action="/api/orders/${o.id}/update-payment" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold text-stone-700 mb-1">ডেলিভারি চার্জ (টাকা)</label>
+              <input type="number" name="delivery_fee" value="${deliveryFee}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2 rounded-lg">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-stone-700 mb-1">অগ্রিম পেইড (টাকা)</label>
+              <input type="number" name="advance_paid" value="${o.advance_paid || (isAdvancePaid ? deliveryFee : 0)}" class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2 rounded-lg">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-stone-700 mb-1">বিকাশ/নগদ TrxID / Last 4</label>
+              <input type="text" name="trx_id_or_last4" value="${o.trx_id_or_last4 || ''}" placeholder="যেমন: 9A7X... বা 1291" class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2 rounded-lg">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-stone-700 mb-1">Due COD কালেকশন (টাকা)</label>
+              <input type="number" name="due_cod" value="${dueCod}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2 rounded-lg">
+            </div>
+            <div class="sm:col-span-4 flex items-center justify-between pt-1">
+              <span class="text-[10px] text-stone-500 font-medium">* অগ্রিম টাকা বা TrxID দিলে অর্ডারটি স্বয়ংক্রিয়ভাবে 'Advance Delivery Paid' হিসেবে মার্ক হয়ে যাবে।</span>
+              <div class="flex gap-2">
+                <button type="button" onclick="togglePaymentEdit(${o.id})" class="px-3 py-1.5 text-xs font-bold text-stone-600 hover:bg-stone-100 rounded-lg">বাতিল</button>
+                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black px-4 py-1.5 rounded-lg shadow-2xs">💾 সেভ করুন</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </td>
     </tr>
     `;
   }).join('');
@@ -396,6 +469,58 @@ app.get('/dashboard', async (req, res) => {
           </div>
         </div>
 
+        <!-- Section: Store Rules & Delivery Fee Settings -->
+        <div class="bg-white rounded-2xl border border-[#ede6db] p-5 shadow-xs">
+          <div class="flex items-center justify-between border-b border-stone-100 pb-3 flex-wrap gap-3">
+            <div>
+              <h2 class="font-black text-base text-stone-900 flex items-center gap-2">
+                <span>⚙️ ডেলিভারি চার্জ ও পেমেন্ট রুলস (Store Rules)</span>
+              </h2>
+              <p class="text-xs text-stone-500 font-semibold">এখানে সেট করা রেট অনুযায়ী WhatsApp AI স্বয়ংক্রিয়ভাবে কাস্টমারদের চার্জ কোট করবে</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1 rounded-full text-[11px] font-black">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              AI Auto-Rules Active
+            </span>
+          </div>
+
+          <form method="POST" action="/api/settings/update" class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-[#fcfaf7] p-3 rounded-xl border border-stone-200">
+              <label class="block text-xs font-bold text-stone-800 mb-1">🚚 ঢাকার ভেতরে চার্জ (টাকা)</label>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-amber-900 text-sm">৳</span>
+                <input type="number" name="inside_dhaka_fee" value="${curSettings.inside_dhaka_fee}" required class="w-full bg-white border border-stone-300 text-stone-900 text-sm font-bold p-2 rounded-lg focus:border-amber-500 focus:outline-none">
+              </div>
+              <span class="text-[10px] text-stone-500 mt-1 block">মিরপুর, উত্তরা, ধানমন্ডি ইত্যাদি এলাকা</span>
+            </div>
+
+            <div class="bg-[#fcfaf7] p-3 rounded-xl border border-stone-200">
+              <label class="block text-xs font-bold text-stone-800 mb-1">🚛 ঢাকার বাইরে চার্জ (টাকা)</label>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-amber-900 text-sm">৳</span>
+                <input type="number" name="outside_dhaka_fee" value="${curSettings.outside_dhaka_fee}" required class="w-full bg-white border border-stone-300 text-stone-900 text-sm font-bold p-2 rounded-lg focus:border-amber-500 focus:outline-none">
+              </div>
+              <span class="text-[10px] text-stone-500 mt-1 block">চট্টগ্রাম, সিলেট, রাজশাহী ও সকল জেলা</span>
+            </div>
+
+            <div class="bg-[#fcfaf7] p-3 rounded-xl border border-stone-200">
+              <label class="block text-xs font-bold text-stone-800 mb-1">📱 বিকাশ নাম্বার (অগ্রিম কালেকশন)</label>
+              <input type="text" name="bkash_number" value="${curSettings.bkash_number}" required class="w-full bg-white border border-stone-300 text-stone-900 text-sm font-mono font-bold p-2 rounded-lg focus:border-amber-500 focus:outline-none">
+              <span class="text-[10px] text-stone-500 mt-1 block">কাস্টমারকে ডেলিভারি ফি পাঠাতে বলা হবে</span>
+            </div>
+
+            <div class="bg-[#fcfaf7] p-3 rounded-xl border border-stone-200 flex flex-col justify-between">
+              <div>
+                <label class="block text-xs font-bold text-stone-800 mb-1">📱 নগদ নাম্বার</label>
+                <input type="text" name="nagad_number" value="${curSettings.nagad_number}" required class="w-full bg-white border border-stone-300 text-stone-900 text-sm font-mono font-bold p-2 rounded-lg focus:border-amber-500 focus:outline-none">
+              </div>
+              <button type="submit" class="mt-2 bg-stone-900 hover:bg-black text-white text-xs font-black py-2 px-4 rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+                <span>💾 রুলস আপডেট করুন</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
         <!-- Section: Live Orders with Instant Search & Status Tabs -->
         <div class="bg-white rounded-2xl border border-[#ede6db] shadow-xs overflow-hidden">
           <div class="p-5 border-b border-stone-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -546,6 +671,13 @@ app.get('/dashboard', async (req, res) => {
       <script>
         function toggleProductEdit(id) {
           const row = document.getElementById('edit-product-' + id);
+          if (row) {
+            row.classList.toggle('hidden');
+          }
+        }
+
+        function togglePaymentEdit(id) {
+          const row = document.getElementById('edit-payment-' + id);
           if (row) {
             row.classList.toggle('hidden');
           }

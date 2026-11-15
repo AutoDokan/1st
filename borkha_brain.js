@@ -21,11 +21,42 @@ let cachedProductsText = `
 ২. [মডেল কোড: DF-102] প্রিমিয়াম দুবাই চেরি রানি আবায়া (জেট ব্ল্যাক) - মূল্য: ৳২,২০০ টাকা (১০০% অরিজিনাল দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৬, ম্যাচিং হিজাব ফ্রি)
 ৩. [মডেল কোড: DF-103] কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান বোরকা (কফি ও সি-গ্রিন) - মূল্য: ৳১,৯৫০ টাকা (প্রিমিয়াম সফট কোরিয়ান চেরি ও জর্জেট, ঝুল ৫২-৫৬, কাফতান ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি)
 ৪. [মডেল কোড: DF-104] সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার বোরকা (নেভি ব্লু) - মূল্য: ৳১,৬৫০ টাকা (১০০% সফট দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৪, হিজাব সহ)
-五. [মডেল কোড: DF-105] এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (রয়েল ব্লু ও মেরুন) - মূল্য: ৳২,৩০০ টাকা (হেভি কোরিয়ান ডায়মন্ড জর্জেট, ঝুল ৫২-৫৬, ম্যাচিং লং হিজাব ফ্রি)
+৫. [মডেল কোড: DF-105] এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (রয়েল ব্লু ও মেরুন) - মূল্য: ৳২,৩০০ টাকা (হেভি কোরিয়ান ডায়মন্ড জর্জেট, ঝুল ৫২-৫৬, ম্যাচিং লং হিজাব ফ্রি)
 ৬. [মডেল কোড: DF-106] ডাবল লেয়ার কোটি স্টাইল দুবাই আবায়া (চকলেট ও কালো) - মূল্য: ৳২,১০০ টাকা (পিওর দুবাই চেরি ডাবল লেয়ার, ঝুল ৫০-৫৬, বডি ৩৮-৪৪, ম্যাচিং হিজাব ফ্রি)
 `;
 
 let cachedProductList = [];
+
+// Dynamic Store & Delivery Settings (synced from Supabase store_settings)
+let storeSettings = {
+  inside_dhaka_fee: 80,
+  outside_dhaka_fee: 150,
+  bkash_number: '01613-129192',
+  nagad_number: '01677-557292',
+  auto_reply_enabled: true
+};
+
+async function refreshSettingsFromDB() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase.from('store_settings').select('*').eq('id', 1).single();
+    if (data && !error) {
+      storeSettings = {
+        inside_dhaka_fee: Number(data.inside_dhaka_fee) || 80,
+        outside_dhaka_fee: Number(data.outside_dhaka_fee) || 150,
+        bkash_number: data.bkash_number || '01613-129192',
+        nagad_number: data.nagad_number || '01677-557292',
+        auto_reply_enabled: data.auto_reply_enabled ?? true
+      };
+      console.log(`[Store Settings Loaded] Inside Dhaka: ৳${storeSettings.inside_dhaka_fee} | Outside Dhaka: ৳${storeSettings.outside_dhaka_fee}`);
+    }
+  } catch (e) {
+    console.warn('[Store Settings Load Warning]:', e.message);
+  }
+}
+
+refreshSettingsFromDB();
+setInterval(refreshSettingsFromDB, 60000);
 
 async function refreshProductsFromDB() {
   try {
@@ -81,12 +112,14 @@ ESSENTIAL SHOP GUIDELINES:
    - Body sizes: 36, 38, 40, 42, 44, 46 (অথবা ফ্রি সাইজ)।
 4. Pricing & Advance Delivery Policy (অগ্রিম ডেলিভারি চার্জ পলিসি):
    - প্রতিটি প্রোডাক্টের মূল্য একদম ফিক্সড ও ন্যায্য।
-   - ডেলিভারি চার্জ: ঢাকার ভেতরে ৮০ টাকা, ঢাকার বাইরে ১৫০ টাকা।
+   - ডেলিভারি চার্জের নিয়ম (Store Delivery Rules):
+     * ঢাকার ভেতরে ডেলিভারি চার্জ: ৳${storeSettings.inside_dhaka_fee} টাকা।
+     * ঢাকার বাইরে ডেলিভারি চার্জ: ৳${storeSettings.outside_dhaka_fee} টাকা।
    - MANDATORY ADVANCE DELIVERY FEE:
-     * পার্সেল রিটার্ন এড়ানোর জন্য এবং অর্ডার কনফার্ম করতে কাস্টমারকে অবশ্যই ডেলিভারি চার্জটি (ঢাকার ভিতরে ৮০ টাকা, ঢাকার বাইরে ১৫০ টাকা) বিকাশ বা নগদে অগ্রিম প্রদান করতে হবে।
+     * পার্সেল রিটার্ন এড়ানোর জন্য এবং অর্ডার কনফার্ম করতে কাস্টমারকে অবশ্যই ডেলিভারি চার্জটি (ঢাকার ভিতরে ৳${storeSettings.inside_dhaka_fee} টাকা / ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee} টাকা) বিকাশ বা নগদে অগ্রিম প্রদান করতে হবে।
      * ড্রেসের বাকি পুরো মূল্য (ক্যাশ অন ডেলিভারি - COD) পার্সেল হাতে পেয়ে ডেলিভারিম্যানকে দিয়ে রিসিভ করবেন।
-     * বিকাশ/নগদ নাম্বার: 01613-129192 অথবা 01677-557292 (পার্সোনাল)।
-     * কাস্টমারকে বলবে: "আপু আপনার অর্ডারটি কনফার্ম করার জন্য শুধু ডেলিভারি চার্জটি (ঢাকার ভিতরে ৮০ টাকা / ঢাকার বাইরে ১৫০ টাকা) আমাদের বিকাশ/নগদে পাঠিয়ে লাস্ট ৪ ডিজিট বা ট্রানজেকশন আইডি (TrxID) জানালেই পার্সেল বুক হয়ে যাবে। বাকি ড্রেসের পুরো টাকা পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে চেক করে দিবেন।"
+     * বিকাশ/নগদ নাম্বার: ${storeSettings.bkash_number} অথবা ${storeSettings.nagad_number} (পার্সোনাল)।
+     * কাস্টমারকে বলবে: "আপু আপনার অর্ডারটি কনফার্ম করার জন্য শুধু ডেলিভারি চার্জটি (${storeSettings.inside_dhaka_fee} টাকা ঢাকার ভিতরে / ${storeSettings.outside_dhaka_fee} টাকা ঢাকার বাইরে) আমাদের বিকাশ বা নগদে (${storeSettings.bkash_number}) পাঠিয়ে লাস্ট ৪ ডিজিট বা ট্রানজেকশন আইডি (TrxID) জানালেই পার্সেল বুক হয়ে যাবে। বাকি ড্রেসের পুরো টাকা পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে চেক করে দিবেন।"
 5. Order Confirmation:
    - To confirm an order, ask politely for:
      a) Full Name (কাস্টমারের নাম)
@@ -184,8 +217,8 @@ JSON Format:
     // Only record if it's an actual lead (has phone, or address, or product + size)
     if (parsed.is_order_or_lead && (parsed.customer_phone || parsed.address || (parsed.product_name && parsed.length_size))) {
       const targetPhone = parsed.customer_phone || senderPhone;
-      const isOutsideDhaka = parsed.address && !/(ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|মিরপুর|বসুন্ধরা|যাত্রাবাড়ী)/i.test(parsed.address);
-      const deliveryFee = parsed.delivery_fee || (isOutsideDhaka ? 150 : 80);
+      const isOutsideDhaka = parsed.address && !/(ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|বসুন্ধরা|যাত্রাবাড়ী|মতিঝিল|বাড্ডা|খিলগাঁও|মহাখালী|তেজগাঁও|ফার্মগেট|আজিমপুর|পুরান ঢাকা)/i.test(parsed.address);
+      const deliveryFee = parsed.delivery_fee || (isOutsideDhaka ? storeSettings.outside_dhaka_fee : storeSettings.inside_dhaka_fee);
       const advancePaid = parsed.advance_paid !== undefined && parsed.advance_paid !== null ? parsed.advance_paid : (parsed.trx_id_or_last4 ? deliveryFee : 0);
       const prodPrice = parsed.total_bdt || 2200;
       const dueCod = parsed.due_cod || prodPrice;
@@ -270,4 +303,9 @@ async function handleIncomingMessage(senderId, userText) {
   return aiReply;
 }
 
-module.exports = { handleIncomingMessage, refreshProductsFromDB };
+module.exports = { 
+  handleIncomingMessage, 
+  refreshProductsFromDB, 
+  refreshSettingsFromDB, 
+  getStoreSettings: () => storeSettings 
+};
