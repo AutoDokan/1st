@@ -17,23 +17,23 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // In-memory product cache (refreshed periodically from Supabase)
 let cachedProductsText = `
-১. ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট - মূল্য: ৳২,৪৫০ টাকা (ফেব্রিক: প্রিমিয়াম দুবাই চেরি কাপড় + গর্জিয়াস কারচুপি কোটি, ঝুল ৫০-৫৬, বডি ৩৮-৪৬ ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি ৩-পিস সেট)
-২. প্রিমিয়াম দুবাই চেরি রানি আবায়া (জেট ব্ল্যাক) - মূল্য: ৳২,২০০ টাকা (১০০% অরিজিনাল দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৬, ম্যাচিং হিজাব ফ্রি)
-৩. কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান বোরকা (কফি ও সি-গ্রিন) - মূল্য: ৳১,৯৫০ টাকা (প্রিমিয়াম সফট কোরিয়ান চেরি ও জর্জেট, ঝুল ৫২-৫৬, কাফতান ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি)
-৪. সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার বোরকা (নেভি ব্লু) - মূল্য: ৳১,৬৫০ টাকা (১০০% সফট দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৪, হিজাব সহ)
-৫. এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (রয়েল ব্লু ও মেরুন) - মূল্য: ৳২,৩০০ টাকা (হেভি কোরিয়ান ডায়মন্ড জর্জেট, ঝুল ৫২-৫৬, ম্যাচিং লং হিজাব ফ্রি)
-৬. ডাবল লেয়ার কোটি স্টাইল দুবাই আবায়া (চকলেট ও কালো) - মূল্য: ৳২,১০০ টাকা (পিওর দুবাই চেরি ডাবল লেয়ার, ঝুল ৫০-৫৬, বডি ৩৮-৪৪, ম্যাচিং হিজাব ফ্রি)
+১. [মডেল কোড: DF-101] ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট - মূল্য: ৳২,৪৫০ টাকা (ফেব্রিক: প্রিমিয়াম দুবাই চেরি কাপড় + গর্জিয়াস কারচুপি কোটি, ঝুল ৫০-৫৬, বডি ৩৮-৪৬ ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি ৩-পিস সেট)
+২. [মডেল কোড: DF-102] প্রিমিয়াম দুবাই চেরি রানি আবায়া (জেট ব্ল্যাক) - মূল্য: ৳২,২০০ টাকা (১০০% অরিজিনাল দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৬, ম্যাচিং হিজাব ফ্রি)
+৩. [মডেল কোড: DF-103] কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান বোরকা (কফি ও সি-গ্রিন) - মূল্য: ৳১,৯৫০ টাকা (প্রিমিয়াম সফট কোরিয়ান চেরি ও জর্জেট, ঝুল ৫২-৫৬, কাফতান ফ্রি সাইজ, ম্যাচিং হিজাব ফ্রি)
+৪. [মডেল কোড: DF-104] সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার বোরকা (নেভি ব্লু) - মূল্য: ৳১,৬৫০ টাকা (১০০% সফট দুবাই চেরি, ঝুল ৫০-৫৬, বডি ৩৬-৪৪, হিজাব সহ)
+五. [মডেল কোড: DF-105] এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (রয়েল ব্লু ও মেরুন) - মূল্য: ৳২,৩০০ টাকা (হেভি কোরিয়ান ডায়মন্ড জর্জেট, ঝুল ৫২-৫৬, ম্যাচিং লং হিজাব ফ্রি)
+৬. [মডেল কোড: DF-106] ডাবল লেয়ার কোটি স্টাইল দুবাই আবায়া (চকলেট ও কালো) - মূল্য: ৳২,১০০ টাকা (পিওর দুবাই চেরি ডাবল লেয়ার, ঝুল ৫০-৫৬, বডি ৩৮-৪৪, ম্যাচিং হিজাব ফ্রি)
 `;
 
 let cachedProductList = [];
 
 async function refreshProductsFromDB() {
   try {
-    const { data, error } = await supabase.from('products').select('*').eq('in_stock', true);
+    const { data, error } = await supabase.from('products').select('*').eq('in_stock', true).order('id', { ascending: true });
     if (!error && data && data.length > 0) {
       cachedProductList = data;
       cachedProductsText = data.map((p, idx) => 
-        `${idx + 1}. ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric}, ঝুল সাইজ: ${p.sizes}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'})`
+        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name} - মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric}, ঝুল সাইজ: ${p.sizes}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'})`
       ).join('\n');
     }
   } catch (e) {
@@ -64,9 +64,11 @@ CURRENT LIVE PRODUCTS & PRICING:
 ${cachedProductsText}
 
 ESSENTIAL SHOP GUIDELINES:
-1. Product Designs / Models ("আর কোনো মডেল নাই?", "অন্য ডিজাইন আছে?", "নতুন কালেকশন"):
-   - We currently feature these premium trending models.
-   - If asked for other models or designs, explain politely: "বর্তমানে আমাদের এই প্রিমিয়াম মডেলগুলো এবং গর্জিয়াস কারচুপি কোটি সেটগুলো সবচেয়ে বেশি জনপ্রিয়। আপনার পছন্দের কালার ও সাইজ জানালে আমরা কাস্টমাইজেশন বা পরবর্তী কালেকশনের স্টকও দেখতে পারব আপু।"
+1. Product Models & Model Codes (DF-101, DF-102, DF-103, DF-104, DF-105, DF-106):
+   - প্রতিটি মডেলের নির্দিষ্ট মডেল কোড রয়েছে (যেমন DF-101, DF-102 ইত্যাদি)।
+   - কাস্টমার যদি সরাসরি কোনো কোড উল্লেখ করে (যেমন: "DF-101 এর দাম কত?" বা "102 টা নিতে চাই" বা "DF-103 এর কালার কি আছে?"), সাথে সাথে সেই স্পেসিফিক মডেলটির বিস্তারিত ও সাইজ জানাবে।
+   - কাস্টমারকে কোনো বোরকার কথা বলার সময় নামের পাশে মডেল কোডটিও (যেমন: DF-101) উল্লেখ করবে।
+   - If asked for other designs ("আর কোনো মডেল নাই?", "নতুন কালেকশন"): explain politely: "বর্তমানে আমাদের এই প্রিমিয়াম মডেলগুলো এবং গর্জিয়াস কারচুপি কোটি সেটগুলো সবচেয়ে বেশি জনপ্রিয়। আপনার পছন্দের কালার ও সাইজ জানালে আমরা কাস্টমাইজেশন বা পরবর্তী কালেকশনের স্টকও দেখতে পারব আপু।"
 2. Fabric & Quality:
    - 100% Original Dubai Cherry and Premium Korean Cherry.
    - Soft, breathable, perfect fall, 100% non-see-through (একটুও পাতলা বা ট্রান্সপারেন্ট নয়)।
@@ -149,6 +151,7 @@ ${recentMessages}
 JSON Format:
 {
   "is_order_or_lead": true,
+  "model_code": "DF-101" or string or null,
   "customer_name": string or null,
   "customer_phone": string or null,
   "address": string or null,
@@ -187,6 +190,7 @@ JSON Format:
         // Update existing pending order
         const existing = existingOrders[0];
         await supabase.from('orders').update({
+          model_code: parsed.model_code || existing.model_code,
           customer_name: parsed.customer_name || existing.customer_name,
           address: parsed.address || existing.address,
           product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : existing.product_details,
@@ -200,6 +204,7 @@ JSON Format:
         // Insert new order lead
         await supabase.from('orders').insert({
           customer_phone: targetPhone,
+          model_code: parsed.model_code || null,
           customer_name: parsed.customer_name || null,
           address: parsed.address || null,
           product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : fullText.substring(0, 200),

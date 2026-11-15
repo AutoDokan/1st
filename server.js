@@ -46,8 +46,8 @@ app.get('/api/export-csv', async (req, res) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="autodokan_orders.csv"');
     
-    // CSV Header row
-    let csv = '\uFEFFOrder ID,Date Time,Phone Number,Customer Name,Address,Product Details,Size/Length,Total BDT,Payment Mode,TrxID/Last4,Status\r\n';
+    // CSV Header row with distinct Model Code column
+    let csv = '\uFEFFOrder ID,Date Time,Model Code,Phone Number,Customer Name,Address,Product Details,Size/Length,Total BDT,Payment Mode,TrxID/Last4,Status\r\n';
     
     (orders || []).forEach(o => {
       const cleanDetails = (o.product_details || '').replace(/"/g, '""').replace(/\r?\n|\r/g, ' ');
@@ -55,7 +55,7 @@ app.get('/api/export-csv', async (req, res) => {
       const cleanName = (o.customer_name || '').replace(/"/g, '""');
       const dateStr = new Date(o.created_at).toLocaleString('en-GB');
 
-      csv += `"#${o.id}","${dateStr}","${o.customer_phone || ''}","${cleanName}","${cleanAddress}","${cleanDetails}","${o.length_size || ''}","${o.total_bdt || ''}","${o.payment_method || 'COD'}","${o.trx_id_or_last4 || ''}","${o.status || 'Pending'}"\r\n`;
+      csv += `"#${o.id}","${dateStr}","${o.model_code || ''}","${o.customer_phone || ''}","${cleanName}","${cleanAddress}","${cleanDetails}","${o.length_size || ''}","${o.total_bdt || ''}","${o.payment_method || 'COD'}","${o.trx_id_or_last4 || ''}","${o.status || 'Pending'}"\r\n`;
     });
 
     res.send(csv);
@@ -76,9 +76,10 @@ app.post('/api/orders/:id/status', async (req, res) => {
 
 // Add New Product API
 app.post('/api/add-product', async (req, res) => {
-  const { name, fabric, price, sizes, hijab_included } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included } = req.body;
   if (name && price) {
     await supabase.from('products').insert({
+      model_code: model_code ? model_code.toUpperCase().trim() : 'DF-' + Math.floor(Math.random() * 899 + 100),
       name,
       fabric: fabric || 'দুবাই চেরি',
       price: parseFloat(price),
@@ -94,9 +95,10 @@ app.post('/api/add-product', async (req, res) => {
 // Update Existing Product API
 app.post('/api/products/:id/update', async (req, res) => {
   const { id } = req.params;
-  const { name, fabric, price, sizes, hijab_included } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included } = req.body;
   if (id && name && price) {
     await supabase.from('products').update({
+      model_code: model_code ? model_code.toUpperCase().trim() : undefined,
       name,
       fabric: fabric || 'দুবাই চেরি',
       price: parseFloat(price),
@@ -164,8 +166,11 @@ app.get('/dashboard', async (req, res) => {
         ${o.address ? `<div class="bg-stone-50/80 p-2 rounded-lg border border-stone-200">${o.address}</div>` : '<span class="text-stone-400 italic">ঠিকানা এখনও পাওয়া যায়নি</span>'}
       </td>
       <td class="p-3.5 text-stone-800 text-xs">
-        <span class="font-bold text-stone-900">${o.product_details || '-'}</span>
-        ${o.length_size ? `<div class="text-[11px] text-stone-600 mt-1">সাইজ: <span class="font-extrabold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-300">${o.length_size}</span></div>` : ''}
+        <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+          ${o.model_code ? `<span class="bg-amber-100 text-amber-950 font-mono font-extrabold text-[11px] px-2 py-0.5 rounded border border-amber-300 shadow-2xs">${o.model_code}</span>` : '<span class="bg-stone-100 text-stone-500 font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border border-stone-200">SKU N/A</span>'}
+          <span class="font-extrabold text-stone-900">${o.product_details || '-'}</span>
+        </div>
+        ${o.length_size ? `<div class="text-[11px] text-stone-600">সাইজ: <span class="font-extrabold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-300">${o.length_size}</span></div>` : ''}
       </td>
       <td class="p-3.5 text-xs">
         <div class="font-black text-amber-900 text-sm">৳${o.total_bdt || 2200}</div>
@@ -192,7 +197,11 @@ app.get('/dashboard', async (req, res) => {
 
   const productRows = (products || []).map(p => `
     <tr class="border-b border-stone-100 hover:bg-amber-50/20 transition">
-      <td class="p-3.5 font-bold text-stone-400 text-xs">#${p.id}</td>
+      <td class="p-3.5">
+        <span class="font-mono font-black text-xs px-2.5 py-1 rounded-md bg-stone-100 text-stone-900 border border-stone-300 shadow-2xs">
+          ${p.model_code || 'DF-' + p.id}
+        </span>
+      </td>
       <td class="p-3.5">
         <div class="font-extrabold text-stone-900 text-sm">${p.name}</div>
         ${p.hijab_included ? '<span class="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">ম্যাচিং হিজাব ফ্রি</span>' : ''}
@@ -224,11 +233,15 @@ app.get('/dashboard', async (req, res) => {
         <div class="bg-white p-5 rounded-2xl border border-amber-300 shadow-md space-y-4">
           <div class="flex items-center justify-between border-b border-stone-100 pb-3">
             <h4 class="font-extrabold text-sm text-stone-800 flex items-center gap-2">
-              <span>✏️ প্রোডাক্টের নাম, কাপড় ও মূল্য আপডেট করুন (ID: #${p.id})</span>
+              <span>✏️ মডেল কোড (SKU), নাম, কাপড় ও মূল্য আপডেট করুন (ID: #${p.id})</span>
             </h4>
             <button onclick="toggleProductEdit(${p.id})" class="text-xs text-stone-500 hover:text-stone-800 font-bold cursor-pointer">✕ বন্ধ করুন</button>
           </div>
-          <form method="POST" action="/api/products/${p.id}/update" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <form method="POST" action="/api/products/${p.id}/update" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1">মডেল কোড (SKU)</label>
+              <input type="text" name="model_code" value="${p.model_code || 'DF-' + p.id}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 font-mono font-bold text-xs p-2.5 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none transition">
+            </div>
             <div>
               <label class="block text-xs font-bold text-stone-700 mb-1">মডেলের নাম</label>
               <input type="text" name="name" value="${p.name}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none transition">
@@ -252,9 +265,9 @@ app.get('/dashboard', async (req, res) => {
                 <option value="false" ${!p.hijab_included ? 'selected' : ''}>না, হিজাব ছাড়া</option>
               </select>
             </div>
-            <div class="sm:col-span-2 lg:col-span-5 flex items-center justify-between pt-2">
+            <div class="sm:col-span-2 lg:col-span-6 flex items-center justify-between pt-2">
               <div class="text-xs text-stone-500 font-medium">
-                * মূল্য বা সাইজ সেভ করার সাথে সাথে AI সেলস অ্যাসিস্ট্যান্ট রিয়েল-টাইমে আপডেট হয়ে যাবে।
+                * মডেল কোড বা মূল্য সেভ করার সাথে সাথে AI সেলস অ্যাসিস্ট্যান্ট রিয়েল-টাইমে আপডেট হয়ে যাবে।
               </div>
               <div class="flex items-center gap-2">
                 <button type="button" onclick="toggleProductEdit(${p.id})" class="px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100 rounded-lg transition cursor-pointer">
@@ -364,28 +377,65 @@ app.get('/dashboard', async (req, res) => {
           </div>
         </div>
 
-        <!-- Google Sheet Integration Highlight Banner -->
-        <div class="bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-100/40 p-6 rounded-2xl border border-amber-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-          <div class="space-y-1.5">
-            <div class="inline-flex items-center gap-1.5 text-amber-800 text-xs font-black tracking-wide uppercase">
-              <span>⚡ Google Sheets লাইভ সিঙ্ক</span>
+        <!-- Google Sheets™ Enterprise Live Sync Hub -->
+        <div class="bg-gradient-to-br from-white via-[#fcfaf6] to-amber-50/60 p-6 md:p-7 rounded-2xl border border-amber-200/90 shadow-xs relative overflow-hidden">
+          <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div class="space-y-2.5 max-w-3xl">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full text-[11px] font-black tracking-wide uppercase shadow-2xs">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Enterprise Live Sync Active
+                </span>
+                <span class="text-xs font-bold text-stone-400">|</span>
+                <span class="text-xs font-bold text-amber-900 bg-amber-100/70 border border-amber-300 px-2.5 py-0.5 rounded-md">
+                  Google Sheets™ Live Data Stream
+                </span>
+              </div>
+              <h2 class="text-xl font-black text-stone-900 tracking-tight">
+                গুগল স্প্রেডশিটে প্রতিটি অর্ডার স্বয়ংক্রিয় রিয়েল-টাইম সিঙ্ক
+              </h2>
+              <p class="text-xs md:text-sm text-stone-600 leading-relaxed font-medium">
+                আপনার যেকোনো গুগল স্প্রেডশিটের প্রথম ঘর <b>(Cell A1)</b> এ নিচের সিকিউর সিঙ্ক ফর্মুলাটি পেস্ট করুন। ফর্মুলাটি যুক্ত করার সাথে সাথেই আপনার স্টোরের প্রতিটি নতুন কাস্টমার অর্ডার, মডেল কোড (SKU), সাইজ, মোবাইল নম্বর ও ডেলিভারি ঠিকানা স্বয়ংক্রিয়ভাবে লাইভ শিটে সাজিয়ে যাবে। কোনো ম্যানুয়াল ডেটা এন্ট্রি প্রয়োজন নেই।
+              </p>
+
+              <!-- 3-Step Setup Guide Badges -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                <div class="bg-white/90 border border-stone-200 p-2.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
+                  <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">১</span>
+                  <span class="text-stone-700 font-bold">নতুন গুগল শিট খুলুন</span>
+                </div>
+                <div class="bg-white/90 border border-stone-200 p-2.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
+                  <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">২</span>
+                  <span class="text-stone-700 font-bold">প্রথম সেল (A1) সিলেক্ট করুন</span>
+                </div>
+                <div class="bg-white/90 border border-stone-200 p-2.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
+                  <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-black flex items-center justify-center text-xs shrink-0">৩</span>
+                  <span class="text-stone-700 font-bold">পেস্ট করে Enter চাপুন</span>
+                </div>
+              </div>
+
+              <!-- Formula Box -->
+              <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div class="relative flex-1">
+                  <code class="block w-full bg-white px-4 py-3 rounded-xl text-stone-900 text-xs md:text-sm font-mono border-2 border-amber-300/80 shadow-inner select-all overflow-x-auto whitespace-nowrap" id="sheetFormula">=IMPORTDATA("https://autodokan-engine.onrender.com/api/export-csv")</code>
+                </div>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('sheetFormula').innerText.trim()); showToast('✅ ফর্মুলা কপি হয়েছে! গুগল শিটের A1 সেলে পেস্ট করুন।')" class="bg-stone-900 hover:bg-black text-white text-xs md:text-sm px-5 py-3 rounded-xl font-black transition shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 shrink-0">
+                  <span>📋 ফর্মুলা কপি করুন</span>
+                </button>
+              </div>
             </div>
-            <h2 class="text-lg font-black text-stone-900">গুগল শিটে রিয়েল-টাইম সব অর্ডার অটো-সিঙ্ক করুন</h2>
-            <p class="text-xs text-stone-600 max-w-2xl leading-relaxed font-medium">
-              আপনার ফ্রেন্ডের যেকোনো গুগল শিটের <b>A1</b> ঘরে নিচের ফর্মুলাটি পেস্ট করলেই প্রতিটি নতুন কাস্টমার অর্ডার স্বয়ংক্রিয়ভাবে লাইভ সাজিয়ে যাবে:
-            </p>
-            <div class="flex items-center gap-2 pt-2">
-              <code class="bg-white px-3.5 py-2 rounded-xl text-stone-900 text-xs font-mono border border-amber-300 shadow-inner select-all" id="sheetFormula">
-                =IMPORTDATA("https://autodokan-engine.onrender.com/api/export-csv")
-              </code>
-              <button onclick="navigator.clipboard.writeText(document.getElementById('sheetFormula').innerText.trim()); showToast('ফর্মুলা কপি হয়েছে! গুগল শিটে পেস্ট করুন।')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 rounded-xl font-black transition shadow-xs cursor-pointer">
-                কপি করুন
-              </button>
+
+            <!-- Side Actions / Manual CSV -->
+            <div class="flex flex-col sm:flex-row lg:flex-col gap-3 w-full lg:w-auto shrink-0 pt-2 lg:pt-0">
+              <a href="/api/export-csv" class="bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 px-5 py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-xs">
+                <span>📥 অফলাইন CSV ফাইল ডাউনলোড</span>
+              </a>
+              <div class="text-[11px] text-stone-500 font-medium text-center space-y-1">
+                <div>⚡ লাইভ অটো-রিফ্রেশ: প্রতি ঘন্টায় গুগল ড্রাইভ অটো-আপডেট করে</div>
+                <div class="text-stone-400">এক্সেল ও কুরিয়ার পোর্টালের সাথে ১০০% কম্প্যাটিবল</div>
+              </div>
             </div>
           </div>
-          <a href="/api/export-csv" class="bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 px-5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition whitespace-nowrap shadow-xs">
-            📥 CSV এক্সপোর্ট ডাউনলোড
-          </a>
         </div>
 
         <!-- Section: Live Orders with Instant Search & Status Tabs -->
@@ -433,7 +483,7 @@ app.get('/dashboard', async (req, res) => {
                   <th class="p-3.5">ID</th>
                   <th class="p-3.5">কাস্টমার নাম ও ফোন</th>
                   <th class="p-3.5">ডেলিভারি ঠিকানা</th>
-                  <th class="p-3.5">প্রোডাক্ট ও সাইজ</th>
+                  <th class="p-3.5">মডেল কোড (SKU) ও বিবরণ</th>
                   <th class="p-3.5">টাকা ও পেমেন্ট</th>
                   <th class="p-3.5">অর্ডার স্ট্যাটাস</th>
                   <th class="p-3.5">তারিখ ও সময়</th>
@@ -467,7 +517,11 @@ app.get('/dashboard', async (req, res) => {
               <button onclick="document.getElementById('addProductCard').classList.add('hidden')" class="text-xs text-stone-400 hover:text-stone-700 font-bold cursor-pointer">✕ বন্ধ করুন</button>
             </div>
             <form method="POST" action="/api/add-product" class="space-y-4">
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">মডেল কোড (SKU)</label>
+                  <input type="text" name="model_code" placeholder="যেমন: DF-107" required class="w-full bg-white border border-stone-300 text-stone-900 font-mono font-bold text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                </div>
                 <div>
                   <label class="block text-xs font-bold text-stone-700 mb-1">মডেলের নাম ও কালার</label>
                   <input type="text" name="name" placeholder="যেমন: ৩-পিস নূর আবায়া (কালো)" required class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
@@ -502,7 +556,7 @@ app.get('/dashboard', async (req, res) => {
             <table class="w-full text-left text-sm">
               <thead class="bg-[#fbf9f5] text-stone-500 text-xs uppercase font-extrabold tracking-wider border-b border-stone-200">
                 <tr>
-                  <th class="p-3.5">ID</th>
+                  <th class="p-3.5">মডেল কোড (SKU)</th>
                   <th class="p-3.5">মডেলের নাম</th>
                   <th class="p-3.5">কাপড়</th>
                   <th class="p-3.5">মূল্য</th>
