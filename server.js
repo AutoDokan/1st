@@ -5,9 +5,9 @@ const cors = require('cors');
 const qrcode = require('qrcode');
 const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
-const { DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const { DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts } = require('./borkha_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, transcribeAudioVoiceNote } = require('./borkha_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -1585,12 +1585,48 @@ async function connectToWhatsApp() {
       const remoteJid = msg.key.remoteJid;
       if (!remoteJid || remoteJid.includes('@g.us') || remoteJid === 'status@broadcast') return;
 
-      const messageContent =
+      let messageContent =
         msg.message?.conversation ||
         msg.message?.extendedTextMessage?.text ||
         '';
 
-      if (!messageContent.trim()) return;
+      // WhatsApp Voice Note / Audio Message Listener (Groq Whisper Turbo)
+      const isAudio = !!msg.message?.audioMessage;
+      if (isAudio) {
+        console.log(`[WhatsApp Voice Note Received] From: ${remoteJid} | Downloading & transcribing with Groq Whisper...`);
+        try {
+          const audioBuffer = await downloadMediaMessage(
+            msg,
+            'buffer',
+            {},
+            { 
+              logger: pino({ level: 'silent' }),
+              reuploadRequest: sock.updateMediaMessage 
+            }
+          );
+
+          if (audioBuffer && audioBuffer.length > 0) {
+            const transcribed = await transcribeAudioVoiceNote(audioBuffer);
+            if (transcribed && transcribed.trim()) {
+              messageContent = transcribed.trim();
+              console.log(`[WhatsApp Voice Transcribed] From: ${remoteJid} | Transcribed: "${messageContent}"`);
+            }
+          }
+        } catch (audioErr) {
+          console.error('[WhatsApp Voice Download/Transcribe Error]:', audioErr.message);
+        }
+      }
+
+      if (!messageContent.trim()) {
+        if (isAudio && sock) {
+          try {
+            await sock.sendMessage(remoteJid, {
+              text: 'আসসালামু আলাইকুম! আপনার পাঠানো ভয়েস মেসেজটি নেটওয়ার্ক সমস্যার কারণে স্পষ্ট শুনতে পারিনি। আপনি কি একটু কষ্ট করে মেসেজে লিখে জানাবেন, নাকি আমি আপনাকে কল করব? 😊'
+            });
+          } catch (e) {}
+        }
+        return;
+      }
 
       console.log(`[WhatsApp Received Fragment] From: ${remoteJid} | "${messageContent}"`);
       incrementStats('messages_in');
