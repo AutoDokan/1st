@@ -64,7 +64,7 @@ async function refreshProductsFromDB() {
     if (!error && data && data.length > 0) {
       cachedProductList = data;
       cachedProductsText = data.map((p, idx) => 
-        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name}, মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}, সাইজ: ${p.sizes || '৫০-৫৬'}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'}${p.image_url ? ', মেইন ছবি: আছে' : ''}${p.hijab_image_url ? ', হিজাব ছবি: আছে' : ''}${p.detail_image_url ? ', কাজের ছবি: আছে' : ''})`
+        `${idx + 1}. [মডেল কোড: ${p.model_code || 'DF-' + (100 + idx + 1)}] ${p.name}, মূল্য: ৳${p.price} টাকা (ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}, সাইজ: ${p.sizes || '৫০-৫৬'}, হিজাব: ${p.hijab_included ? 'সাথে ফ্রি' : 'আলাদা'}${p.image_url ? ', মেইন ছবি: আছে' : ''}${p.detail_image_url ? ', কাজের ছবি: আছে' : ''}${p.hijab_image_url ? ', হিজাব ছবি: আছে' : ''}${p.flare_image_url ? ', ঘেরের ছবি: আছে' : ''}${p.real_image_url ? ', রিয়েল ছবি: আছে' : ''})`
       ).join('\n');
       console.log(`[Products Sync] Loaded ${data.length} active products from Supabase`);
     }
@@ -144,6 +144,16 @@ function isAskingForHijab(text) {
 function isAskingForDetail(text) {
   const t = (text || '').toLowerCase();
   return /কাজের|ডিটেইল|detail|ক্লোজ|close|হাতা|কাজ|স্লিভ|sleeve/i.test(t);
+}
+
+function isAskingForFlare(text) {
+  const t = (text || '').toLowerCase();
+  return /ঘের|gher|সাইড|side|flare|ফ্লেয়ার/i.test(t);
+}
+
+function isAskingForReal(text) {
+  const t = (text || '').toLowerCase();
+  return /রিয়েল|real|মোবাইল|mobile|আনফিল্টার|unfilter|ক্যামেরা|camera|লাইভ|live/i.test(t);
 }
 
 function isAskingForAllImages(text) {
@@ -348,6 +358,18 @@ function generateSmartFallback(userText, isFirstMessage) {
   if (isAskingForDetail(t)) {
     const code = detectModelFromText(t) || 'DF-101';
     return `${greeting}নিশ্চয়ই! ${code} এর নিখুঁত কারচুপি কাজ ও ফেব্রিকের ক্লোজ-আপ ছবি নিচে দেওয়া হলো [SEND_DETAIL_IMAGE:${code}]`;
+  }
+
+  // 7b. Asking for flare / side photo
+  if (isAskingForFlare(t)) {
+    const code = detectModelFromText(t) || 'DF-101';
+    return `${greeting}${code} এর ঘের ও সাইড অ্যাঙ্গেল ভিউয়ের ছবি নিচে দেওয়া হলো [SEND_FLARE_IMAGE:${code}]`;
+  }
+
+  // 7c. Asking for real daylight photo
+  if (isAskingForReal(t)) {
+    const code = detectModelFromText(t) || 'DF-101';
+    return `${greeting}${code} এর স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল ছবি নিচে দেওয়া হলো [SEND_REAL_IMAGE:${code}]`;
   }
 
   // 8. Asking for general photo / picture of a model
@@ -591,7 +613,7 @@ async function handleIncomingMessage(senderId, userText) {
 
   // 3. Deterministic Photo Guarantee Shield:
   // If customer is asking to see a model, asking for pics, colors, or confused, ensure image tags are attached!
-  const hasImageTag = /\[SEND_(IMAGE|ALL_IMAGES|HIJAB_IMAGE|DETAIL_IMAGE):[A-Za-z0-9_-]+\]/i.test(aiReply);
+  const hasImageTag = /\[SEND_(IMAGE|ALL_IMAGES|HIJAB_IMAGE|DETAIL_IMAGE|FLARE_IMAGE|REAL_IMAGE):[A-Za-z0-9_-]+\]/i.test(aiReply);
   if (!hasImageTag) {
     const detectedModel = detectModelFromText(userText) || detectModelFromText(aiReply);
     const color = detectColorPreference(userText);
@@ -603,6 +625,10 @@ async function handleIncomingMessage(senderId, userText) {
         aiReply += ` [SEND_HIJAB_IMAGE:${detectedModel}]`;
       } else if (isAskingForDetail(userText)) {
         aiReply += ` [SEND_DETAIL_IMAGE:${detectedModel}]`;
+      } else if (isAskingForFlare(userText)) {
+        aiReply += ` [SEND_FLARE_IMAGE:${detectedModel}]`;
+      } else if (isAskingForReal(userText)) {
+        aiReply += ` [SEND_REAL_IMAGE:${detectedModel}]`;
       } else if (isAskingForAllImages(userText)) {
         aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
       } else {

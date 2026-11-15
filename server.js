@@ -355,9 +355,9 @@ app.post('/api/upload-image', requireAuth, async (req, res) => {
   }
 });
 
-// Add New Product API (supports Main, Hijab & Detail photos)
+// Add New Product API (supports 5 photo types: Main, Detail, Hijab, Flare, Real)
 app.post('/api/add-product', requireAuth, async (req, res) => {
-  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url, flare_image_url, real_image_url } = req.body;
   if (name && price) {
     await supabase.from('products').insert({
       model_code: model_code ? model_code.toUpperCase().trim() : 'DF-' + Math.floor(Math.random() * 899 + 100),
@@ -369,6 +369,8 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
       image_url: image_url ? image_url.trim() : null,
       hijab_image_url: hijab_image_url ? hijab_image_url.trim() : null,
       detail_image_url: detail_image_url ? detail_image_url.trim() : null,
+      flare_image_url: flare_image_url ? flare_image_url.trim() : null,
+      real_image_url: real_image_url ? real_image_url.trim() : null,
       in_stock: true
     });
     await refreshProductsFromDB();
@@ -376,10 +378,10 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
   res.redirect('/dashboard#products');
 });
 
-// Update Existing Product API (supports Main, Hijab & Detail photos)
+// Update Existing Product API (supports 5 photo types: Main, Detail, Hijab, Flare, Real)
 app.post('/api/products/:id/update', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url, flare_image_url, real_image_url } = req.body;
   if (id && name && price) {
     await supabase.from('products').update({
       model_code: model_code ? model_code.toUpperCase().trim() : undefined,
@@ -390,7 +392,9 @@ app.post('/api/products/:id/update', requireAuth, async (req, res) => {
       hijab_included: hijab_included === 'true' || hijab_included === true,
       image_url: image_url !== undefined ? (image_url ? image_url.trim() : null) : undefined,
       hijab_image_url: hijab_image_url !== undefined ? (hijab_image_url ? hijab_image_url.trim() : null) : undefined,
-      detail_image_url: detail_image_url !== undefined ? (detail_image_url ? detail_image_url.trim() : null) : undefined
+      detail_image_url: detail_image_url !== undefined ? (detail_image_url ? detail_image_url.trim() : null) : undefined,
+      flare_image_url: flare_image_url !== undefined ? (flare_image_url ? flare_image_url.trim() : null) : undefined,
+      real_image_url: real_image_url !== undefined ? (real_image_url ? real_image_url.trim() : null) : undefined
     }).eq('id', id);
     await refreshProductsFromDB();
   }
@@ -908,8 +912,11 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         <div class="font-extrabold text-stone-900 text-xs">${p.name}</div>
         <div class="flex items-center gap-1 mt-0.5 flex-wrap">
           ${p.hijab_included ? '<span class="text-[9px] bg-amber-100 text-amber-900 border border-amber-300 px-1 py-0.2 rounded font-bold">হিজাব ফ্রি</span>' : ''}
-          ${p.hijab_image_url ? '<span class="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-1 py-0.2 rounded font-bold">🧕 হিজাব পিক</span>' : ''}
+          ${p.image_url ? '<span class="text-[9px] bg-stone-100 text-stone-800 border border-stone-300 px-1 py-0.2 rounded font-bold">👗 মেইন</span>' : ''}
           ${p.detail_image_url ? '<span class="text-[9px] bg-sky-50 text-sky-800 border border-sky-300 px-1 py-0.2 rounded font-bold">🔍 কাজের পিক</span>' : ''}
+          ${p.hijab_image_url ? '<span class="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-300 px-1 py-0.2 rounded font-bold">🧕 হিজাব পিক</span>' : ''}
+          ${p.flare_image_url ? '<span class="text-[9px] bg-purple-50 text-purple-800 border border-purple-300 px-1 py-0.2 rounded font-bold">✨ ঘের পিক</span>' : ''}
+          ${p.real_image_url ? '<span class="text-[9px] bg-rose-50 text-rose-800 border border-rose-300 px-1 py-0.2 rounded font-bold">📸 রিয়েল পিক</span>' : ''}
         </div>
       </td>
       <td class="p-3 text-stone-600 text-xs">${p.fabric || '-'}</td>
@@ -952,11 +959,11 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           </div>
 
           <div>
-            <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ৩টি ছবি (মেইন ডিজাইন, হিজাব ও কাজের নিখুঁত ক্লোজ-আপ)</label>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <label class="block font-bold text-stone-700 mb-1">📸 প্রোডাক্টের ৫টি গোল্ডেন ছবি (মেইন, ক্লোজ-আপ, হিজাব, ঘের, রিয়েল লুক)</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
               <!-- 1. Main Photo -->
               <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
-                <span class="text-[11px] font-bold text-stone-700 block">👗 ১. মেইন ড্রেসের ছবি</span>
+                <span class="text-[11px] font-bold text-stone-700 block">👗 ১. মেইন ফ্রন্ট ভিউ</span>
                 <div class="flex items-center gap-2">
                   <img id="preview-prod-main-${p.id}" src="${p.image_url || ''}" class="${p.image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
                   <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
@@ -967,9 +974,22 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 <input type="text" id="edit_img_${p.id}" name="image_url" value="${p.image_url || ''}" placeholder="মেইন ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
               </div>
 
-              <!-- 2. Hijab Photo -->
+              <!-- 2. Detail Work Photo -->
               <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
-                <span class="text-[11px] font-bold text-stone-700 block">🧕 ২. ম্যাচিং হিজাবের ছবি</span>
+                <span class="text-[11px] font-bold text-stone-700 block">🔍 ২. নিখুঁত ক্লোজ-আপ</span>
+                <div class="flex items-center gap-2">
+                  <img id="preview-prod-detail-${p.id}" src="${p.detail_image_url || ''}" class="${p.detail_image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
+                  <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                    <span>📸 আপলোড</span>
+                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_detail_${p.id}', 'preview-prod-detail-${p.id}')">
+                  </label>
+                </div>
+                <input type="text" id="edit_detail_${p.id}" name="detail_image_url" value="${p.detail_image_url || ''}" placeholder="কাজের ক্লোজ-আপ URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
+              </div>
+
+              <!-- 3. Hijab Photo -->
+              <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
+                <span class="text-[11px] font-bold text-stone-700 block">🧕 ৩. ম্যাচিং হিজাব</span>
                 <div class="flex items-center gap-2">
                   <img id="preview-prod-hijab-${p.id}" src="${p.hijab_image_url || ''}" class="${p.hijab_image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
                   <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
@@ -980,17 +1000,30 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 <input type="text" id="edit_hijab_${p.id}" name="hijab_image_url" value="${p.hijab_image_url || ''}" placeholder="হিজাব ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
               </div>
 
-              <!-- 3. Detail Work Photo -->
+              <!-- 4. Flare Photo -->
               <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
-                <span class="text-[11px] font-bold text-stone-700 block">🔍 ৩. কাজের নিখুঁত ক্লোজ-আপ</span>
+                <span class="text-[11px] font-bold text-stone-700 block">✨ ৪. ঘের ও সাইড ভিউ</span>
                 <div class="flex items-center gap-2">
-                  <img id="preview-prod-detail-${p.id}" src="${p.detail_image_url || ''}" class="${p.detail_image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
+                  <img id="preview-prod-flare-${p.id}" src="${p.flare_image_url || ''}" class="${p.flare_image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
                   <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
                     <span>📸 আপলোড</span>
-                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_detail_${p.id}', 'preview-prod-detail-${p.id}')">
+                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_flare_${p.id}', 'preview-prod-flare-${p.id}')">
                   </label>
                 </div>
-                <input type="text" id="edit_detail_${p.id}" name="detail_image_url" value="${p.detail_image_url || ''}" placeholder="কাজের ক্লোজ-আপ URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
+                <input type="text" id="edit_flare_${p.id}" name="flare_image_url" value="${p.flare_image_url || ''}" placeholder="ঘেরের ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
+              </div>
+
+              <!-- 5. Real Photo -->
+              <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
+                <span class="text-[11px] font-bold text-stone-700 block">📸 ৫. রিয়েল আনফিল্টার্ড</span>
+                <div class="flex items-center gap-2">
+                  <img id="preview-prod-real-${p.id}" src="${p.real_image_url || ''}" class="${p.real_image_url ? '' : 'hidden'} w-10 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs">
+                  <label class="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold px-2.5 py-1.5 rounded-lg text-[10px] cursor-pointer border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition">
+                    <span>📸 আপলোড</span>
+                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_real_${p.id}', 'preview-prod-real-${p.id}')">
+                  </label>
+                </div>
+                <input type="text" id="edit_real_${p.id}" name="real_image_url" value="${p.real_image_url || ''}" placeholder="রিয়েল ছবির URL" class="w-full bg-stone-50 border border-stone-300 p-1.5 rounded-lg font-mono text-[10px]">
               </div>
             </div>
           </div>
@@ -2146,21 +2179,27 @@ async function processBufferedUserMessages(remoteJid) {
       }
     }
 
-    // 5. Detect and extract all image tags (Main, Hijab, Detail, All)
+    // 5. Detect and extract all image tags (Main, Detail, Hijab, Flare, Real, All)
     const allImagesRegex = /\[SEND_ALL_IMAGES:\s*([A-Za-z0-9_-]+)\]/gi;
     const hijabRegex = /\[SEND_HIJAB_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
     const detailRegex = /\[SEND_DETAIL_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
+    const flareRegex = /\[SEND_FLARE_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
+    const realRegex = /\[SEND_REAL_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
     const mainImageRegex = /\[SEND_IMAGE:\s*([A-Za-z0-9_-]+)\]/gi;
 
     const allMatches = [...replyText.matchAll(allImagesRegex)];
     const hijabMatches = [...replyText.matchAll(hijabRegex)];
     const detailMatches = [...replyText.matchAll(detailRegex)];
+    const flareMatches = [...replyText.matchAll(flareRegex)];
+    const realMatches = [...replyText.matchAll(realRegex)];
     const mainMatches = [...replyText.matchAll(mainImageRegex)];
 
     const cleanReplyText = replyText
       .replace(allImagesRegex, '')
       .replace(hijabRegex, '')
       .replace(detailRegex, '')
+      .replace(flareRegex, '')
+      .replace(realRegex, '')
       .replace(mainImageRegex, '')
       .trim();
 
@@ -2187,19 +2226,25 @@ async function processBufferedUserMessages(remoteJid) {
     }
 
     // 8. Dispatch images
-    // Handle ALL IMAGES requested (Main + Hijab + Detail)
+    // Handle ALL IMAGES requested (5 Complete Golden Photos: Main + Detail + Hijab + Flare + Real)
     for (const match of allMatches) {
       const code = match[1].toUpperCase().trim();
       const p = findProd(code);
       if (p) {
         if (p.image_url) {
-          await sendWaPhoto(p.image_url, `👗 *${p.name} (মেইন ভিউ)*\n🏷️ মডেল কোড: *${p.model_code}*\n💰 মূল্য: *৳${p.price}* টাকা (হিজাব সহ)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
-        }
-        if (p.hijab_image_url) {
-          await sendWaPhoto(p.hijab_image_url, `🧕 *${p.name} - ম্যাচিং প্রিমিয়াম হিজাব*\n🏷️ মডেল: *${p.model_code}* (ড্রেসের সাথে একদম ফ্রি)`);
+          await sendWaPhoto(p.image_url, `👗 *${p.name} (১. মেইন ফ্রন্ট ভিউ)*\n🏷️ মডেল কোড: *${p.model_code}*\n💰 মূল্য: *৳${p.price}* টাকা (ম্যাচিং হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
         }
         if (p.detail_image_url) {
-          await sendWaPhoto(p.detail_image_url, `🔍 *${p.name} - নিখুঁত কারচুপি কাজ ও কাপড় ক্লোজ-আপ*\n🏷️ মডেল: *${p.model_code}*`);
+          await sendWaPhoto(p.detail_image_url, `🔍 *${p.name} (২. নিখুঁত কারচুপি কাজ ও কাপড় ক্লোজ-আপ)*\n🏷️ মডেল: *${p.model_code}*`);
+        }
+        if (p.hijab_image_url) {
+          await sendWaPhoto(p.hijab_image_url, `🧕 *${p.name} (৩. ম্যাচিং প্রিমিয়াম হিজাব)*\n🏷️ মডেল: *${p.model_code}* (ড্রেসের সাথে একদম ফ্রি)`);
+        }
+        if (p.flare_image_url) {
+          await sendWaPhoto(p.flare_image_url, `✨ *${p.name} (৪. ঘের ও সাইড অ্যাঙ্গেল ভিউ)*\n🏷️ মডেল: *${p.model_code}*`);
+        }
+        if (p.real_image_url) {
+          await sendWaPhoto(p.real_image_url, `📸 *${p.name} (৫. আনফিল্টার্ড রিয়েল লুক)*\n🏷️ মডেল: *${p.model_code}*`);
         }
       }
     }
@@ -2224,6 +2269,30 @@ async function processBufferedUserMessages(remoteJid) {
         const url = p.detail_image_url || p.image_url;
         if (url) {
           await sendWaPhoto(url, `🔍 *${p.name} - নিখুঁত কারচুপি ও কাপড়ের ডিটেইল ভিউ*\n🏷️ মডেল: *${p.model_code}*`);
+        }
+      }
+    }
+
+    // Handle Flare Image requested
+    for (const match of flareMatches) {
+      const code = match[1].toUpperCase().trim();
+      const p = findProd(code);
+      if (p) {
+        const url = p.flare_image_url || p.image_url;
+        if (url) {
+          await sendWaPhoto(url, `✨ *${p.name} - ঘের ও সাইড অ্যাঙ্গেল ভিউ*\n🏷️ মডেল: *${p.model_code}*`);
+        }
+      }
+    }
+
+    // Handle Real Image requested
+    for (const match of realMatches) {
+      const code = match[1].toUpperCase().trim();
+      const p = findProd(code);
+      if (p) {
+        const url = p.real_image_url || p.image_url;
+        if (url) {
+          await sendWaPhoto(url, `📸 *${p.name} - স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল ছবি*\n🏷️ মডেল: *${p.model_code}*`);
         }
       }
     }
