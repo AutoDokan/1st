@@ -28,6 +28,7 @@ let sock = null;
 
 const userMessageBuffers = new Map();
 const activeConversations = new Set();
+const lastVoiceReplyTime = new Map();
 const DEBOUNCE_DELAY_MS = 4000;
 
 
@@ -2361,10 +2362,21 @@ async function connectToWhatsApp() {
         }
       }
 
-      // Voice Note Handling completely disabled as requested by store owner
+      // Voice Note Handling: Crisp, natural 1-line guidance with 1-min spam cooldown
       const audioMsg = unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage || (unwrappedMsg?.documentMessage?.mimetype?.startsWith('audio/') ? unwrappedMsg.documentMessage : null);
       if (audioMsg) {
-        console.log(`[WhatsApp Voice Note] Audio received from ${remoteJid} — Voice disabled as requested.`);
+        console.log(`[WhatsApp Voice Note] Audio received from ${remoteJid}`);
+        const now = Date.now();
+        const lastSent = lastVoiceReplyTime.get(remoteJid) || 0;
+        if (now - lastSent > 60000 && sock) {
+          lastVoiceReplyTime.set(remoteJid, now);
+          try {
+            await sock.sendMessage(remoteJid, {
+              text: 'জি, অনুগ্রহ করে একটু লিখে মেসেজ করুন, আমরা এখনই ছবি ও সকল বিস্তারিত জানিয়ে দিচ্ছি 🌸'
+            });
+            incrementStats('messages_out');
+          } catch (e) {}
+        }
         return;
       }
 
