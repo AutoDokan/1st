@@ -7,7 +7,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, transcribeAudioVoiceNote } = require('./borkha_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts } = require('./borkha_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -2361,51 +2361,11 @@ async function connectToWhatsApp() {
         }
       }
 
+      // Voice Note Handling completely disabled as requested by store owner
       const audioMsg = unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage || (unwrappedMsg?.documentMessage?.mimetype?.startsWith('audio/') ? unwrappedMsg.documentMessage : null);
-      const isAudio = !!audioMsg;
-
-      if (isAudio) {
-        console.log(`[WhatsApp Voice Note Received] From: ${remoteJid} | Downloading audio...`);
-        try {
-          const audioBuffer = await downloadMediaMessage(
-            { ...msg, message: unwrappedMsg },
-            'buffer',
-            {},
-            { 
-              logger: pino({ level: 'silent' }),
-              reuploadRequest: sock.updateMediaMessage 
-            }
-          );
-
-          if (audioBuffer && audioBuffer.length > 0) {
-            console.log(`[WhatsApp Audio Downloaded] Size: ${audioBuffer.length} bytes. Transcribing via Whisper Turbo...`);
-            const transcribed = await Promise.race([
-              transcribeAudioVoiceNote(audioBuffer),
-              new Promise((_, r) => setTimeout(() => r(new Error('Voice timeout 3.5s')), 3500))
-            ]).catch(e => {
-              console.warn('[Whisper Timeout/Skip]:', e.message);
-              return null;
-            });
-
-            if (transcribed && transcribed.trim().length >= 3) {
-              messageContent = transcribed.trim();
-              console.log(`[WhatsApp Voice Transcribed] From: ${remoteJid} | Transcribed: "${messageContent}"`);
-            }
-          }
-        } catch (audioErr) {
-          console.error('[WhatsApp Voice Download/Transcribe Error]:', audioErr.message);
-        }
-
-        if (!messageContent.trim()) {
-          if (sock) {
-            try {
-              await sock.sendMessage(remoteJid, {
-                text: 'শ্রদ্ধেয় কাস্টমার, আপনার ভয়েস মেসেজটির জন্য আন্তরিক ধন্যবাদ! তবে নেটওয়ার্ক বা শোরগোলের কারণে ভয়েসটি স্পষ্ট বুঝতে পারিনি। অনুগ্রহ করে আপনার পছন্দের মডেল কোডটি (যেমন DF-101) বা সাইজটি একটু লিখে জানাবেন কি? অথবা আপনার নাম্বারটি দিলে আমাদের শপ ম্যানেজার সরাসরি কল দিয়ে বিস্তারিত বুঝিয়ে বলবেন 😊'
-              });
-            } catch (e) {}
-          }
-          return;
-        }
+      if (audioMsg) {
+        console.log(`[WhatsApp Voice Note] Audio received from ${remoteJid} — Voice disabled as requested.`);
+        return;
       }
 
       if (!messageContent.trim()) {

@@ -1,5 +1,4 @@
 const Groq = require('groq-sdk');
-const { toFile } = require('groq-sdk');
 const { createClient } = require('@supabase/supabase-js');
 
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -522,47 +521,6 @@ async function handleIncomingMessage(senderId, userText) {
   });
 
   return aiReply;
-}
-
-async function transcribeAudioVoiceNote(audioBuffer) {
-  if (!groqClient || !audioBuffer || audioBuffer.length === 0) return null;
-
-  try {
-    const file = await toFile(audioBuffer, 'voice.ogg', { type: 'audio/ogg' });
-    
-    // Primary: whisper-large-v3-turbo (ultrafast, <0.4s) with Bengali domain priming
-    const transcription = await Promise.race([
-      groqClient.audio.transcriptions.create({
-        file: file,
-        model: 'whisper-large-v3-turbo',
-        temperature: 0.0,
-        prompt: 'বোরকা, আবায়া, সাইজ, ডেলিভারি, দাম, DF-101, DF-102, DF-103, DF-104, DF-105, কাফতান, রানি আবায়া, হিজাব',
-        response_format: 'json'
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Whisper timeout after 8s')), 8000))
-    ]);
-
-    if (transcription && transcription.text && transcription.text.trim()) {
-      return transcription.text.trim();
-    }
-  } catch (err) {
-    console.warn('[Groq Whisper Turbo Notice]:', err.message);
-    try {
-      const file2 = await toFile(audioBuffer, 'voice.ogg', { type: 'audio/ogg' });
-      const fallbackTrans = await groqClient.audio.transcriptions.create({
-        file: file2,
-        model: 'whisper-large-v3',
-        temperature: 0.0,
-        response_format: 'json'
-      });
-      if (fallbackTrans && fallbackTrans.text && fallbackTrans.text.trim()) {
-        return fallbackTrans.text.trim();
-      }
-    } catch (e2) {
-      console.error('[Groq Whisper Fallback Error]:', e2.message);
-    }
-  }
-  return null;
 }
 
 function getProductByCode(code) {
