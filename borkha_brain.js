@@ -77,8 +77,15 @@ async function refreshProductsFromDB() {
 refreshProductsFromDB();
 setInterval(refreshProductsFromDB, 120000);
 
-// Set of contact phone numbers that have already received Salam today
-const greetedContacts = new Set();
+// Map of contact phone numbers -> timestamp of when Salam was given today
+const greetedContacts = new Map();
+
+function hasReceivedSalamToday(phone) {
+  const lastTime = greetedContacts.get(phone);
+  if (!lastTime) return false;
+  // If last greeted was within 18 hours (same day interaction)
+  return (Date.now() - lastTime) < 18 * 60 * 60 * 1000;
+}
 
 // Conversation memory per user (sliding window)
 const conversationMemory = new Map();
@@ -616,10 +623,10 @@ JSON Format:
 
 async function handleIncomingMessage(senderId, userText) {
   const cleanPhone = senderId.replace(/[^0-9]/g, '');
-  const isFirstMessageForContact = !greetedContacts.has(cleanPhone);
+  const isFirstMessageForContact = !hasReceivedSalamToday(cleanPhone);
 
   if (isFirstMessageForContact) {
-    greetedContacts.add(cleanPhone);
+    greetedContacts.set(cleanPhone, Date.now());
   }
 
   if (!conversationMemory.has(cleanPhone)) {
@@ -638,8 +645,10 @@ async function handleIncomingMessage(senderId, userText) {
     aiReply = generateSmartFallback(userText, isFirstMessageForContact);
   }
 
-  // 1. Double-shield: if NOT first message, strip any accidental Salam
-  if (!isFirstMessageForContact) {
+  // 1. Calendar Day Salam Shield:
+  // If NOT first message today and user didn't explicitly greet with Salam, strip repetitive Salam
+  const userSentSalam = /^(?:assalamu|as-salamu|সালাম|আসসালামু)/i.test((userText || '').trim());
+  if (!isFirstMessageForContact && !userSentSalam) {
     aiReply = aiReply.replace(/^(আসসালামু\s*আলাইকুম[^\n।!?]*[।!?\n]*|ওয়া\s*আলাইকুম\s*আসসালাম[^\n।!?]*[।!?\n]*|সালাম[^\n।!?]*[।!?\n]*)/gi, '').trim();
     if (!aiReply) {
       aiReply = 'জি, বলুন কীভাবে সাহায্য করতে পারি?';
