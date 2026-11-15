@@ -127,7 +127,7 @@ app.post('/api/products/:id/toggle-stock', async (req, res) => {
   res.redirect('/dashboard#products');
 });
 
-// Unified Master Dashboard (Light & Warm Aesthetic F-Commerce Admin Portal)
+// Unified Master Dashboard (Executive F-Commerce Command Center for Dawah Fashion)
 app.get('/dashboard', async (req, res) => {
   const { data: orders } = await supabase.from('orders').select('*').order('id', { ascending: false });
   const { data: products } = await supabase.from('products').select('*').order('id', { ascending: true });
@@ -135,30 +135,45 @@ app.get('/dashboard', async (req, res) => {
   const totalOrders = orders ? orders.length : 0;
   const pendingOrders = orders ? orders.filter(o => o.status === 'Pending').length : 0;
   const approvedOrders = orders ? orders.filter(o => o.status === 'Approved').length : 0;
+  const shippedOrders = orders ? orders.filter(o => o.status === 'Shipped').length : 0;
+  const cancelledOrders = orders ? orders.filter(o => o.status === 'Cancelled').length : 0;
   const totalProducts = products ? products.length : 0;
+  const inStockProducts = products ? products.filter(p => p.in_stock).length : 0;
+  const totalRevenue = (orders || []).filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 2200), 0);
 
-  const orderRows = (orders || []).map(o => `
-    <tr class="border-b border-stone-100 hover:bg-amber-50/30 transition">
-      <td class="p-3.5 font-semibold text-stone-400 text-xs">#${o.id}</td>
+  const orderRows = (orders || []).map(o => {
+    const courierData = `কাস্টমার: ${o.customer_name || 'কাস্টমার'}\\nফোন: ${o.customer_phone || ''}\\nঠিকানা: ${o.address || ''}\\nপ্রোডাক্ট: ${o.product_details || ''} (সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'})\\nকালেকশন: ৳${o.total_bdt || 2200}\\nপেমেন্ট: ${o.payment_method || 'COD'}`;
+    const searchMeta = `${o.id} ${o.customer_name || ''} ${o.customer_phone || ''} ${o.address || ''} ${o.product_details || ''}`.toLowerCase();
+
+    return `
+    <tr class="order-table-row border-b border-stone-100 hover:bg-amber-50/30 transition" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
+      <td class="p-3.5 font-bold text-stone-400 text-xs">#${o.id}</td>
       <td class="p-3.5">
-        <div class="font-bold text-stone-900 text-sm">${o.customer_name || 'কাস্টমার'}</div>
-        <a href="https://wa.me/${o.customer_phone}" target="_blank" class="text-xs text-amber-700 hover:text-amber-900 hover:underline inline-flex items-center gap-1 mt-0.5 font-semibold">
-          <span>+${o.customer_phone}</span>
-          <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.144.39-.086s1.011.477 1.184.564.289.13.332.202c.043.073.043.419-.101.824z"/></svg>
-        </a>
+        <div class="font-extrabold text-stone-900 text-sm">${o.customer_name || 'কাস্টমার'}</div>
+        <div class="flex items-center gap-2 mt-1">
+          <a href="https://wa.me/${o.customer_phone}" target="_blank" class="text-xs text-amber-800 hover:text-amber-900 hover:underline inline-flex items-center gap-1 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+            <span>+${o.customer_phone}</span>
+            <svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.144.39-.086s1.011.477 1.184.564.289.13.332.202c.043.073.043.419-.101.824z"/></svg>
+          </a>
+          <button onclick="copyCourierData('${courierData}')" title="স্টেডফাস্ট বা পাঠাও কুরিয়ারের জন্য কপি করুন" class="text-[11px] bg-stone-100 hover:bg-stone-200 text-stone-700 px-2 py-0.5 rounded border border-stone-300 font-semibold transition cursor-pointer">
+            📋 কুরিয়ার কপি
+          </button>
+        </div>
       </td>
-      <td class="p-3.5 text-stone-600 text-xs max-w-xs leading-relaxed">${o.address || '<span class="text-stone-400 italic">ঠিকানা এখনও আসেনি</span>'}</td>
+      <td class="p-3.5 text-stone-600 text-xs max-w-xs leading-relaxed">
+        ${o.address ? `<div class="bg-stone-50/80 p-2 rounded-lg border border-stone-200">${o.address}</div>` : '<span class="text-stone-400 italic">ঠিকানা এখনও পাওয়া যায়নি</span>'}
+      </td>
       <td class="p-3.5 text-stone-800 text-xs">
-        <span class="font-semibold text-stone-800">${o.product_details || '-'}</span>
-        ${o.length_size ? `<div class="text-[11px] text-stone-500 mt-0.5">সাইজ/ঝুল: <span class="font-medium text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">${o.length_size}</span></div>` : ''}
+        <span class="font-bold text-stone-900">${o.product_details || '-'}</span>
+        ${o.length_size ? `<div class="text-[11px] text-stone-600 mt-1">সাইজ: <span class="font-extrabold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-300">${o.length_size}</span></div>` : ''}
       </td>
       <td class="p-3.5 text-xs">
-        <div class="font-extrabold text-stone-900 text-sm">৳${o.total_bdt || 2200}</div>
-        <div class="text-[11px] text-stone-500 font-medium">${o.payment_method || 'COD'}${o.trx_id_or_last4 ? ` (${o.trx_id_or_last4})` : ''}</div>
+        <div class="font-black text-amber-900 text-sm">৳${o.total_bdt || 2200}</div>
+        <div class="text-[11px] text-stone-500 font-semibold">${o.payment_method || 'COD'}${o.trx_id_or_last4 ? ` (${o.trx_id_or_last4})` : ''}</div>
       </td>
       <td class="p-3.5">
         <form method="POST" action="/api/orders/${o.id}/status" class="inline">
-          <select name="status" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border font-bold cursor-pointer transition shadow-xs outline-none ${
+          <select name="status" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border font-black cursor-pointer transition shadow-xs outline-none ${
             o.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 
             o.status === 'Shipped' ? 'bg-sky-50 text-sky-800 border-sky-300' : 
             o.status === 'Cancelled' ? 'bg-rose-50 text-rose-800 border-rose-300' : 'bg-amber-50 text-amber-800 border-amber-300'
@@ -170,26 +185,27 @@ app.get('/dashboard', async (req, res) => {
           </select>
         </form>
       </td>
-      <td class="p-3.5 text-xs text-stone-400 font-medium">${new Date(o.created_at).toLocaleString('bn-BD')}</td>
+      <td class="p-3.5 text-xs text-stone-400 font-medium whitespace-nowrap">${new Date(o.created_at).toLocaleString('bn-BD')}</td>
     </tr>
-  `).join('');
+    `;
+  }).join('');
 
   const productRows = (products || []).map(p => `
     <tr class="border-b border-stone-100 hover:bg-amber-50/20 transition">
-      <td class="p-3.5 font-semibold text-stone-400 text-xs">#${p.id}</td>
+      <td class="p-3.5 font-bold text-stone-400 text-xs">#${p.id}</td>
       <td class="p-3.5">
-        <div class="font-bold text-stone-900 text-sm">${p.name}</div>
-        ${p.hijab_included ? '<span class="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-full font-semibold">ম্যাচিং হিজাব ফ্রি</span>' : ''}
+        <div class="font-extrabold text-stone-900 text-sm">${p.name}</div>
+        ${p.hijab_included ? '<span class="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">ম্যাচিং হিজাব ফ্রি</span>' : ''}
       </td>
       <td class="p-3.5 text-stone-600 text-xs font-medium">${p.fabric || '-'}</td>
-      <td class="p-3.5 font-extrabold text-amber-800 text-sm">৳${p.price}</td>
+      <td class="p-3.5 font-black text-amber-900 text-sm">৳${p.price}</td>
       <td class="p-3.5 text-stone-600 text-xs">
-        <span class="bg-stone-100 px-2 py-1 rounded-md border border-stone-200 font-medium">${p.sizes || '৫০-৫৬'}</span>
+        <span class="bg-stone-100 px-2.5 py-1 rounded-md border border-stone-200 font-semibold">${p.sizes || '৫০-৫৬'}</span>
       </td>
       <td class="p-3.5">
         <form method="POST" action="/api/products/${p.id}/toggle-stock" class="inline">
           <input type="hidden" name="in_stock" value="${!p.in_stock}">
-          <button type="submit" class="px-2.5 py-1 text-xs font-bold rounded-full cursor-pointer transition shadow-xs ${
+          <button type="submit" class="px-3 py-1 text-xs font-extrabold rounded-full cursor-pointer transition shadow-xs ${
             p.in_stock ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100' : 'bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100'
           }">
             ${p.in_stock ? '● In Stock' : '○ Out of Stock'}
@@ -205,46 +221,46 @@ app.get('/dashboard', async (req, res) => {
     <!-- Collapsible Edit Drawer for Product #${p.id} -->
     <tr id="edit-product-${p.id}" class="hidden bg-[#fdfbf7] border-b border-amber-200">
       <td colspan="7" class="p-5">
-        <div class="bg-white p-5 rounded-xl border border-amber-300 shadow-sm space-y-4">
+        <div class="bg-white p-5 rounded-2xl border border-amber-300 shadow-md space-y-4">
           <div class="flex items-center justify-between border-b border-stone-100 pb-3">
-            <h4 class="font-bold text-sm text-stone-800 flex items-center gap-2">
-              <span>✏️ প্রোডাক্ট তথ্য আপডেট করুন (ID: #${p.id})</span>
+            <h4 class="font-extrabold text-sm text-stone-800 flex items-center gap-2">
+              <span>✏️ প্রোডাক্টের নাম, কাপড় ও মূল্য আপডেট করুন (ID: #${p.id})</span>
             </h4>
             <button onclick="toggleProductEdit(${p.id})" class="text-xs text-stone-500 hover:text-stone-800 font-bold cursor-pointer">✕ বন্ধ করুন</button>
           </div>
           <form method="POST" action="/api/products/${p.id}/update" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-stone-600 mb-1">মডেলের নাম</label>
+              <label class="block text-xs font-bold text-stone-700 mb-1">মডেলের নাম</label>
               <input type="text" name="name" value="${p.name}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none transition">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-stone-600 mb-1">কাপড় / ফেব্রিক</label>
+              <label class="block text-xs font-bold text-stone-700 mb-1">কাপড় / ফেব্রিক</label>
               <input type="text" name="fabric" value="${p.fabric || 'দুবাই চেরি'}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none transition">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-stone-600 mb-1">মূল্য (টাকা)</label>
+              <label class="block text-xs font-bold text-stone-700 mb-1">মূল্য (টাকা)</label>
               <input type="number" name="price" value="${p.price}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none transition">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-stone-600 mb-1">ঝুল সাইজ</label>
+              <label class="block text-xs font-bold text-stone-700 mb-1">ঝুল ও বডি সাইজ</label>
               <input type="text" name="sizes" value="${p.sizes || '৫০, ৫২, ৫৪, ৫৬'}" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none transition">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-stone-600 mb-1">হিজাব ফ্রি?</label>
+              <label class="block text-xs font-bold text-stone-700 mb-1">হিজাব ফ্রি?</label>
               <select name="hijab_included" class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none transition">
-                <option value="true" ${p.hijab_included ? 'selected' : ''}>হ্যাঁ, হিজাব সাথে ফ্রি</option>
-                <option value="false" ${!p.hijab_included ? 'selected' : ''}>না, হিজাব আলাদা</option>
+                <option value="true" ${p.hijab_included ? 'selected' : ''}>হ্যাঁ, হিজাব ফ্রি</option>
+                <option value="false" ${!p.hijab_included ? 'selected' : ''}>না, হিজাব ছাড়া</option>
               </select>
             </div>
             <div class="sm:col-span-2 lg:col-span-5 flex items-center justify-between pt-2">
-              <div class="text-xs text-stone-500">
-                * সেভ করার সাথে সাথে AI সেলস অ্যাসিস্ট্যান্ট নতুন তথ্যে আপডেট হয়ে যাবে।
+              <div class="text-xs text-stone-500 font-medium">
+                * মূল্য বা সাইজ সেভ করার সাথে সাথে AI সেলস অ্যাসিস্ট্যান্ট রিয়েল-টাইমে আপডেট হয়ে যাবে।
               </div>
               <div class="flex items-center gap-2">
-                <button type="button" onclick="toggleProductEdit(${p.id})" class="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-lg transition cursor-pointer">
+                <button type="button" onclick="toggleProductEdit(${p.id})" class="px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100 rounded-lg transition cursor-pointer">
                   বাতিল
                 </button>
-                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition cursor-pointer">
+                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black px-5 py-2 rounded-lg shadow-sm transition cursor-pointer">
                   💾 পরিবর্তন সেভ করুন
                 </button>
               </div>
@@ -252,8 +268,8 @@ app.get('/dashboard', async (req, res) => {
           </form>
           <!-- Delete Form -->
           <div class="border-t border-stone-100 pt-3 flex justify-end">
-            <form method="POST" action="/api/products/${p.id}/delete" onsubmit="return confirm('আপনি কি নিশ্চিত এই প্রোডাক্টটি তালিকা থেকে ডিলিট করতে চান?');" class="inline">
-              <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold hover:underline cursor-pointer">
+            <form method="POST" action="/api/products/${p.id}/delete" onsubmit="return confirm('আপনি কি নিশ্চিত এই মডেলটি মুছে ফেলতে চান?');" class="inline">
+              <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer">
                 🗑️ এই প্রোডাক্টটি ডিলিট করুন
               </button>
             </form>
@@ -269,117 +285,150 @@ app.get('/dashboard', async (req, res) => {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Dawah Fashion - Commerce OS Dashboard</title>
+      <title>Dawah Fashion — Official Commerce OS</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
         body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
       </style>
     </head>
-    <body class="bg-[#faf7f2] text-stone-800 min-h-screen">
+    <body class="bg-[#faf7f2] text-stone-800 min-h-screen pb-16">
       <!-- Top Warm Navbar -->
-      <header class="bg-white/90 backdrop-blur border-b border-[#ece5da] sticky top-0 z-50 px-6 py-4 flex items-center justify-between shadow-xs">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-orange-500 to-rose-500 flex items-center justify-center font-black text-white shadow-md shadow-amber-500/20 text-sm">
+      <header class="bg-white/95 backdrop-blur border-b border-[#ece5da] sticky top-0 z-50 px-6 py-4 flex items-center justify-between shadow-xs">
+        <div class="flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-600 via-orange-500 to-rose-500 flex items-center justify-center font-black text-white shadow-md shadow-amber-500/20 text-base tracking-wider">
             DF
           </div>
           <div>
-            <h1 class="font-extrabold text-lg leading-tight text-stone-900 flex items-center gap-2">
-              Dawah Fashion <span class="text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">Commerce OS</span>
+            <h1 class="font-black text-xl leading-tight text-stone-900 flex items-center gap-2">
+              Dawah Fashion <span class="text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full font-extrabold tracking-wide">Commerce OS</span>
             </h1>
-            <p class="text-xs text-stone-500 font-medium flex items-center gap-2">
-              <span>দাওয়াহ ফ্যাশন • Dress with Purpose</span>
-              <a href="https://www.facebook.com/people/Dawah-Fashion/61574185184555/" target="_blank" class="text-amber-700 hover:underline flex items-center gap-1 font-semibold">
-                <svg class="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.374 14.5 5 15.667 5H18V0h-3.808C10.597 0 9 1.582 9 4.615V8z"/></svg>
-                <span>FB পেজ</span>
+            <p class="text-xs text-stone-500 font-semibold flex items-center gap-2">
+              <span>দাওয়াহ ফ্যাশন • Dress with Purpose • মিরপুর, ঢাকা</span>
+              <span class="text-stone-300">•</span>
+              <a href="https://www.facebook.com/people/Dawah-Fashion/61574185184555/" target="_blank" class="text-amber-800 hover:underline flex items-center gap-1 font-bold">
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.374 14.5 5 15.667 5H18V0h-3.808C10.597 0 9 1.582 9 4.615V8z"/></svg>
+                <span>অফিশিয়াল FB পেজ</span>
               </a>
             </p>
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <div class="flex items-center gap-2 bg-[#fcfaf7] px-3.5 py-1.5 rounded-full border border-[#e5dcd0] text-xs font-semibold text-stone-700 shadow-2xs">
+          <div class="flex items-center gap-2 bg-[#fcfaf7] px-4 py-2 rounded-full border border-[#e5dcd0] text-xs font-bold text-stone-700 shadow-2xs">
             <span class="w-2.5 h-2.5 rounded-full ${connectedNumber ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}"></span>
             <span>${connectedNumber ? '+' + connectedNumber : 'WhatsApp Disconnected'}</span>
           </div>
-          <a href="/qr" class="text-xs bg-stone-900 hover:bg-black text-white px-3.5 py-1.5 rounded-lg font-bold transition shadow-xs">
-            QR স্ক্যান
+          <a href="/qr" class="text-xs bg-stone-900 hover:bg-black text-white px-4 py-2 rounded-xl font-bold transition shadow-xs">
+            📱 QR স্ক্যান
           </a>
         </div>
       </header>
 
       <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        <!-- Warm Metric Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 5 Warm Executive Metric Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div class="bg-white p-5 rounded-2xl border border-[#ede6db] shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between text-stone-500 text-xs font-bold uppercase tracking-wider">
-              <span>মোট কাস্টমার / অর্ডার</span>
+            <div class="flex items-center justify-between text-stone-500 text-xs font-extrabold uppercase tracking-wider">
+              <span>মোট কাস্টমার / লিড</span>
               <span class="text-base">📦</span>
             </div>
             <div class="text-3xl font-black mt-2 text-stone-900">${totalOrders}</div>
           </div>
           <div class="bg-white p-5 rounded-2xl border border-[#ede6db] shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between text-amber-800 text-xs font-bold uppercase tracking-wider">
+            <div class="flex items-center justify-between text-amber-800 text-xs font-extrabold uppercase tracking-wider">
               <span>পেন্ডিং অর্ডার (Pending)</span>
               <span class="text-base">⏳</span>
             </div>
             <div class="text-3xl font-black mt-2 text-amber-700">${pendingOrders}</div>
           </div>
           <div class="bg-white p-5 rounded-2xl border border-[#ede6db] shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between text-emerald-800 text-xs font-bold uppercase tracking-wider">
-              <span>কনফার্মড অর্ডার (Approved)</span>
+            <div class="flex items-center justify-between text-emerald-800 text-xs font-extrabold uppercase tracking-wider">
+              <span>কনফার্মড (Approved)</span>
               <span class="text-base">✅</span>
             </div>
             <div class="text-3xl font-black mt-2 text-emerald-700">${approvedOrders}</div>
           </div>
           <div class="bg-white p-5 rounded-2xl border border-[#ede6db] shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between text-rose-800 text-xs font-bold uppercase tracking-wider">
-              <span>সক্রিয় প্রোডাক্ট সংখ্যা</span>
+            <div class="flex items-center justify-between text-indigo-800 text-xs font-extrabold uppercase tracking-wider">
+              <span>সম্ভাব্য সেলস রেভিনিউ</span>
+              <span class="text-base">💰</span>
+            </div>
+            <div class="text-3xl font-black mt-2 text-indigo-900">৳${totalRevenue.toLocaleString('en-IN')}</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-[#ede6db] shadow-xs hover:shadow-md transition">
+            <div class="flex items-center justify-between text-rose-800 text-xs font-extrabold uppercase tracking-wider">
+              <span>লাইভ স্টকে কালেকশন</span>
               <span class="text-base">👗</span>
             </div>
-            <div class="text-3xl font-black mt-2 text-rose-700">${totalProducts}</div>
+            <div class="text-3xl font-black mt-2 text-rose-700">${inStockProducts} / ${totalProducts}</div>
           </div>
         </div>
 
-        <!-- Google Sheet Integration Highlight Banner (Warm Light Theme) -->
+        <!-- Google Sheet Integration Highlight Banner -->
         <div class="bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-100/40 p-6 rounded-2xl border border-amber-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
           <div class="space-y-1.5">
             <div class="inline-flex items-center gap-1.5 text-amber-800 text-xs font-black tracking-wide uppercase">
               <span>⚡ Google Sheets লাইভ সিঙ্ক</span>
             </div>
-            <h2 class="text-lg font-extrabold text-stone-900">গুগল শিটে রিয়েল-টাইম সব অর্ডার অটো-সিঙ্ক করুন</h2>
-            <p class="text-xs text-stone-600 max-w-2xl leading-relaxed">
-              আপনার গুগল শিটের <b>A1</b> ঘরে নিচের ফর্মুলাটি পেস্ট করলেই প্রতিটি নতুন অর্ডার স্বয়ংক্রিয়ভাবে লাইভ রো হিসেবে যুক্ত হয়ে যাবে:
+            <h2 class="text-lg font-black text-stone-900">গুগল শিটে রিয়েল-টাইম সব অর্ডার অটো-সিঙ্ক করুন</h2>
+            <p class="text-xs text-stone-600 max-w-2xl leading-relaxed font-medium">
+              আপনার ফ্রেন্ডের যেকোনো গুগল শিটের <b>A1</b> ঘরে নিচের ফর্মুলাটি পেস্ট করলেই প্রতিটি নতুন কাস্টমার অর্ডার স্বয়ংক্রিয়ভাবে লাইভ সাজিয়ে যাবে:
             </p>
             <div class="flex items-center gap-2 pt-2">
-              <code class="bg-white px-3.5 py-2 rounded-xl text-stone-900 text-xs font-mono border border-amber-300/80 shadow-inner select-all" id="sheetFormula">
+              <code class="bg-white px-3.5 py-2 rounded-xl text-stone-900 text-xs font-mono border border-amber-300 shadow-inner select-all" id="sheetFormula">
                 =IMPORTDATA("https://autodokan-engine.onrender.com/api/export-csv")
               </code>
-              <button onclick="navigator.clipboard.writeText(document.getElementById('sheetFormula').innerText.trim()); alert('ফর্মুলা কপি হয়েছে! এবার গুগল শিটে পেস্ট করুন।')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition shadow-xs cursor-pointer">
+              <button onclick="navigator.clipboard.writeText(document.getElementById('sheetFormula').innerText.trim()); showToast('ফর্মুলা কপি হয়েছে! গুগল শিটে পেস্ট করুন।')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 rounded-xl font-black transition shadow-xs cursor-pointer">
                 কপি করুন
               </button>
             </div>
           </div>
-          <a href="/api/export-csv" class="bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition whitespace-nowrap shadow-xs">
+          <a href="/api/export-csv" class="bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 px-5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition whitespace-nowrap shadow-xs">
             📥 CSV এক্সপোর্ট ডাউনলোড
           </a>
         </div>
 
-        <!-- Section: Live Orders -->
+        <!-- Section: Live Orders with Instant Search & Status Tabs -->
         <div class="bg-white rounded-2xl border border-[#ede6db] shadow-xs overflow-hidden">
-          <div class="p-5 border-b border-stone-100 flex items-center justify-between flex-wrap gap-4">
+          <div class="p-5 border-b border-stone-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <h2 class="font-extrabold text-lg text-stone-900 flex items-center gap-2">
-                <span>📦 লাইভ কাস্টমার অর্ডার তালিকা</span>
+              <h2 class="font-black text-lg text-stone-900 flex items-center gap-2">
+                <span>📦 লাইভ কাস্টমার অর্ডার ও ডেলিভারি তালিকা</span>
               </h2>
-              <p class="text-xs text-stone-500 font-medium">হোয়াটসঅ্যাপ চ্যাট থেকে স্বয়ংক্রিয়ভাবে সংরক্ষিত রিয়েল-টাইম অর্ডারসমূহ</p>
+              <p class="text-xs text-stone-500 font-semibold">হোয়াটসঅ্যাপ থেকে স্বয়ংক্রিয়ভাবে ক্যাপচার করা রিয়েল-টাইম অর্ডারসমূহ</p>
             </div>
-            <button onclick="window.location.reload()" class="text-xs bg-[#fbf9f5] hover:bg-stone-100 text-stone-700 font-bold px-3 py-1.5 rounded-lg border border-stone-300 transition cursor-pointer">
-              🔄 রিফ্রেশ করুন
+            <!-- Search & Actions -->
+            <div class="flex items-center gap-3 w-full md:w-auto">
+              <input type="text" id="orderSearchInput" onkeyup="filterOrders()" placeholder="🔍 নাম, ফোন বা ঠিকানা দিয়ে খুঁজুন..." class="bg-[#fcfaf7] border border-stone-300 text-stone-800 text-xs px-3.5 py-2 rounded-xl w-full md:w-64 focus:outline-none focus:border-amber-500 focus:bg-white transition">
+              <button onclick="window.location.reload()" class="text-xs bg-[#fbf9f5] hover:bg-stone-100 text-stone-700 font-bold px-3.5 py-2 rounded-xl border border-stone-300 transition cursor-pointer whitespace-nowrap">
+                🔄 রিফ্রেশ
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Filter Tabs -->
+          <div class="bg-[#fcfaf7] px-5 py-2.5 border-b border-stone-200 flex items-center gap-2 overflow-x-auto text-xs font-bold">
+            <button onclick="setFilter('ALL')" id="tab-ALL" class="filter-tab px-3 py-1 rounded-lg bg-stone-900 text-white transition cursor-pointer">
+              সবগুলো (${totalOrders})
+            </button>
+            <button onclick="setFilter('Pending')" id="tab-Pending" class="filter-tab px-3 py-1 rounded-lg bg-white border border-stone-300 text-amber-800 hover:bg-amber-50 transition cursor-pointer">
+              ⏳ পেন্ডিং (${pendingOrders})
+            </button>
+            <button onclick="setFilter('Approved')" id="tab-Approved" class="filter-tab px-3 py-1 rounded-lg bg-white border border-stone-300 text-emerald-800 hover:bg-emerald-50 transition cursor-pointer">
+              ✅ কনফার্মড (${approvedOrders})
+            </button>
+            <button onclick="setFilter('Shipped')" id="tab-Shipped" class="filter-tab px-3 py-1 rounded-lg bg-white border border-stone-300 text-sky-800 hover:bg-sky-50 transition cursor-pointer">
+              🚚 শিপড (${shippedOrders})
+            </button>
+            <button onclick="setFilter('Cancelled')" id="tab-Cancelled" class="filter-tab px-3 py-1 rounded-lg bg-white border border-stone-300 text-rose-800 hover:bg-rose-50 transition cursor-pointer">
+              ❌ বাতিল (${cancelledOrders})
             </button>
           </div>
+
+          <!-- Table -->
           <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-[#fbf9f5] text-stone-500 text-xs uppercase font-bold tracking-wider border-b border-stone-200">
+            <table class="w-full text-left text-sm" id="ordersTable">
+              <thead class="bg-[#fbf9f5] text-stone-500 text-xs uppercase font-extrabold tracking-wider border-b border-stone-200">
                 <tr>
                   <th class="p-3.5">ID</th>
                   <th class="p-3.5">কাস্টমার নাম ও ফোন</th>
@@ -390,7 +439,7 @@ app.get('/dashboard', async (req, res) => {
                   <th class="p-3.5">তারিখ ও সময়</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="ordersTableBody">
                 ${orderRows || '<tr><td colspan="7" class="text-center py-10 text-stone-400 font-medium">এখনও কোনো অর্ডার আসেনি। WhatsApp-এ টেস্ট মেসেজ পাঠান!</td></tr>'}
               </tbody>
             </table>
@@ -401,40 +450,47 @@ app.get('/dashboard', async (req, res) => {
         <div id="products" class="bg-white rounded-2xl border border-[#ede6db] p-6 space-y-6 shadow-xs">
           <div class="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h2 class="font-extrabold text-lg text-stone-900 flex items-center gap-2">
-                <span>👗 বোরকা ক্যাটালগ ও মূল্য তালিকা</span>
+              <h2 class="font-black text-lg text-stone-900 flex items-center gap-2">
+                <span>👗 Dawah Fashion বোরকা ও আবায়া ক্যাটালগ (${totalProducts} টি মডেল)</span>
               </h2>
-              <p class="text-xs text-stone-500 font-medium">এই প্রোডাক্ট ও দামগুলোর ভিত্তিতে AI কাস্টমারদের সাথে রিয়েল-টাইমে কথা বলে</p>
+              <p class="text-xs text-stone-500 font-semibold">এই মডেল ও ফিক্সড দামগুলোর ভিত্তিতে AI কাস্টমারদের সাথে রিয়েল-টাইমে সেলস সম্পন্ন করে</p>
             </div>
-            <button onclick="document.getElementById('addProductCard').classList.toggle('hidden')" class="bg-stone-900 hover:bg-black text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs cursor-pointer">
-              + নতুন প্রোডাক্ট যুক্ত করুন
+            <button onclick="document.getElementById('addProductCard').classList.toggle('hidden')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer">
+              + নতুন মডেল যুক্ত করুন
             </button>
           </div>
 
           <!-- Add Product Form (Collapsible/Warm) -->
-          <div id="addProductCard" class="bg-[#fcfaf7] p-5 rounded-2xl border border-amber-200 shadow-2xs space-y-4">
-            <h3 class="text-sm font-extrabold text-amber-900">+ নতুন বোরকা বা মডেল যুক্ত করুন</h3>
+          <div id="addProductCard" class="hidden bg-[#fcfaf7] p-5 rounded-2xl border border-amber-200 shadow-2xs space-y-4">
+            <div class="flex items-center justify-between border-b border-amber-200/60 pb-2">
+              <h3 class="text-sm font-black text-amber-900">+ নতুন বোরকা বা আবায়া মডেল যুক্ত করুন</h3>
+              <button onclick="document.getElementById('addProductCard').classList.add('hidden')" class="text-xs text-stone-400 hover:text-stone-700 font-bold cursor-pointer">✕ বন্ধ করুন</button>
+            </div>
             <form method="POST" action="/api/add-product" class="space-y-4">
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label class="block text-xs font-semibold text-stone-600 mb-1">বোরকার নাম ও কালার</label>
-                  <input type="text" name="name" placeholder="যেমন: কুইন আবায়া (মেরুন)" required class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                  <label class="block text-xs font-bold text-stone-700 mb-1">মডেলের নাম ও কালার</label>
+                  <input type="text" name="name" placeholder="যেমন: ৩-পিস নূর আবায়া (কালো)" required class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
                 </div>
                 <div>
-                  <label class="block text-xs font-semibold text-stone-600 mb-1">কাপড় / ফেব্রিক</label>
+                  <label class="block text-xs font-bold text-stone-700 mb-1">কাপড় / ফেব্রিক</label>
                   <input type="text" name="fabric" placeholder="যেমন: প্রিমিয়াম দুবাই চেরি" required class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
                 </div>
                 <div>
-                  <label class="block text-xs font-semibold text-stone-600 mb-1">ফিক্সড মূল্য (টাকা)</label>
-                  <input type="number" name="price" placeholder="যেমন: ২২০০" required class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                  <label class="block text-xs font-bold text-stone-700 mb-1">ফিক্সড মূল্য (টাকা)</label>
+                  <input type="number" name="price" placeholder="যেমন: ২৪৫০" required class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
                 </div>
                 <div>
-                  <label class="block text-xs font-semibold text-stone-600 mb-1">ঝুল সাইজ</label>
-                  <input type="text" name="sizes" value="৫০, ৫২, ৫৪, ৫৬" class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                  <label class="block text-xs font-bold text-stone-700 mb-1">ঝুল ও বডি সাইজ</label>
+                  <input type="text" name="sizes" value="৫০, ৫২, ৫৪, ৫৬ (বডি ৩৬-৪৬)" class="w-full bg-white border border-stone-300 text-stone-900 text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
                 </div>
               </div>
-              <div class="text-right">
-                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-xs cursor-pointer">
+              <div class="flex items-center justify-between pt-2">
+                <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 cursor-pointer">
+                  <input type="checkbox" name="hijab_included" value="true" checked class="rounded text-amber-600 focus:ring-amber-500">
+                  <span>ম্যাচিং হিজাব সাথে একদম ফ্রি থাকবে</span>
+                </label>
+                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black px-5 py-2.5 rounded-xl transition shadow-xs cursor-pointer">
                   + প্রোডাক্ট সেভ করুন
                 </button>
               </div>
@@ -444,7 +500,7 @@ app.get('/dashboard', async (req, res) => {
           <!-- Product Table with In-line Edit Support -->
           <div class="overflow-x-auto rounded-xl border border-stone-200">
             <table class="w-full text-left text-sm">
-              <thead class="bg-[#fbf9f5] text-stone-500 text-xs uppercase font-bold tracking-wider border-b border-stone-200">
+              <thead class="bg-[#fbf9f5] text-stone-500 text-xs uppercase font-extrabold tracking-wider border-b border-stone-200">
                 <tr>
                   <th class="p-3.5">ID</th>
                   <th class="p-3.5">মডেলের নাম</th>
@@ -463,12 +519,64 @@ app.get('/dashboard', async (req, res) => {
         </div>
       </main>
 
+      <!-- Toast Notification Component -->
+      <div id="toast" class="fixed bottom-6 right-6 bg-stone-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transform translate-y-16 opacity-0 transition-all duration-300 pointer-events-none z-50"></div>
+
       <script>
         function toggleProductEdit(id) {
           const row = document.getElementById('edit-product-' + id);
           if (row) {
             row.classList.toggle('hidden');
           }
+        }
+
+        function showToast(msg) {
+          const t = document.getElementById('toast');
+          t.innerText = msg;
+          t.classList.remove('translate-y-16', 'opacity-0');
+          setTimeout(() => {
+            t.classList.add('translate-y-16', 'opacity-0');
+          }, 3000);
+        }
+
+        function copyCourierData(text) {
+          navigator.clipboard.writeText(text);
+          showToast('📋 কুরিয়ার এড্রেস কপি হয়েছে!');
+        }
+
+        let currentFilter = 'ALL';
+
+        function setFilter(status) {
+          currentFilter = status;
+          document.querySelectorAll('.filter-tab').forEach(b => {
+            b.classList.remove('bg-stone-900', 'text-white');
+            b.classList.add('bg-white', 'border', 'border-stone-300');
+          });
+          const activeBtn = document.getElementById('tab-' + status);
+          if (activeBtn) {
+            activeBtn.classList.remove('bg-white', 'border', 'border-stone-300');
+            activeBtn.classList.add('bg-stone-900', 'text-white');
+          }
+          filterOrders();
+        }
+
+        function filterOrders() {
+          const query = (document.getElementById('orderSearchInput').value || '').toLowerCase().trim();
+          const rows = document.querySelectorAll('.order-table-row');
+
+          rows.forEach(r => {
+            const status = r.getAttribute('data-status');
+            const search = r.getAttribute('data-search') || '';
+
+            const matchesStatus = (currentFilter === 'ALL' || status === currentFilter);
+            const matchesQuery = (!query || search.includes(query));
+
+            if (matchesStatus && matchesQuery) {
+              r.style.display = '';
+            } else {
+              r.style.display = 'none';
+            }
+          });
         }
       </script>
     </body>
