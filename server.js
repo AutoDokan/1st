@@ -27,6 +27,102 @@ const userMessageBuffers = new Map();
 const activeConversations = new Set();
 const DEBOUNCE_DELAY_MS = 4000;
 
+
+// ==========================================
+// 4-Digit PIN Security Layer (PIN: 2026)
+// ==========================================
+const DASHBOARD_PIN = process.env.DASHBOARD_PIN || '2026';
+
+function isAuthenticated(req) {
+  const matches = (req.headers.cookie || '').match(/(?:^|; )df_auth_pin=([^;]*)/);
+  const token = matches ? decodeURIComponent(matches[1]) : null;
+  return token === '2026_authorized';
+}
+
+function requireAuth(req, res, next) {
+  if (isAuthenticated(req)) {
+    return next();
+  }
+  if (req.headers['accept']?.includes('application/json') || req.path.startsWith('/api/live-data')) {
+    return res.status(401).json({ error: 'Unauthorized. Please login with PIN.' });
+  }
+  res.redirect('/login');
+}
+
+function renderLoginPage(errorMessage = '') {
+  return `
+    <!DOCTYPE html>
+    <html lang="bn">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+      <title>Dawah Fashion — সিকিউরিটি লক</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      </style>
+    </head>
+    <body class="bg-[#faf7f2] text-stone-800 min-h-screen flex items-center justify-center p-4">
+      <div class="w-full max-w-sm bg-white rounded-3xl border border-[#ede6db] p-8 shadow-xl space-y-6 text-center">
+        <!-- Brand Icon -->
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-600 via-orange-500 to-rose-500 flex items-center justify-center font-black text-white text-xl shadow-md mx-auto">
+          DF
+        </div>
+        <div>
+          <h1 class="text-xl font-black text-stone-900 leading-tight">Dawah Fashion</h1>
+          <p class="text-xs text-stone-500 font-semibold mt-1">অফিসিয়াল কমার্স ড্যাশবোর্ড লক</p>
+        </div>
+
+        ${errorMessage ? `
+        <div class="bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold p-3 rounded-xl flex items-center justify-center gap-1.5 animate-shake">
+          <span>❌</span>
+          <span>${errorMessage}</span>
+        </div>` : `
+        <div class="bg-amber-50/70 border border-amber-200/80 text-amber-900 text-xs font-semibold p-3 rounded-xl">
+          🔒 কাস্টমার ডাটা ও শপের সুরক্ষায় ৪ ডিজিটের পিন দিন
+        </div>`}
+
+        <form method="POST" action="/login" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-stone-600 mb-2">৪ ডিজিটের সিক্রেট পিন (PIN)</label>
+            <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" name="pin" autofocus placeholder="••••" required class="w-full text-center tracking-[0.8em] text-3xl font-black font-mono bg-[#fcfaf7] border-2 border-stone-300 focus:border-amber-600 focus:bg-white focus:outline-none p-3.5 rounded-2xl transition">
+          </div>
+          <button type="submit" class="w-full bg-stone-900 hover:bg-black text-white font-black text-sm py-3.5 rounded-2xl shadow-md transition cursor-pointer">
+            🔓 ড্যাশবোর্ডে প্রবেশ করুন
+          </button>
+        </form>
+
+        <div class="text-[11px] text-stone-400 font-medium">
+          🔒 একবার লগইন করলে এই ডিভাইসে ৩০ দিন সচল থাকবে
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+app.get('/login', (req, res) => {
+  if (isAuthenticated(req)) {
+    return res.redirect('/dashboard');
+  }
+  res.send(renderLoginPage());
+});
+
+app.post('/login', (req, res) => {
+  const { pin } = req.body;
+  if (pin && pin.trim() === DASHBOARD_PIN) {
+    res.setHeader('Set-Cookie', 'df_auth_pin=2026_authorized; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax');
+    return res.redirect('/dashboard');
+  }
+  res.send(renderLoginPage('ভুল পিন কোড! সঠিক ৪ ডিজিটের পিন লিখুন।'));
+});
+
+app.get('/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'df_auth_pin=; Path=/; Max-Age=0; HttpOnly');
+  res.redirect('/login');
+});
+
 // Health Endpoint for UptimeRobot
 app.get('/', (req, res) => {
   res.json({
@@ -40,7 +136,7 @@ app.get('/', (req, res) => {
 });
 
 // CSV Export Endpoint for 1-Click Google Sheets Live Sync
-app.get('/api/export-csv', async (req, res) => {
+app.get('/api/export-csv', requireAuth, async (req, res) => {
   try {
     const { data: orders } = await supabase.from('orders').select('*').order('id', { ascending: false });
     
@@ -100,7 +196,7 @@ async function incrementStats(field) {
 }
 
 // Live JSON Data Stream API for Real-Time Dynamic Refresh
-app.get('/api/live-data', async (req, res) => {
+app.get('/api/live-data', requireAuth, async (req, res) => {
   try {
     const { data: orders } = await supabase.from('orders').select('*').order('id', { ascending: false });
     const { data: products } = await supabase.from('products').select('*').order('id', { ascending: true });
@@ -141,7 +237,7 @@ app.get('/api/live-data', async (req, res) => {
 });
 
 // Update Order Status API (e.g. Approved, Shipped, Cancelled - supports AJAX & Form)
-app.post('/api/orders/:id/status', async (req, res) => {
+app.post('/api/orders/:id/status', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   if (id && status) {
@@ -154,7 +250,7 @@ app.post('/api/orders/:id/status', async (req, res) => {
 });
 
 // Update Global Store & Delivery Rules API (supports AJAX & Form)
-app.post('/api/settings/update', async (req, res) => {
+app.post('/api/settings/update', requireAuth, async (req, res) => {
   const { inside_dhaka_fee, outside_dhaka_fee, bkash_number, nagad_number } = req.body;
   await supabase.from('store_settings').upsert({
     id: 1,
@@ -200,7 +296,7 @@ app.post('/api/whatsapp/disconnect', async (req, res) => {
 });
 
 // Update Specific Order Payment & Delivery Details API (supports AJAX & Form)
-app.post('/api/orders/:id/update-payment', async (req, res) => {
+app.post('/api/orders/:id/update-payment', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { delivery_fee, advance_paid, trx_id_or_last4, due_cod } = req.body;
   const isPaid = Number(advance_paid) > 0 || !!trx_id_or_last4;
@@ -218,7 +314,7 @@ app.post('/api/orders/:id/update-payment', async (req, res) => {
 });
 
 // Add New Product API
-app.post('/api/add-product', async (req, res) => {
+app.post('/api/add-product', requireAuth, async (req, res) => {
   const { model_code, name, fabric, price, sizes, hijab_included } = req.body;
   if (name && price) {
     await supabase.from('products').insert({
@@ -236,7 +332,7 @@ app.post('/api/add-product', async (req, res) => {
 });
 
 // Update Existing Product API
-app.post('/api/products/:id/update', async (req, res) => {
+app.post('/api/products/:id/update', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { model_code, name, fabric, price, sizes, hijab_included } = req.body;
   if (id && name && price) {
@@ -254,7 +350,7 @@ app.post('/api/products/:id/update', async (req, res) => {
 });
 
 // Delete Product API
-app.post('/api/products/:id/delete', async (req, res) => {
+app.post('/api/products/:id/delete', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (id) {
     await supabase.from('products').delete().eq('id', id);
@@ -264,7 +360,7 @@ app.post('/api/products/:id/delete', async (req, res) => {
 });
 
 // Toggle In-Stock Status
-app.post('/api/products/:id/toggle-stock', async (req, res) => {
+app.post('/api/products/:id/toggle-stock', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { in_stock } = req.body;
   await supabase.from('products').update({ in_stock: in_stock === 'true' }).eq('id', id);
@@ -274,7 +370,7 @@ app.post('/api/products/:id/toggle-stock', async (req, res) => {
 
 // Unified Master Dashboard (Executive F-Commerce Command Center for Dawah Fashion)
 // Unified Master Dashboard (Executive Mobile-First F-Commerce Command Center for Dawah Fashion)
-app.get('/dashboard', async (req, res) => {
+app.get('/dashboard', requireAuth, async (req, res) => {
   const { data: orders } = await supabase.from('orders').select('*').order('id', { ascending: false });
   const { data: products } = await supabase.from('products').select('*').order('id', { ascending: true });
   const { data: storeSettings } = await supabase.from('store_settings').select('*').eq('id', 1).single();
@@ -638,6 +734,9 @@ app.get('/dashboard', async (req, res) => {
             </button>
             <a href="/qr" class="bg-stone-900 hover:bg-black text-white px-3 py-2 rounded-xl text-xs font-bold shadow-2xs transition">
               <span>QR</span>
+            </a>
+            <a href="/logout" title="লগআউট" class="text-stone-400 hover:text-stone-700 text-xs font-bold px-2 py-2 transition cursor-pointer">
+              🔒
             </a>
           </div>
         </div>
