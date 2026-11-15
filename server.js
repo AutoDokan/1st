@@ -269,7 +269,7 @@ app.get('/dashboard', async (req, res) => {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>AutoDokan Commerce OS - Control Dashboard</title>
+      <title>Dawah Fashion - Commerce OS Dashboard</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -281,13 +281,19 @@ app.get('/dashboard', async (req, res) => {
       <header class="bg-white/90 backdrop-blur border-b border-[#ece5da] sticky top-0 z-50 px-6 py-4 flex items-center justify-between shadow-xs">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-orange-500 to-rose-500 flex items-center justify-center font-black text-white shadow-md shadow-amber-500/20 text-sm">
-            AD
+            DF
           </div>
           <div>
             <h1 class="font-extrabold text-lg leading-tight text-stone-900 flex items-center gap-2">
-              AutoDokan <span class="text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">OS v1.0</span>
+              Dawah Fashion <span class="text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">Commerce OS</span>
             </h1>
-            <p class="text-xs text-stone-500 font-medium">সেলার কন্ট্রোল প্যানেল &amp; অটোমেশন ড্যাশবোর্ড</p>
+            <p class="text-xs text-stone-500 font-medium flex items-center gap-2">
+              <span>দাওয়াহ ফ্যাশন • Dress with Purpose</span>
+              <a href="https://www.facebook.com/people/Dawah-Fashion/61574185184555/" target="_blank" class="text-amber-700 hover:underline flex items-center gap-1 font-semibold">
+                <svg class="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.374 14.5 5 15.667 5H18V0h-3.808C10.597 0 9 1.582 9 4.615V8z"/></svg>
+                <span>FB পেজ</span>
+              </a>
+            </p>
           </div>
         </div>
         <div class="flex items-center gap-3">
