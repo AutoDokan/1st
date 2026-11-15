@@ -1474,7 +1474,7 @@ async function processBufferedUserMessages(remoteJid) {
     if (sock && cleanReplyText) {
       await sock.sendMessage(remoteJid, { text: cleanReplyText });
       await sock.sendPresenceUpdate('available', remoteJid);
-      console.log(`[WhatsApp Outbound Done] To: ${remoteJid}`);
+      console.log(`[WhatsApp Outbound Done] To: ${remoteJid} | Reply: "${cleanReplyText}"`);
       incrementStats('messages_out');
     }
 
