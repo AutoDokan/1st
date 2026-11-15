@@ -2223,33 +2223,90 @@ async function processBufferedUserMessages(remoteJid) {
       return p;
     }
 
-    // Helper to send all 5 photos of a product
-    async function sendAllFivePhotos(p) {
-      if (!p) return;
-      if (p.image_url) {
-        await sendWaPhoto(p.image_url, `👗 *${p.name} (১/৫: মেইন ফ্রন্ট লুক)*\n💰 মূল্য: *৳${p.price}* টাকা (ম্যাচিং হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
-      }
-      if (p.detail_image_url) {
-        await sendWaPhoto(p.detail_image_url, `🔍 *${p.name} (২/৫: নিখুঁত কারচুপি কাজ ও কাপড় ক্লোজ-আপ)*`);
-      }
-      if (p.hijab_image_url) {
-        await sendWaPhoto(p.hijab_image_url, `🧕 *${p.name} (৩/৫: ম্যাচিং প্রিমিয়াম হিজাব)*\n✨ ড্রেসের সাথে ম্যাচিং হিজাব সম্পূর্ণ ফ্রি পাচ্ছেন!`);
-      }
-      if (p.flare_image_url) {
-        await sendWaPhoto(p.flare_image_url, `✨ *${p.name} (৪/৫: ঘের ও সাইড অ্যাঙ্গেল ফল)*`);
-      }
-      if (p.real_image_url) {
-        await sendWaPhoto(p.real_image_url, `📸 *${p.name} (৫/৫: স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল লুক)*`);
+    function buildProductAlbumCaption(p) {
+      const store = (typeof getStoreSettings === 'function') ? getStoreSettings() : {};
+      const insideFee = store.inside_dhaka_fee || 80;
+      const outsideFee = store.outside_dhaka_fee || 150;
+      const hijabText = p.hijab_included ? 'ম্যাচিং হিজাব একদম ফ্রি' : 'হিজাব আলাদা';
+
+      return `👗 *${p.name}*
+🏷️ মডেল: *${p.model_code || 'DF-101'}*
+━━━━━━━━━━━━━━━━━━
+💰 মূল্য: *৳${p.price}* টাকা (${hijabText})
+✨ ফেব্রিক: ${p.fabric || 'প্রিমিয়াম দুবাই চেরি'}
+📏 সাইজ: ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'}
+🪡 কাজ: হাতা ও কটিতে নিখুঁত অ্যান্টিক গোল্ডেন জারদৌসি ও কারচুপির হ্যান্ডওয়ার্ক
+
+📸 *এই অ্যালবামে রয়েছে সম্পূর্ণ ৫টি ভিউ:*
+১. মেইন ফ্রন্ট স্টুডিও লুক
+২. নিখুঁত কারচুপি কাজ ও কাপড় ক্লোজ-আপ
+৩. ম্যাচিং প্রিমিয়াম হিজাব (ফ্রি)
+৪. ঘের ও সাইড অ্যাঙ্গেল ভিউ
+৫. স্বাভাবিক দিনের আলোর আনফিল্টার্ড রিয়েল লুক
+━━━━━━━━━━━━━━━━━━
+🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee} | ঢাকার বাইরে ৳${outsideFee}
+(জামার কোনো টাকা অগ্রিম নেই, পুরো জামার মূল্য ক্যাশ অন ডেলিভারিতে দিবেন)
+
+🛍️ অর্ডার কনফার্ম করতে চাইলে আপনার পছন্দের *সাইজ, নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নাম্বার* লিখে জানিয়ে দিন।`;
+    }
+
+    // Helper to send a product's photos as a unified WhatsApp Album with complete details
+    async function sendProductAlbum(p) {
+      if (!sock || !p) return false;
+      try {
+        const photoUrls = [
+          p.image_url,
+          p.detail_image_url,
+          p.hijab_image_url,
+          p.flare_image_url,
+          p.real_image_url
+        ].filter(Boolean);
+
+        if (photoUrls.length === 0) return false;
+
+        const masterCaption = buildProductAlbumCaption(p);
+
+        for (let i = 0; i < photoUrls.length; i++) {
+          const url = photoUrls[i];
+          let imagePayload;
+          const urlPath = url.replace(/^https?:\/\/[^\/]+/, '');
+          const localFile = path.join(__dirname, 'public', urlPath);
+          if (fs.existsSync(localFile)) {
+            imagePayload = fs.readFileSync(localFile);
+          } else {
+            imagePayload = { url: url };
+          }
+
+          // Attach the complete product overview card only to the 1st photo.
+          // Subsequent photos are sent without caption so WhatsApp automatically clusters them into a native Album grid.
+          const msgOptions = {
+            image: imagePayload,
+            ...(i === 0 ? { caption: masterCaption } : {})
+          };
+
+          await sock.sendMessage(remoteJid, msgOptions);
+          incrementStats('messages_out');
+
+          // 250ms gap keeps socket reliable while triggering native WhatsApp album grouping
+          if (i < photoUrls.length - 1) {
+            await new Promise(r => setTimeout(r, 250));
+          }
+        }
+        await sock.sendPresenceUpdate('available', remoteJid);
+        return true;
+      } catch (err) {
+        console.error('[WhatsApp Album Send Error]:', err.message);
+        return false;
       }
     }
 
     // 8. Dispatch images
-    // Handle ALL IMAGES requested (5 Complete Golden Photos: Main + Detail + Hijab + Flare + Real)
+    // Handle ALL IMAGES requested (Unified WhatsApp Album)
     for (const match of allMatches) {
       const code = match[1].toUpperCase().trim();
       const p = findProd(code);
       if (p) {
-        await sendAllFivePhotos(p);
+        await sendProductAlbum(p);
       }
     }
 
@@ -2308,7 +2365,7 @@ async function processBufferedUserMessages(remoteJid) {
       const p = findProd(code);
       if (p) {
         if (mainMatches.length === 1 && (p.detail_image_url || p.hijab_image_url || p.flare_image_url || p.real_image_url)) {
-          await sendAllFivePhotos(p);
+          await sendProductAlbum(p);
         } else if (p.image_url) {
           await sendWaPhoto(p.image_url, `👗 *${p.name}*\n💰 মূল্য: *৳${p.price}* টাকা (হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
         }

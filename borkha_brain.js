@@ -348,7 +348,7 @@ function generateSmartFallback(userText, isFirstMessage) {
   // 5. Asking for all pictures or multiple photos
   if (isAskingForAllImages(t) && isAskingForImage(t)) {
     const code = detectModelFromText(t) || 'DF-101';
-    return `${greeting}অবশ্যই! ${code} মডেলের মেইন লুক, ম্যাচিং হিজাব ও নিখুঁত কাজের সব ছবি পাঠিয়ে দেওয়া হলো [SEND_ALL_IMAGES:${code}]`;
+    return `${greeting}অবশ্যই! ${code} মডেলের ৫টি প্রফেশনাল ছবি ও সম্পূর্ণ প্রোডাক্ট ডিটেইলস একসাথে অ্যালবামে নিচে দেওয়া হলো [SEND_ALL_IMAGES:${code}]`;
   }
 
   // 6. Asking for hijab photo
