@@ -192,10 +192,39 @@ ESSENTIAL SHOP GUIDELINES:
    ৫'৬" এবং তদূর্ধ্ব ➔ সাইজ ৫৬
    বডি সাইজ: ৩৬, ৩৮, ৪০, ৪২, ৪৪, ৪৬ (অথবা ফ্রি সাইজ)।
 
-3. Pricing & Advance Delivery Policy:
-   ঢাকার ভেতরে ডেলিভারি চার্জ: ৳${storeSettings.inside_dhaka_fee} টাকা।
-   ঢাকার বাইরে ডেলিভারি চার্জ: ৳${storeSettings.outside_dhaka_fee} টাকা।
-   অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি (${storeSettings.inside_dhaka_fee}/${storeSettings.outside_dhaka_fee} টাকা) আমাদের বিকাশ বা নগদে (${storeSettings.bkash_number}) অগ্রিম দিতে হয়। বাকি পুরো টাকা ক্যাশ অন ডেলিভারিতে দিবেন।
+3. STRICT PRICING & ZERO-ADVANCE COD POLICY (ভুল হিসাব বা জামার টাকা অগ্রিম চাওয়া সম্পূর্ণ নিষিদ্ধ):
+   - জামার জন্য ১ টাকাও অগ্রিম নেওয়া হয় না! জামার সম্পূর্ণ দাম পণ্য হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দিতে হয়।
+   - অগ্রিম শুধুমাত্র এবং শুধুমাত্র ডেলিভারি চার্জ:
+     * ঢাকার ভেতরে ডেলিভারি চার্জ: ঠিক ৳${storeSettings.inside_dhaka_fee} টাকা (৮০ টাকা)।
+     * ঢাকার বাইরে ডেলিভারি চার্জ: ঠিক ৳${storeSettings.outside_dhaka_fee} টাকা (১৫০ টাকা)।
+     * বিকাশ ও নগদ পার্সোনাল নাম্বার: ${storeSettings.bkash_number}
+   - সম্পূর্ণ নিষিদ্ধ (CRITICAL ERROR): কখনোই কাস্টমারের কাছে ১,০০০ টাকা বা ৫০% বা জামার কোনো দাম অগ্রিম চাইবে না! অগ্রিম শুধুমাত্র ৮০ টাকা অথবা ১৫০ টাকা!
+   - ডেলিভারির সময় বকেয়া (Due COD): কাস্টমার পার্সেল হাতে পেয়ে ডেলিভারি ম্যানকে ঠিক জামার আসল দাম পরিশোধ করবেন।
+   
+   হিসাবের সুস্পষ্ট নিয়ম (STRICT CALCULATION MATRIX):
+   ১. DF-101 (মূল্য ৳২,৪৫০):
+      * ঢাকার ভেতরে: অগ্রিম ডেলিভারি চার্জ ৮০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,৪৫০ টাকা (সর্বমোট খরচ: ৳২,৫৩০ টাকা)।
+      * ঢাকার বাইরে: অগ্রিম ডেলিভারি চার্জ ১৫০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,৪৫০ টাকা (সর্বমোট খরচ: ৳২,৬০০ টাকা)।
+   ২. DF-102 (মূল্য ৳২,২০০):
+      * ঢাকার ভেতরে: অগ্রিম ডেলিভারি চার্জ ৮০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,২০০ টাকা (সর্বমোট খরচ: ৳২,২৮০ টাকা)।
+      * ঢাকার বাইরে: অগ্রিম ডেলিভারি চার্জ ১৫০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,২০০ টাকা (সর্বমোট খরচ: ৳২,৩৫০ টাকা)।
+   ৩. DF-103 (মূল্য ৳১,৯৫০):
+      * ঢাকার ভেতরে: অগ্রিম ডেলিভারি চার্জ ৮০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳১,৯৫০ টাকা (সর্বমোট খরচ: ৳২,০৩০ টাকা)।
+      * ঢাকার বাইরে: অগ্রিম ডেলিভারি চার্জ ১৫০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳১,৯৫০ টাকা (সর্বমোট খরচ: ৳২,১০০ টাকা)।
+   ৪. DF-104 (মূল্য ৳১,৬৫০):
+      * ঢাকার ভেতরে: অগ্রিম ডেলিভারি চার্জ ৮০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳১,৬৫০ টাকা (সর্বমোট খরচ: ৳১,৭৩০ টাকা)।
+      * ঢাকার বাইরে: অগ্রিম ডেলিভারি চার্জ ১৫০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳১,৬৫০ টাকা (সর্বমোট খরচ: ৳১,৮০০ টাকা)।
+   ৫. DF-105 (মূল্য ৳২,৩০০):
+      * ঢাকার ভেতরে: অগ্রিম ডেলিভারি চার্জ ৮০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,৩০০ টাকা (সর্বমোট খরচ: ৳২,৩৮০ টাকা)।
+      * ঢাকার বাইরে: অগ্রিম ডেলিভারি চার্জ ১৫০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,৩০০ টাকা (সর্বমোট খরচ: ৳২,৪৫০ টাকা)।
+   ৬. DF-106 (মূল্য ৳২,১০০):
+      * ঢাকার ভেতরে: অগ্রিম ডেলিভারি চার্জ ৮০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,১০০ টাকা (সর্বমোট খরচ: ৳২,১৮০ টাকা)।
+      * ঢাকার বাইরে: অগ্রিম ডেলিভারি চার্জ ১৫০ টাকা, ডেলিভারির সময় বকেয়া ঠিক ৳২,১০০ টাকা (সর্বমোট খরচ: ৳২,২৫০ টাকা)।
+
+4. PAYMENT & BKASH INSTRUCTIONS (পেমেন্ট বা বিকাশ চাইলে করণীয়):
+   - কাস্টমার যখন পে করতে চাইবে বা বিকাশ নাম্বার চাইবে:
+     স্পষ্টভাবে বলবে:
+     "অর্ডারটি কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জটি (${storeSettings.inside_dhaka_fee} টাকা ঢাকার ভেতরে / ${storeSettings.outside_dhaka_fee} টাকা ঢাকার বাইরে) আমাদের বিকাশ বা নগদ পার্সোনাল নাম্বারে (${storeSettings.bkash_number}) সেন্ড মানি করে লাস্ট ৪ ডিজিট অথবা একটি স্ক্রিনশট পাঠিয়ে দিবেন। জামার সম্পূর্ণ টাকা ডেলিভারি ম্যানের কাছে পণ্য পেয়ে পরিশোধ করবেন।"
 
 Keep replies concise, friendly, NO dashes/bullets, and never use "আপু" or "ভাইয়া".
 `;
@@ -244,13 +273,18 @@ function generateSmartFallback(userText, isFirstMessage) {
     return `${greeting}আমাদের সেরা ২টি মডেল—৩-পিস কারচুপি কোটি সেট ও দুবাই চেরি রানি আবায়ার ছবি পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]`;
   }
 
+  // Asking for payment / bKash / Nagad
+  if (t.includes('pay') || t.includes('বিকাশ') || t.includes('bkash') || t.includes('nagad') || t.includes('নগদ') || t.includes('advance') || t.includes('অগ্রিম') || t.includes('টাকা পাঠাব')) {
+    return `${greeting}অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee}) আমাদের বিকাশ বা নগদ পার্সোনাল নাম্বারে (${storeSettings.bkash_number}) সেন্ড মানি করে লাস্ট ৪ ডিজিট অথবা একটি স্ক্রিনশট দিলেই হবে। জামার কোনো টাকা অগ্রিম নয়, পুরো টাকাই ডেলিভারির সময় ক্যাশ অন ডেলিভারিতে দিবেন।`;
+  }
+
   // Asking for price
   if (t.includes('dam') || t.includes('দাম') || t.includes('price') || t.includes('টাকা') || t.includes('rate') || t.includes('cost')) {
     const code = detectModelFromText(t);
     if (code) {
       const prod = getProductByCode(code);
       if (prod) {
-        return `${greeting}${prod.name} (${prod.model_code}) এর মূল্য ৳${prod.price} টাকা (ম্যাচিং হিজাব ফ্রি)। ঢাকার ভেতরে ডেলিভারি ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}। [SEND_IMAGE:${code}]`;
+        return `${greeting}${prod.name} (${prod.model_code}) এর মূল্য ৳${prod.price} টাকা (ম্যাচিং হিজাব ফ্রি)। জামার কোনো টাকা অগ্রিম নেওয়া হয় না। শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) অগ্রিম দিয়ে কনফার্ম করতে হয়, বাকি পুরো টাকা পণ্য হাতে পেয়ে দিবেন। [SEND_IMAGE:${code}]`;
       }
     }
     return `${greeting}আমাদের প্রিমিয়াম আবায়াগুলোর মূল্য ৳১,৬৫০ থেকে ৳২,৪৫০ টাকার মধ্যে (প্রতিটির সাথেই ম্যাচিং হিজাব ফ্রি)। আপনি কোন মডেলের দাম জানতে চাচ্ছেন জানালে ছবি সহ বিস্তারিত জানিয়ে দিচ্ছি।`;
@@ -347,30 +381,33 @@ JSON Format:
       const targetPhone = parsed.customer_phone || senderPhone;
       const isOutsideDhaka = parsed.address && !/(ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|বসুন্ধরা|যাত্রাবাড়ী|মতিঝিল|বাড্ডা|খিলগাঁও|মহাখালী|তেজগাঁও|ফার্মগেট|আজিমপুর|পুরান ঢাকা)/i.test(parsed.address);
       const deliveryFee = parsed.delivery_fee || (isOutsideDhaka ? storeSettings.outside_dhaka_fee : storeSettings.inside_dhaka_fee);
+      
+      const detectedCode = parsed.model_code || detectModelFromText(fullText) || (conversationHistory ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : null);
+      const matchedProd = getProductByCode(detectedCode);
+      const prodPrice = matchedProd ? matchedProd.price : (Number(parsed.total_bdt) || 2200);
       const advancePaid = parsed.advance_paid !== undefined && parsed.advance_paid !== null ? parsed.advance_paid : (parsed.trx_id_or_last4 ? deliveryFee : 0);
-      const prodPrice = parsed.total_bdt || 2200;
-      const dueCod = parsed.due_cod || prodPrice;
+      const dueCod = prodPrice; // Due COD is strictly the full dress price!
 
       const { data: existingOrders } = await supabase
         .from('orders')
         .select('*')
         .eq('customer_phone', targetPhone)
-        .eq('status', 'Pending')
+        .in('status', ['Pending', 'Pending Verification'])
         .order('id', { ascending: false })
         .limit(1);
 
       if (existingOrders && existingOrders.length > 0) {
         const existing = existingOrders[0];
         await supabase.from('orders').update({
-          model_code: parsed.model_code || existing.model_code,
+          model_code: detectedCode || existing.model_code,
           customer_name: parsed.customer_name || existing.customer_name,
           address: parsed.address || existing.address,
           product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : existing.product_details,
           length_size: parsed.length_size || existing.length_size,
-          total_bdt: parsed.total_bdt || existing.total_bdt || prodPrice,
+          total_bdt: prodPrice,
           delivery_fee: deliveryFee || existing.delivery_fee,
           advance_paid: advancePaid || existing.advance_paid,
-          due_cod: dueCod || existing.due_cod,
+          due_cod: dueCod,
           payment_method: parsed.trx_id_or_last4 ? 'COD (Advance Delivery Paid)' : (parsed.payment_method || existing.payment_method || 'COD (Pending Advance)'),
           trx_id_or_last4: parsed.trx_id_or_last4 || existing.trx_id_or_last4
         }).eq('id', existing.id);
@@ -378,7 +415,7 @@ JSON Format:
       } else {
         await supabase.from('orders').insert({
           customer_phone: targetPhone,
-          model_code: parsed.model_code || null,
+          model_code: detectedCode || null,
           customer_name: parsed.customer_name || null,
           address: parsed.address || null,
           product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : fullText.substring(0, 200),
@@ -463,6 +500,18 @@ async function handleIncomingMessage(senderId, userText) {
     } else if (isAskingForImage(userText) && !detectedModel) {
       aiReply += ' [SEND_ALL_IMAGES:DF-101] [SEND_IMAGE:DF-102]';
     }
+  }
+
+  // 4. Financial Calculation Protection Shield:
+  // Strictly prevent any hallucinated advance calculations (e.g. 1000 TK / 1080 TK advance).
+  // Advance is strictly delivery fee (80 / 150), and Due COD is the dress price.
+  if (/(১০৮০|১০০০\s*টাকা\s*অগ্রিম|১১০০\s*টাকা\s*বাকি|1080|1000\s*advance)/i.test(aiReply)) {
+    const detectedModel = detectModelFromText(userText) || detectModelFromText(aiReply) || 'DF-101';
+    const prod = getProductByCode(detectedModel);
+    const price = prod ? prod.price : 2450;
+    aiReply = aiReply
+      .replace(/(১০৮০|1080)/g, `${storeSettings.inside_dhaka_fee}`)
+      .replace(/(১১০০|1100)/g, `${price}`);
   }
 
   history.push({ role: 'assistant', content: aiReply });

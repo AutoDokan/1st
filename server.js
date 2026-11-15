@@ -223,6 +223,7 @@ app.get('/api/live-data', requireAuth, async (req, res) => {
       metrics: {
         total_orders: orders ? orders.length : 0,
         pending_orders: orders ? orders.filter(o => o.status === 'Pending').length : 0,
+        pending_verification_orders: orders ? orders.filter(o => o.status === 'Pending Verification').length : 0,
         approved_orders: orders ? orders.filter(o => o.status === 'Approved').length : 0,
         shipped_orders: orders ? orders.filter(o => o.status === 'Shipped').length : 0,
         cancelled_orders: orders ? orders.filter(o => o.status === 'Cancelled').length : 0,
@@ -460,6 +461,109 @@ app.post('/api/products/:id/toggle-stock', requireAuth, async (req, res) => {
   res.redirect('/dashboard#products');
 });
 
+// In-Memory & Persistent Screenshot Log
+const recentScreenshots = [];
+const SCREENSHOTS_LOG_PATH = path.join(__dirname, 'public', 'screenshots', 'log.json');
+
+function loadScreenshotsLog() {
+  try {
+    if (fs.existsSync(SCREENSHOTS_LOG_PATH)) {
+      const data = JSON.parse(fs.readFileSync(SCREENSHOTS_LOG_PATH, 'utf8'));
+      if (Array.isArray(data)) {
+        recentScreenshots.push(...data);
+      }
+    }
+  } catch (e) {}
+}
+loadScreenshotsLog();
+
+function registerScreenshotReceived(phone, url, caption = '') {
+  const item = {
+    id: 'ss_' + Date.now(),
+    phone,
+    url,
+    caption,
+    timestamp: new Date().toISOString(),
+    status: 'unverified'
+  };
+  recentScreenshots.unshift(item);
+  if (recentScreenshots.length > 50) recentScreenshots.pop();
+  try {
+    const dir = path.join(__dirname, 'public', 'screenshots');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(SCREENSHOTS_LOG_PATH, JSON.stringify(recentScreenshots, null, 2));
+  } catch (e) {}
+}
+
+async function syncScreenshotToOrder(cleanPhone, screenshotUrl) {
+  try {
+    const { data: existingOrders } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('customer_phone', cleanPhone)
+      .in('status', ['Pending', 'Pending Verification'])
+      .order('id', { ascending: false })
+      .limit(1);
+
+    if (existingOrders && existingOrders.length > 0) {
+      const order = existingOrders[0];
+      await supabase.from('orders').update({
+        status: 'Pending Verification',
+        payment_method: 'Screenshot Received',
+        trx_id_or_last4: `📸 ${screenshotUrl}`,
+        advance_paid: order.delivery_fee || 80
+      }).eq('id', order.id);
+      console.log(`[Screenshot Sync] Attached screenshot to existing Order #${order.id}`);
+    } else {
+      await supabase.from('orders').insert({
+        customer_phone: cleanPhone,
+        product_details: 'পেমেন্ট স্ক্রিনশট প্রাপ্ত (অর্ডার ভেরিফিকেশন অপেক্ষমাণ)',
+        status: 'Pending Verification',
+        payment_method: 'Screenshot Received',
+        trx_id_or_last4: `📸 ${screenshotUrl}`,
+        total_bdt: 2200,
+        delivery_fee: 80,
+        advance_paid: 80,
+        due_cod: 2200
+      });
+      console.log(`[Screenshot Sync] Created new Order Lead with screenshot for ${cleanPhone}`);
+    }
+  } catch (err) {
+    console.error('[Screenshot Sync Error]:', err.message);
+  }
+}
+
+// 1-Click Approve Payment & Confirm Order Endpoint
+app.post('/api/orders/:id/approve-payment', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { trx_id, notify_customer } = req.body;
+  try {
+    const { data: order } = await supabase.from('orders').select('*').eq('id', id).single();
+    if (order) {
+      await supabase.from('orders').update({
+        status: 'Approved',
+        trx_id_or_last4: trx_id || order.trx_id_or_last4 || 'Verified',
+        advance_paid: order.delivery_fee || 80,
+        payment_method: 'COD (Advance Delivery Paid)'
+      }).eq('id', id);
+
+      if (notify_customer && sock && order.customer_phone) {
+        const cleanNumber = order.customer_phone.replace(/[^0-9]/g, '');
+        const jid = `${cleanNumber}@s.whatsapp.net`;
+        await sock.sendMessage(jid, {
+          text: `আলহামদুলিল্লাহ! আপনার পেমেন্ট স্ক্রিনশটটি সফলভাবে ভেরিফাই করা হয়েছে এবং অর্ডারটি কনফার্ম হয়েছে। 🌸\n\nঅর্ডার কোড: #${order.id}\nপোশাক: ${order.product_details || 'আবায়া'}\nকুরিয়ারে বকেয়া পরিশোধ (Due COD): ৳${order.due_cod || order.total_bdt} টাকা।\n\nশীঘ্রই ডেলিভারি ট্র্যাকিং নম্বর সহ আপডেট জানিয়ে দেওয়া হবে। ধন্যবাদ!`
+        });
+      }
+    }
+    if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+      return res.json({ success: true, id, status: 'Approved' });
+    }
+    res.redirect('/dashboard');
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Unified Master Dashboard (Executive F-Commerce Command Center for Dawah Fashion)
 // Unified Master Dashboard (Executive Mobile-First F-Commerce Command Center for Dawah Fashion)
 app.get('/dashboard', requireAuth, async (req, res) => {
@@ -481,6 +585,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
   const totalOrders = orders ? orders.length : 0;
   const pendingOrders = orders ? orders.filter(o => o.status === 'Pending').length : 0;
+  const pendingVerificationOrders = orders ? orders.filter(o => o.status === 'Pending Verification').length : 0;
   const approvedOrders = orders ? orders.filter(o => o.status === 'Approved').length : 0;
   const shippedOrders = orders ? orders.filter(o => o.status === 'Shipped').length : 0;
   const cancelledOrders = orders ? orders.filter(o => o.status === 'Cancelled').length : 0;
@@ -500,6 +605,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     const isAdvancePaid = !!o.trx_id_or_last4 || (Number(o.advance_paid) > 0);
     const dueCod = Number(o.due_cod) || prodPrice;
     const isRepeat = (phoneCountMap[o.customer_phone] || 0) > 1;
+    const screenshotMatch = (o.trx_id_or_last4 || '').match(/\/screenshots\/[a-zA-Z0-9_.-]+\.(?:jpg|jpeg|png|webp)/i);
+    const screenshotUrl = screenshotMatch ? screenshotMatch[0] : null;
     const courierData = `কাস্টমার: ${o.customer_name || 'কাস্টমার'}\nফোন: ${o.customer_phone || ''}\nঠিকানা: ${o.address || ''}\nপ্রোডাক্ট: [${o.model_code || 'DF-Model'}] ${o.product_details || ''} (সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'})\nকুরিয়ার কালেকশন (Due COD): ৳${dueCod}\nডেলিভারি চার্জ: ${isAdvancePaid ? 'অগ্রিম পেইড' : 'বকেয়া'}`;
     const searchMeta = `${o.id} ${o.model_code || ''} ${o.customer_name || ''} ${o.customer_phone || ''} ${o.address || ''} ${o.product_details || ''}`.toLowerCase();
 
@@ -514,14 +621,17 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             ? `<span class="bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1">🔄 রিপিট কাস্টমার</span>` 
             : `<span class="bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1">🆕 নতুন কাস্টমার</span>`
           }
+          ${screenshotUrl ? `<span class="bg-violet-100 text-violet-900 border border-violet-300 text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse">📸 স্ক্রিনশট প্রাপ্ত</span>` : ''}
         </div>
         <!-- Instant AJAX Status Select -->
         <select onchange="updateOrderStatusLive(${o.id}, this.value, this)" class="status-select text-xs px-2.5 py-1 rounded-lg border font-black cursor-pointer transition shadow-2xs outline-none ${
+          o.status === 'Pending Verification' ? 'bg-violet-100 text-violet-900 border-violet-400 font-black' :
           o.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 
           o.status === 'Shipped' ? 'bg-sky-50 text-sky-800 border-sky-300' : 
           o.status === 'Cancelled' ? 'bg-rose-50 text-rose-800 border-rose-300' : 'bg-amber-50 text-amber-800 border-amber-300'
         }">
           <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>⏳ Pending</option>
+          <option value="Pending Verification" ${o.status === 'Pending Verification' ? 'selected' : ''}>📸 স্ক্রিনশট ভেরিফাই</option>
           <option value="Approved" ${o.status === 'Approved' ? 'selected' : ''}>✅ Approved</option>
           <option value="Shipped" ${o.status === 'Shipped' ? 'selected' : ''}>🚚 Shipped</option>
           <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>❌ Cancelled</option>
@@ -539,6 +649,16 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.144.39-.086s1.011.477 1.184.564.289.13.332.202c.043.073.043.419-.101.824z"/></svg>
             <span>+${o.customer_phone}</span>
           </a>
+          ${screenshotUrl ? `
+          <button type="button" onclick="openScreenshotModal('${screenshotUrl}', ${o.id}, '${o.customer_phone}', '${(o.customer_name || 'কাস্টমার').replace(/'/g, "\\'")}')" class="text-xs bg-violet-100 hover:bg-violet-200 text-violet-900 px-2.5 py-1 rounded-lg font-black border border-violet-300 inline-flex items-center gap-1 shadow-2xs cursor-pointer">
+            <span>📸 স্ক্রিনশট</span>
+          </button>
+          ` : ''}
+          ${o.status === 'Pending Verification' ? `
+          <button type="button" onclick="approveOrderDirect(${o.id})" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-black inline-flex items-center gap-1 shadow-2xs cursor-pointer">
+            <span>✅ কনফার্ম</span>
+          </button>
+          ` : ''}
           <button onclick="copyCourierData('${courierData}')" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold border border-amber-300 shadow-2xs cursor-pointer inline-flex items-center gap-1">
             <span>📋 কুরিয়ার কপি</span>
           </button>
@@ -635,6 +755,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     const isAdvancePaid = !!o.trx_id_or_last4 || (Number(o.advance_paid) > 0);
     const dueCod = Number(o.due_cod) || prodPrice;
     const isRepeat = (phoneCountMap[o.customer_phone] || 0) > 1;
+    const screenshotMatch = (o.trx_id_or_last4 || '').match(/\/screenshots\/[a-zA-Z0-9_.-]+\.(?:jpg|jpeg|png|webp)/i);
+    const screenshotUrl = screenshotMatch ? screenshotMatch[0] : null;
     const courierData = `কাস্টমার: ${o.customer_name || 'কাস্টমার'}\nফোন: ${o.customer_phone || ''}\nঠিকানা: ${o.address || ''}\nপ্রোডাক্ট: [${o.model_code || 'DF-Model'}] ${o.product_details || ''} (সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'})\nকুরিয়ার কালেকশন (Due COD): ৳${dueCod}\nডেলিভারি চার্জ: ${isAdvancePaid ? 'অগ্রিম পেইড' : 'বকেয়া'}`;
     const searchMeta = `${o.id} ${o.model_code || ''} ${o.customer_name || ''} ${o.customer_phone || ''} ${o.address || ''} ${o.product_details || ''}`.toLowerCase();
 
@@ -651,11 +773,17 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             ? `<span class="bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-black px-1.5 py-0.5 rounded-full">🔄 রিপিট</span>` 
             : `<span class="bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-black px-1.5 py-0.5 rounded-full">🆕 নতুন</span>`
           }
+          ${screenshotUrl ? `<span class="bg-violet-100 text-violet-900 border border-violet-300 text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">📸 স্ক্রিনশট</span>` : ''}
         </div>
-        <div class="flex items-center gap-2 mt-1">
+        <div class="flex items-center gap-2 mt-1 flex-wrap">
           <a href="https://wa.me/${o.customer_phone}" target="_blank" class="text-xs text-amber-800 hover:underline inline-flex items-center gap-1 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
             <span>+${o.customer_phone}</span>
           </a>
+          ${screenshotUrl ? `
+          <button onclick="openScreenshotModal('${screenshotUrl}', ${o.id}, '${o.customer_phone}', '${(o.customer_name || 'কাস্টমার').replace(/'/g, "\\'")}')" class="text-[11px] bg-violet-100 hover:bg-violet-200 text-violet-900 px-2 py-0.5 rounded border border-violet-300 font-bold inline-flex items-center gap-1 cursor-pointer">
+            📸 স্ক্রিনশট
+          </button>
+          ` : ''}
           <button onclick="copyCourierData('${courierData}')" class="text-[11px] bg-stone-100 hover:bg-stone-200 text-stone-700 px-2 py-0.5 rounded border border-stone-300 font-semibold cursor-pointer">
             📋 কুরিয়ার কপি
           </button>
@@ -682,7 +810,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             ? `<span class="bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ চার্জ পেইড (৳${deliveryFee})</span>`
             : `<span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded text-[10px] font-bold">⏳ ফি বাকি (৳${deliveryFee})</span>`
           }
-          ${o.trx_id_or_last4 ? `<span class="text-[10px] text-stone-500 font-mono block mt-0.5">Trx: ${o.trx_id_or_last4}</span>` : ''}
+          ${o.trx_id_or_last4 ? `<span class="text-[10px] text-stone-500 font-mono block mt-0.5 truncate max-w-[130px]" title="${o.trx_id_or_last4}">${o.trx_id_or_last4}</span>` : ''}
         </div>
         <div class="font-black text-amber-950 text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
           Due COD: ৳${dueCod}
@@ -693,15 +821,22 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </td>
       <td class="p-3.5">
         <select onchange="updateOrderStatusLive(${o.id}, this.value, this)" class="text-xs px-2.5 py-1.5 rounded-lg border font-black cursor-pointer transition shadow-2xs outline-none ${
+          o.status === 'Pending Verification' ? 'bg-violet-100 text-violet-900 border-violet-400 font-black' :
           o.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 
           o.status === 'Shipped' ? 'bg-sky-50 text-sky-800 border-sky-300' : 
           o.status === 'Cancelled' ? 'bg-rose-50 text-rose-800 border-rose-300' : 'bg-amber-50 text-amber-800 border-amber-300'
         }">
           <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>⏳ Pending</option>
+          <option value="Pending Verification" ${o.status === 'Pending Verification' ? 'selected' : ''}>📸 স্ক্রিনশট ভেরিফাই</option>
           <option value="Approved" ${o.status === 'Approved' ? 'selected' : ''}>✅ Approved</option>
           <option value="Shipped" ${o.status === 'Shipped' ? 'selected' : ''}>🚚 Shipped</option>
           <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>❌ Cancelled</option>
         </select>
+        ${o.status === 'Pending Verification' ? `
+        <button onclick="approveOrderDirect(${o.id})" class="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-black px-2 py-1 rounded block mt-1.5 text-center shadow-2xs w-full cursor-pointer">
+          ✅ ১-ক্লিকে কনফার্ম
+        </button>
+        ` : ''}
       </td>
       <td class="p-3.5 text-xs text-stone-400 font-medium whitespace-nowrap">${new Date(o.created_at).toLocaleString('bn-BD')}</td>
       <td class="p-3.5 text-right whitespace-nowrap">
@@ -1011,6 +1146,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             <button onclick="setFilter('ALL')" id="tab-ALL" class="filter-tab px-3 py-1.5 rounded-xl bg-stone-900 text-white whitespace-nowrap cursor-pointer transition">
               সবগুলো (<span id="count-tab-all">${totalOrders}</span>)
             </button>
+            <button onclick="setFilter('Pending Verification')" id="tab-Pending-Verification" class="filter-tab px-3 py-1.5 rounded-xl bg-[#fcfaf7] border border-violet-300 text-violet-800 whitespace-nowrap cursor-pointer transition">
+              📸 স্ক্রিনশট (<span id="count-tab-verification">${pendingVerificationOrders}</span>)
+            </button>
             <button onclick="setFilter('Pending')" id="tab-Pending" class="filter-tab px-3 py-1.5 rounded-xl bg-[#fcfaf7] border border-stone-300 text-amber-800 whitespace-nowrap cursor-pointer transition">
               ⏳ পেন্ডিং (<span id="count-tab-pending">${pendingOrders}</span>)
             </button>
@@ -1025,6 +1163,24 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             </button>
           </div>
         </div>
+
+        ${pendingVerificationOrders > 0 ? `
+        <!-- Prominent Payment Screenshot Notification Banner -->
+        <div class="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white p-4 rounded-2xl flex items-center justify-between shadow-md mb-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl backdrop-blur-xs">
+              📸
+            </div>
+            <div>
+              <div class="font-black text-sm">নতুন ${pendingVerificationOrders}টি পেমেন্ট স্ক্রিনশট ভেরিফিকেশন অপেক্ষমাণ!</div>
+              <div class="text-violet-100 text-xs">কাস্টমাররা ডেলিভারি চার্জের স্ক্রিনশট পাঠিয়েছেন। এখনই চেক করে ১-ক্লিকে কনফার্ম করুন।</div>
+            </div>
+          </div>
+          <button onclick="setFilter('Pending Verification')" class="bg-white hover:bg-violet-50 text-violet-900 font-black text-xs px-3.5 py-2 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap">
+            স্ক্রিনশট দেখুন ➔
+          </button>
+        </div>
+        ` : ''}
 
         <!-- Orders Bulk Action Bar -->
         <div class="flex items-center justify-between mb-3 px-1">
@@ -1295,6 +1451,41 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         </div>
       </div>
 
+      <!-- Payment Screenshot Lightbox & 1-Click Verification Modal -->
+      <div id="screenshotModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-stone-200 flex flex-col max-h-[92vh]">
+          <!-- Modal Header -->
+          <div class="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+            <div>
+              <h3 class="font-black text-stone-900 text-sm flex items-center gap-2">
+                <span>📸 পেমেন্ট স্ক্রিনশট প্রিভিউ</span>
+                <span id="modalOrderId" class="font-mono text-xs bg-stone-200 px-2 py-0.5 rounded text-stone-700">#0</span>
+              </h3>
+              <p id="modalCustInfo" class="text-xs text-stone-500 font-bold mt-0.5">কাস্টমার: 017XXXXXXX</p>
+            </div>
+            <button type="button" onclick="closeScreenshotModal()" class="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold flex items-center justify-center cursor-pointer">✕</button>
+          </div>
+          
+          <!-- Modal Image Display -->
+          <div class="p-4 bg-stone-900/5 flex items-center justify-center overflow-auto flex-1 min-h-[300px]">
+            <img id="modalScreenshotImg" src="" alt="Payment Screenshot" class="max-h-[60vh] max-w-full rounded-2xl shadow-lg border border-stone-200 object-contain">
+          </div>
+
+          <!-- Modal Action Footer -->
+          <div class="p-4 border-t border-stone-100 bg-white flex items-center justify-between gap-3 flex-wrap">
+            <button type="button" onclick="closeScreenshotModal()" class="px-4 py-2 font-bold text-stone-600 hover:bg-stone-100 rounded-xl text-xs cursor-pointer">বন্ধ করুন</button>
+            <div class="flex items-center gap-2">
+              <a id="modalOpenExternal" href="#" target="_blank" class="px-3 py-2 font-bold text-amber-900 hover:bg-amber-50 rounded-xl text-xs border border-amber-200 cursor-pointer">
+                🔍 বড় ছবি
+              </a>
+              <button id="modalApproveBtn" type="button" onclick="approveFromModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-xl shadow-md text-xs flex items-center gap-1.5 cursor-pointer">
+                <span>✅ ভেরিফাই ও কনফার্ম</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Toast Notification Bar -->
       <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-stone-900 text-white text-xs font-extrabold px-5 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center gap-2">
         <span id="toastMsg">বার্তা সংরক্ষিত হয়েছে!</span>
@@ -1416,6 +1607,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
               showToast('✅ অর্ডার #' + id + ' এর স্ট্যাটাস ' + status + ' করা হয়েছে!');
               if (selectElem) {
                 selectElem.className = 'text-xs px-2.5 py-1.5 rounded-lg border font-black cursor-pointer transition shadow-2xs outline-none ' + (
+                  status === 'Pending Verification' ? 'bg-violet-100 text-violet-900 border-violet-400 font-black' :
                   status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
                   status === 'Shipped' ? 'bg-sky-50 text-sky-800 border-sky-300' :
                   status === 'Cancelled' ? 'bg-rose-50 text-rose-800 border-rose-300' : 'bg-amber-50 text-amber-800 border-amber-300'
@@ -1551,6 +1743,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
               document.getElementById('count-tab-all').innerText = data.metrics.total_orders;
               document.getElementById('count-tab-pending').innerText = data.metrics.pending_orders;
+              const verCountEl = document.getElementById('count-tab-verification');
+              if (verCountEl) verCountEl.innerText = data.metrics.pending_verification_orders || 0;
               document.getElementById('count-tab-approved').innerText = data.metrics.approved_orders;
               document.getElementById('count-tab-shipped').innerText = data.metrics.shipped_orders;
               document.getElementById('count-tab-cancelled').innerText = data.metrics.cancelled_orders;
@@ -1703,6 +1897,68 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             }
           } catch (e) {
             alert('বাল্ক ডিলিট করতে সমস্যা হয়েছে: ' + e.message);
+          }
+        }
+
+        // ============================================
+        // Payment Screenshot Lightbox & Approval Actions
+        // ============================================
+        let activeModalOrderId = null;
+        function openScreenshotModal(url, orderId, phone, name) {
+          activeModalOrderId = orderId;
+          document.getElementById('modalOrderId').innerText = '#' + orderId;
+          document.getElementById('modalCustInfo').innerText = 'কাস্টমার: ' + (name || 'কাস্টমার') + ' (' + phone + ')';
+          document.getElementById('modalScreenshotImg').src = url;
+          document.getElementById('modalOpenExternal').href = url;
+          document.getElementById('screenshotModal').classList.remove('hidden');
+        }
+
+        function closeScreenshotModal() {
+          document.getElementById('screenshotModal').classList.add('hidden');
+          activeModalOrderId = null;
+        }
+
+        async function approveFromModal() {
+          if (!activeModalOrderId) return;
+          const orderId = activeModalOrderId;
+          const btn = document.getElementById('modalApproveBtn');
+          const originalText = btn.innerHTML;
+          btn.innerHTML = '<span>ভেরিফাই হচ্ছে...</span>';
+          btn.disabled = true;
+          try {
+            const res = await fetch('/api/orders/' + orderId + '/approve-payment', {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ajax: true, notify_customer: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              closeScreenshotModal();
+              showToast('✅ অর্ডার #' + orderId + ' এর পেমেন্ট ভেরিফাই ও অর্ডার কনফার্ম হয়েছে!');
+              setTimeout(() => pollLiveData(true), 500);
+            }
+          } catch (e) {
+            alert('ভেরিফিকেশন ব্যর্থ: ' + e.message);
+          } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+          }
+        }
+
+        async function approveOrderDirect(orderId) {
+          try {
+            const res = await fetch('/api/orders/' + orderId + '/approve-payment', {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ajax: true, notify_customer: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('✅ অর্ডার #' + orderId + ' কনফার্ম করা হয়েছে!');
+              setTimeout(() => pollLiveData(true), 500);
+            }
+          } catch (e) {
+            alert('কনফার্ম করতে সমস্যা হয়েছে: ' + e.message);
           }
         }
 
@@ -2058,11 +2314,58 @@ async function connectToWhatsApp() {
         unwrappedMsg?.extendedTextMessage?.text ||
         '';
 
+      const imageMsg = unwrappedMsg?.imageMessage;
+      const isImage = !!imageMsg;
+
+      // Handle Customer Payment Screenshots & Receipt Images
+      if (isImage) {
+        console.log(`[WhatsApp Image Received] From: ${remoteJid} | Downloading media...`);
+        try {
+          const imageBuffer = await downloadMediaMessage(
+            { ...msg, message: unwrappedMsg },
+            'buffer',
+            {},
+            { 
+              logger: pino({ level: 'silent' }),
+              reuploadRequest: sock.updateMediaMessage 
+            }
+          );
+
+          if (imageBuffer && imageBuffer.length > 0) {
+            const cleanPhone = remoteJid.replace(/[^0-9]/g, '');
+            const filename = `screenshot_${cleanPhone}_${Date.now()}.jpg`;
+            const screenshotsDir = path.join(__dirname, 'public', 'screenshots');
+            if (!fs.existsSync(screenshotsDir)) {
+              fs.mkdirSync(screenshotsDir, { recursive: true });
+            }
+            const filePath = path.join(screenshotsDir, filename);
+            fs.writeFileSync(filePath, imageBuffer);
+            const screenshotUrl = `/screenshots/${filename}`;
+            console.log(`[Screenshot Saved] Saved to ${filePath} (${imageBuffer.length} bytes)`);
+
+            registerScreenshotReceived(cleanPhone, screenshotUrl, imageMsg.caption || '');
+
+            if (sock) {
+              await sock.sendMessage(remoteJid, {
+                text: 'আলহামদুলিল্লাহ! আপনার পেমেন্ট স্লিপ/স্ক্রিনশটটি আমরা পেয়েছি। 🌸\n\nআমাদের শপ ম্যানেজার এখনই স্ক্রিনশট ও ট্রানজেকশন ভেরিফাই করে আপনার অর্ডারটি কনফার্ম করে দিচ্ছেন। অল্প সময়ের মধ্যে ডেলিভারি ট্র্যাকিং ও আপডেট জানিয়ে দেওয়া হবে। Dawah Fashion-এর সাথে থাকার জন্য ধন্যবাদ! 😊'
+              });
+            }
+
+            await syncScreenshotToOrder(cleanPhone, screenshotUrl);
+            incrementStats('messages_in');
+            incrementStats('messages_out');
+            return;
+          }
+        } catch (imgErr) {
+          console.error('[WhatsApp Image Download Error]:', imgErr.message);
+        }
+      }
+
       const audioMsg = unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage || (unwrappedMsg?.documentMessage?.mimetype?.startsWith('audio/') ? unwrappedMsg.documentMessage : null);
       const isAudio = !!audioMsg;
 
       if (isAudio) {
-        console.log(`[WhatsApp Voice Note Received] From: ${remoteJid} | Downloading & transcribing with Groq Whisper Turbo...`);
+        console.log(`[WhatsApp Voice Note Received] From: ${remoteJid} | Downloading audio...`);
         try {
           const audioBuffer = await downloadMediaMessage(
             { ...msg, message: unwrappedMsg },
@@ -2075,28 +2378,37 @@ async function connectToWhatsApp() {
           );
 
           if (audioBuffer && audioBuffer.length > 0) {
-            console.log(`[WhatsApp Audio Downloaded] Size: ${audioBuffer.length} bytes. Transcribing via Groq Whisper...`);
-            const transcribed = await transcribeAudioVoiceNote(audioBuffer);
-            if (transcribed && transcribed.trim()) {
+            console.log(`[WhatsApp Audio Downloaded] Size: ${audioBuffer.length} bytes. Transcribing via Whisper Turbo...`);
+            const transcribed = await Promise.race([
+              transcribeAudioVoiceNote(audioBuffer),
+              new Promise((_, r) => setTimeout(() => r(new Error('Voice timeout 3.5s')), 3500))
+            ]).catch(e => {
+              console.warn('[Whisper Timeout/Skip]:', e.message);
+              return null;
+            });
+
+            if (transcribed && transcribed.trim().length >= 3) {
               messageContent = transcribed.trim();
               console.log(`[WhatsApp Voice Transcribed] From: ${remoteJid} | Transcribed: "${messageContent}"`);
-            } else {
-              console.warn(`[WhatsApp Voice Note Warning] Transcription returned empty for ${remoteJid}`);
             }
           }
         } catch (audioErr) {
           console.error('[WhatsApp Voice Download/Transcribe Error]:', audioErr.message);
         }
+
+        if (!messageContent.trim()) {
+          if (sock) {
+            try {
+              await sock.sendMessage(remoteJid, {
+                text: 'শ্রদ্ধেয় কাস্টমার, আপনার ভয়েস মেসেজটির জন্য আন্তরিক ধন্যবাদ! তবে নেটওয়ার্ক বা শোরগোলের কারণে ভয়েসটি স্পষ্ট বুঝতে পারিনি। অনুগ্রহ করে আপনার পছন্দের মডেল কোডটি (যেমন DF-101) বা সাইজটি একটু লিখে জানাবেন কি? অথবা আপনার নাম্বারটি দিলে আমাদের শপ ম্যানেজার সরাসরি কল দিয়ে বিস্তারিত বুঝিয়ে বলবেন 😊'
+              });
+            } catch (e) {}
+          }
+          return;
+        }
       }
 
       if (!messageContent.trim()) {
-        if (isAudio && sock) {
-          try {
-            await sock.sendMessage(remoteJid, {
-              text: 'আসসালামু আলাইকুম! আপনার পাঠানো ভয়েস মেসেজটি নেটওয়ার্ক সমস্যার কারণে স্পষ্ট শুনতে পারিনি। আপনি কি একটু কষ্ট করে মেসেজে লিখে জানাবেন, নাকি আমি আপনাকে কল করব? 😊'
-            });
-          } catch (e) {}
-        }
         return;
       }
 
