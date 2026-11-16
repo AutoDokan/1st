@@ -29,7 +29,7 @@ let sock = null;
 const userMessageBuffers = new Map();
 const activeConversations = new Set();
 const lastVoiceReplyTime = new Map();
-const DEBOUNCE_DELAY_MS = 4000;
+const DEBOUNCE_DELAY_MS = 1000;
 
 
 // ==========================================
@@ -2038,20 +2038,15 @@ async function processBufferedUserMessages(remoteJid) {
   console.log(`[WhatsApp Processing Combined] From: ${remoteJid} | Combined: "${combinedText}"`);
 
   try {
-    // 1. Mark as read
+    // 1. Mark as read & immediately show "typing..."
     if (lastKey && sock) {
       await sock.readMessages([lastKey]);
     }
-
-    // 2. Initial human reading pause (1.8s)
-    await new Promise(r => setTimeout(r, 1800));
-
-    // 3. Show "typing..." presence
     if (sock) {
       await sock.sendPresenceUpdate('composing', remoteJid);
     }
 
-    // 4. Generate AI reply
+    // 2. Generate AI reply
     const replyText = await handleIncomingMessage(remoteJid, combinedText);
 
     // Helper to send individual WhatsApp photo with caption
@@ -2107,8 +2102,8 @@ async function processBufferedUserMessages(remoteJid) {
       .replace(/\s{2,}/g, ' ')
       .trim();
 
-    // 6. Realistic human typing duration
-    const typingDuration = Math.min(Math.max(cleanReplyText.length * 35, 1800), 4500);
+    // 6. Natural snappy typing duration (300ms to 900ms)
+    const typingDuration = Math.min(Math.max(cleanReplyText.length * 8, 300), 900);
     await new Promise(r => setTimeout(r, typingDuration));
 
     // 7. Send text reply

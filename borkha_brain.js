@@ -993,11 +993,19 @@ async function handleIncomingMessage(senderId, userText) {
 
   let aiReply = '';
 
-  try {
-    aiReply = await callGroqWithFallback(history, isFirstMessageForContact, userText);
-  } catch (error) {
-    console.error('[AI Error]:', error.message);
-    aiReply = generateSmartFallback(userText, isFirstMessageForContact);
+  // 0ms Fast-Path: Instantly answer standard inquiries (Price, Sizing, Delivery, Hijab, Gher, Exchange, Rider etc.)
+  const fastReply = generateSmartFallback(userText, isFirstMessageForContact);
+  const isDefaultFallback = fastReply.includes('কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন') || fastReply.includes('কোন মডেলের ছবি বা সাইজ দেখতে চাচ্ছেন');
+
+  if (!isDefaultFallback) {
+    aiReply = fastReply;
+  } else {
+    try {
+      aiReply = await callGroqWithFallback(history, isFirstMessageForContact, userText);
+    } catch (error) {
+      console.error('[AI Error]:', error.message);
+      aiReply = fastReply;
+    }
   }
 
   // 1. Calendar Day Salam Shield:
