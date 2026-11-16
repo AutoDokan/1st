@@ -29,6 +29,20 @@ groqKeys.forEach((k, idx) => {
 
 let groqClient = groqClients[0] || null;
 
+// Dual-Engine Multi-Provider Setup: Google Gemini API Key from environment
+let geminiApiKey = process.env.GEMINI_API_KEY || null;
+if (!geminiApiKey) {
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v === 'string' && (k.toUpperCase().includes('GEMINI') || v.startsWith('AQ.') || v.startsWith('AIzaSy'))) {
+      geminiApiKey = v.trim();
+      break;
+    }
+  }
+}
+if (geminiApiKey) {
+  console.log(`[AI Init] Registered Google Gemini Key (${geminiApiKey.substring(0, 6)}...${geminiApiKey.substring(geminiApiKey.length - 4)})`);
+}
+
 const supabaseUrl = process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxemRrcmVkemRwcXh2ZnJ6anVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2ODE2MzAsImV4cCI6MjExMDI1NzYzMH0.kzQAm9E4QKccOiAZ93GFvqmSelcktHrVmc412qz6eik';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -1070,11 +1084,44 @@ function generateSmartFallback(userText, isFirstMessage = false, conversationHis
   return 'জি, বলুন কীভাবে সহযোগিতা করতে পারি? আপনি আমাদের কোনো নির্দিষ্ট বোরকার ছবি, সাইজ বা প্রাইজ সম্পর্কে জানতে চাচ্ছেন কি?';
 }
 
-async function callGroqWithFallback(messages, isFirstMessage = false, userText = '') {
-  if (groqClients.length === 0) {
-    return generateSmartFallback(userText, isFirstMessage);
-  }
+async function callGeminiAPI(messages, systemPrompt) {
+  if (!geminiApiKey) return null;
+  const models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }]
+  }));
 
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: contents
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text && text.trim()) {
+          console.log(`[AI Fallback] Google Gemini (${model}) generated response successfully`);
+          return text.trim();
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`[Gemini Model ${model}] HTTP ${res.status}:`, errText.substring(0, 150));
+      }
+    } catch (e) {
+      console.warn(`[Gemini Model ${model}] Error:`, e.message);
+    }
+  }
+  return null;
+}
+
+async function callGroqWithFallback(messages, isFirstMessage = false, userText = '') {
   const systemPrompt = buildSystemPrompt(isFirstMessage);
   const chatMessages = [
     { role: 'system', content: systemPrompt },
@@ -1087,32 +1134,43 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
     'openai/gpt-oss-20b'
   ];
 
-  for (let clientIdx = 0; clientIdx < groqClients.length; clientIdx++) {
-    const client = groqClients[clientIdx];
-    for (const model of candidateModels) {
-      try {
-        const completion = await client.chat.completions.create({
-          model: model,
-          messages: chatMessages,
-          temperature: 0.75,
-          max_tokens: 600
-        });
-        const reply = completion.choices[0]?.message?.content;
-        if (reply && reply.trim()) {
-          return reply.trim();
+  // 1. Try Primary Engine (Groq Fast LLM models)
+  if (groqClients.length > 0) {
+    for (let clientIdx = 0; clientIdx < groqClients.length; clientIdx++) {
+      const client = groqClients[clientIdx];
+      for (const model of candidateModels) {
+        try {
+          const completion = await client.chat.completions.create({
+            model: model,
+            messages: chatMessages,
+            temperature: 0.75,
+            max_tokens: 600
+          });
+          const reply = completion.choices[0]?.message?.content;
+          if (reply && reply.trim()) {
+            return reply.trim();
+          }
+        } catch (err) {
+          console.warn(`[Groq Key #${clientIdx + 1} Model ${model}] Error:`, err.message);
         }
-      } catch (err) {
-        console.warn(`[Groq Key #${clientIdx + 1} Model ${model}] Error:`, err.message);
       }
     }
   }
 
+  // 2. Dual-Engine Multi-Provider Fallback (Google Gemini)
+  console.warn('[AI Fallback] Groq models unavailable or failed. Switching to Google Gemini...');
+  const geminiReply = await callGeminiAPI(messages, systemPrompt);
+  if (geminiReply) {
+    return geminiReply;
+  }
+
+  // 3. Last-Resort Smart Fallback
   return generateSmartFallback(userText, isFirstMessage);
 }
 
 // Extract and save order when lead/order details are present
 async function extractAndSaveOrderLead(senderPhone, fullText, conversationHistory) {
-  if (groqClients.length === 0 || !supabase) return;
+  if ((groqClients.length === 0 && !geminiApiKey) || !supabase) return;
 
   const orderKeywords = /(01[3-9]\d{8}|অর্ডার|order|ঠিকানা|এড্রেস|address|ডেলিভারি|কুরিয়ার|সাইজ|size|নিব|নিতে চাই|বিকাশ|bkash|টাকা|bdt|রানি|কাফতান|লাইন)/i;
   if (!orderKeywords.test(fullText)) {
@@ -1144,16 +1202,44 @@ JSON Format:
 }
 `;
 
+    let rawJson = null;
     const activeClient = groqClients[0];
-    const completion = await activeClient.chat.completions.create({
-      model: 'openai/gpt-oss-120b',
-      messages: [{ role: 'user', content: extractPrompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.1,
-      max_tokens: 350
-    });
+    if (activeClient) {
+      try {
+        const completion = await activeClient.chat.completions.create({
+          model: 'openai/gpt-oss-120b',
+          messages: [{ role: 'user', content: extractPrompt }],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+          max_tokens: 350
+        });
+        rawJson = completion.choices[0]?.message?.content;
+      } catch (err) {
+        console.warn('[Order Extraction Groq Error]:', err.message);
+      }
+    }
 
-    const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    if (!rawJson && geminiApiKey) {
+      try {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: 'Output strictly valid JSON only.' }] },
+            contents: [{ role: 'user', parts: [{ text: extractPrompt }] }]
+          })
+        });
+        if (geminiRes.ok) {
+          const gData = await geminiRes.json();
+          const cleanText = (gData.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+          rawJson = cleanText;
+        }
+      } catch (err) {
+        console.warn('[Order Extraction Gemini Error]:', err.message);
+      }
+    }
+
+    const parsed = JSON.parse(rawJson || '{}');
 
     if (parsed.is_order_or_lead && (parsed.customer_phone || parsed.address || (parsed.product_name && parsed.length_size))) {
       const targetPhone = parsed.customer_phone || senderPhone;
