@@ -1305,14 +1305,14 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             </div>
           </div>
 
-          <!-- Pending Screenshot / Payment Verification -->
-          <div class="bg-white p-4 rounded-2xl border ${pendingVerificationOrders > 0 ? 'border-violet-400 bg-violet-50/20' : 'border-stone-200'} shadow-xs hover:border-violet-400 transition">
-            <div class="flex items-center justify-between text-violet-800 text-[11px] font-extrabold uppercase">
-              <span>পেমেন্ট ভেরিফাই</span>
-              <span>📸</span>
+          <!-- In-Stock Products / Active Catalog -->
+          <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs hover:border-amber-300 transition">
+            <div class="flex items-center justify-between text-amber-800 text-[11px] font-extrabold uppercase">
+              <span>লাইভ ক্যাটালগ</span>
+              <span>👗</span>
             </div>
-            <div class="text-2xl font-black mt-1 text-violet-700" id="stat-pending-orders">${pendingVerificationOrders}</div>
-            <div class="text-[10px] text-stone-400 font-semibold mt-1">স্ক্রিনশট বা TrxID প্রাপ্ত</div>
+            <div class="text-2xl font-black mt-1 text-stone-900">${inStockProducts} টি ইন-স্টক</div>
+            <div class="text-[10px] text-stone-400 font-semibold mt-1">মোট ${totalProducts}টি মডেল রেডি</div>
           </div>
 
           <!-- Pending Orders Confirmation -->
@@ -1345,24 +1345,6 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             <div class="text-[10px] text-stone-400 font-semibold mt-1">কুরিয়ার কালেকশন বকেয়া</div>
           </div>
         </div>
-
-        ${pendingVerificationOrders > 0 ? `
-        <!-- Highlighted Screenshot Verification Alert Banner -->
-        <div class="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white p-4 rounded-2xl flex items-center justify-between shadow-md">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl backdrop-blur-xs">
-              📸
-            </div>
-            <div>
-              <div class="font-black text-sm">নতুন ${pendingVerificationOrders}টি পেমেন্ট স্ক্রিনশট ভেরিফিকেশন অপেক্ষমাণ!</div>
-              <div class="text-violet-100 text-xs">কাস্টমাররা ডেলিভারি চার্জ পরিশোধ করেছেন। চেক করে ১-ক্লিকে কনফার্ম করুন।</div>
-            </div>
-          </div>
-          <button onclick="setFilter('Pending Verification')" class="bg-white hover:bg-violet-50 text-violet-900 font-black text-xs px-4 py-2 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap">
-            ফিল্টার করুন ➔
-          </button>
-        </div>
-        ` : ''}
 
         <!-- Primary Executive View Mode Switcher -->
         <div class="flex items-center gap-2 border-b border-stone-200 pb-3 overflow-x-auto no-scrollbar">
@@ -1530,9 +1512,6 @@ app.get('/dashboard', requireAuth, async (req, res) => {
               <button onclick="setFilter('ALL')" id="tab-ALL" class="filter-tab px-3.5 py-1.5 rounded-xl bg-stone-900 text-white whitespace-nowrap cursor-pointer transition">
                 সবগুলো (<span id="count-tab-all">${totalOrders}</span>)
               </button>
-              <button onclick="setFilter('Pending Verification')" id="tab-Pending-Verification" class="filter-tab px-3.5 py-1.5 rounded-xl bg-[#fcfaf7] border border-violet-300 text-violet-800 whitespace-nowrap cursor-pointer transition">
-                📸 স্ক্রিনশট (<span id="count-tab-verification">${pendingVerificationOrders}</span>)
-              </button>
               <button onclick="setFilter('Pending')" id="tab-Pending" class="filter-tab px-3.5 py-1.5 rounded-xl bg-[#fcfaf7] border border-stone-300 text-amber-800 whitespace-nowrap cursor-pointer transition">
                 ⏳ পেন্ডিং (<span id="count-tab-pending">${pendingOrders}</span>)
               </button>
@@ -1661,7 +1640,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       <!-- ============================================== -->
       <!-- MODAL 1: ADD NEW PRODUCT MODEL                 -->
       <!-- ============================================== -->
-      <div id="addProductModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+      <div id="addProductModal" style="display: none;" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
           <div class="p-4 sm:p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
             <div>
@@ -1808,7 +1787,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       <!-- ============================================== -->
       <!-- MODAL 2: EDIT EXISTING PRODUCT MODEL           -->
       <!-- ============================================== -->
-      <div id="editProductModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+      <div id="editProductModal" style="display: none;" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
           <div class="p-4 sm:p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
             <div>
@@ -1956,7 +1935,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </div>
 
       <!-- Full-Screen High-Definition Photo Lightbox Modal -->
-      <div id="lightboxModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+      <div id="lightboxModal" style="display: none;" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="max-w-2xl w-full flex flex-col items-center">
           <div class="w-full flex items-center justify-between text-white pb-3">
             <h4 id="lightboxTitle" class="text-sm font-black">মডেল ছবি</h4>
@@ -1967,7 +1946,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </div>
 
       <!-- Payment Screenshot Lightbox & 1-Click Verification Modal -->
-      <div id="screenshotModal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-xs flex items-center justify-center p-4">
+      <div id="screenshotModal" style="display: none;" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-stone-200 flex flex-col max-h-[92vh]">
           <div class="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
             <div>
@@ -2058,10 +2037,18 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         // Product Management (Add, Edit, Stock, Delete, Upload)
         // ==========================================
         function openAddProductModal() {
-          document.getElementById('addProductModal').classList.remove('hidden');
+          const m = document.getElementById('addProductModal');
+          if (m) {
+            m.style.display = 'flex';
+            m.classList.remove('hidden');
+          }
         }
         function closeAddProductModal() {
-          document.getElementById('addProductModal').classList.add('hidden');
+          const m = document.getElementById('addProductModal');
+          if (m) {
+            m.style.display = 'none';
+            m.classList.add('hidden');
+          }
         }
 
         function openEditProductModal(id, code, name, price, fabric, sizes, hijab, stock, imgMain, imgDetail, imgHijab, imgFlare, imgReal) {
@@ -2090,11 +2077,19 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           document.getElementById('edit_img_real_url').value = imgReal || '';
           document.getElementById('edit_img_real_preview').src = imgReal || 'https://placehold.co/100x120?text=5.+Real';
 
-          document.getElementById('editProductModal').classList.remove('hidden');
+          const m = document.getElementById('editProductModal');
+          if (m) {
+            m.style.display = 'flex';
+            m.classList.remove('hidden');
+          }
         }
 
         function closeEditProductModal() {
-          document.getElementById('editProductModal').classList.add('hidden');
+          const m = document.getElementById('editProductModal');
+          if (m) {
+            m.style.display = 'none';
+            m.classList.add('hidden');
+          }
         }
 
         async function handleImageUpload(inputElem, previewImgId, urlInputId) {
@@ -2364,26 +2359,41 @@ app.get('/dashboard', requireAuth, async (req, res) => {
               const botBubble = document.createElement('div');
               botBubble.className = 'flex flex-col items-start space-y-2';
 
-              let photosHtml = '';
+              const replyTextDiv = document.createElement('div');
+              replyTextDiv.className = 'max-w-[85%] bg-white p-3.5 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-800 text-xs leading-relaxed whitespace-pre-line';
+              replyTextDiv.textContent = data.reply;
+              botBubble.appendChild(replyTextDiv);
+
               if (data.photos && data.photos.length > 0) {
-                photosHtml = '<div class="flex gap-2 overflow-x-auto max-w-full pb-1 pt-1">';
+                const photosContainer = document.createElement('div');
+                photosContainer.className = 'flex gap-2 overflow-x-auto max-w-full pb-1 pt-1';
                 data.photos.forEach(function(ph) {
-                  photosHtml += '<div class="bg-white rounded-xl border border-amber-300 p-1.5 shadow-xs flex-shrink-0 cursor-pointer" onclick="openLightbox(\'' + ph.url + '\', \'' + ph.modelCode + ' - ' + ph.label + '\')">' +
-                    '<img src="' + ph.url + '" class="w-20 h-24 object-cover rounded-lg shadow-2xs">' +
-                    '<div class="text-[9px] font-black text-stone-900 mt-1 text-center font-mono">' + ph.modelCode + '</div>' +
-                    '<div class="text-[8px] text-amber-800 font-bold text-center">' + ph.label + '</div>' +
-                    '</div>';
+                  const card = document.createElement('div');
+                  card.className = 'bg-white rounded-xl border border-amber-300 p-1.5 shadow-xs flex-shrink-0 cursor-pointer hover:border-amber-500 transition';
+                  card.onclick = function() {
+                    openLightbox(ph.url, ph.modelCode + ' - ' + ph.label);
+                  };
+                  const img = document.createElement('img');
+                  img.src = ph.url;
+                  img.className = 'w-20 h-24 object-cover rounded-lg shadow-2xs';
+                  const titleDiv = document.createElement('div');
+                  titleDiv.className = 'text-[9px] font-black text-stone-900 mt-1 text-center font-mono';
+                  titleDiv.textContent = ph.modelCode;
+                  const labelDiv = document.createElement('div');
+                  labelDiv.className = 'text-[8px] text-amber-800 font-bold text-center';
+                  labelDiv.textContent = ph.label;
+                  card.appendChild(img);
+                  card.appendChild(titleDiv);
+                  card.appendChild(labelDiv);
+                  photosContainer.appendChild(card);
                 });
-                photosHtml += '</div>';
+                botBubble.appendChild(photosContainer);
               }
 
-              botBubble.innerHTML = '<div class="max-w-[85%] bg-white p-3.5 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-800 text-xs leading-relaxed whitespace-pre-line">' +
-                data.reply.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
-                '</div>' +
-                photosHtml +
-                '<div class="text-[9px] text-stone-400 font-mono pl-1">' +
-                data.latencyMs + 'ms • Dawah AI Fast-Engine' +
-                '</div>';
+              const metaDiv = document.createElement('div');
+              metaDiv.className = 'text-[9px] text-stone-400 font-mono pl-1';
+              metaDiv.textContent = data.latencyMs + 'ms • Dawah AI Fast-Engine';
+              botBubble.appendChild(metaDiv);
 
               chatBody.appendChild(botBubble);
             } else {
@@ -2409,10 +2419,17 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           const modal = document.getElementById('lightboxModal');
           document.getElementById('lightboxImg').src = url;
           document.getElementById('lightboxTitle').innerText = title || 'বোরকা মডেল ছবি';
-          modal.classList.remove('hidden');
+          if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+          }
         }
         function closeLightbox() {
-          document.getElementById('lightboxModal').classList.add('hidden');
+          const modal = document.getElementById('lightboxModal');
+          if (modal) {
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+          }
         }
 
         // Drawer Management
@@ -2654,11 +2671,19 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           document.getElementById('modalCustInfo').innerText = 'কাস্টমার: ' + (name || 'কাস্টমার') + ' (' + phone + ')';
           document.getElementById('modalScreenshotImg').src = url;
           document.getElementById('modalOpenExternal').href = url;
-          document.getElementById('screenshotModal').classList.remove('hidden');
+          const m = document.getElementById('screenshotModal');
+          if (m) {
+            m.style.display = 'flex';
+            m.classList.remove('hidden');
+          }
         }
 
         function closeScreenshotModal() {
-          document.getElementById('screenshotModal').classList.add('hidden');
+          const m = document.getElementById('screenshotModal');
+          if (m) {
+            m.style.display = 'none';
+            m.classList.add('hidden');
+          }
           activeModalOrderId = null;
         }
 
