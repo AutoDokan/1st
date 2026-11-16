@@ -1,26 +1,20 @@
 const Groq = require('groq-sdk');
 const { createClient } = require('@supabase/supabase-js');
 
-// Support multiple Groq API Keys (handles multiple keys, comma-separated lists, and alternate env names)
-const rawGroqKeySources = [
-  process.env.GROQ_API_KEY,
-  process.env.GROQ_API_KEY_1,
-  process.env.GROQ_API_KEY_2,
-  process.env.GROQ_KEY,
-  process.env.GROQ_KEYS
-];
-
+// Automatically detect all Groq API Keys from environment (supports GROQ_API_KEY, GROQ_API_KEY_2, comma-separated, space-separated, etc.)
 const groqKeys = [];
-rawGroqKeySources.forEach(val => {
-  if (val) {
-    val.split(',').forEach(part => {
-      const clean = part.trim();
-      if (clean && !groqKeys.includes(clean)) {
-        groqKeys.push(clean);
-      }
-    });
+for (const [k, v] of Object.entries(process.env)) {
+  if (typeof v === 'string') {
+    if (k.toUpperCase().includes('GROQ') || v.includes('gsk_')) {
+      v.split(/[\s,;]+/).forEach(token => {
+        const clean = token.trim();
+        if (clean && clean.startsWith('gsk_') && !groqKeys.includes(clean)) {
+          groqKeys.push(clean);
+        }
+      });
+    }
   }
-});
+}
 
 let groqClients = [];
 groqKeys.forEach((k, idx) => {
@@ -927,8 +921,8 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
   ];
 
   const candidateModels = [
-    'llama-3.3-70b-versatile',
     'llama-3.1-8b-instant',
+    'llama-3.3-70b-versatile',
     'mixtral-8x7b-32768'
   ];
 
@@ -991,7 +985,7 @@ JSON Format:
 
     const activeClient = groqClients[0];
     const completion = await activeClient.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
       messages: [{ role: 'user', content: extractPrompt }],
       response_format: { type: 'json_object' },
       temperature: 0.1,
