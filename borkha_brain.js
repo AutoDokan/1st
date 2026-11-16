@@ -1,15 +1,39 @@
 const Groq = require('groq-sdk');
 const { createClient } = require('@supabase/supabase-js');
 
-const groqApiKey = process.env.GROQ_API_KEY;
-let groqClient = null;
-if (groqApiKey) {
-  try {
-    groqClient = new Groq({ apiKey: groqApiKey });
-  } catch (err) {
-    console.warn('[AI] Groq init warning:', err.message);
+// Support multiple Groq API Keys (handles multiple keys, comma-separated lists, and alternate env names)
+const rawGroqKeySources = [
+  process.env.GROQ_API_KEY,
+  process.env.GROQ_API_KEY_1,
+  process.env.GROQ_API_KEY_2,
+  process.env.GROQ_KEY,
+  process.env.GROQ_KEYS
+];
+
+const groqKeys = [];
+rawGroqKeySources.forEach(val => {
+  if (val) {
+    val.split(',').forEach(part => {
+      const clean = part.trim();
+      if (clean && !groqKeys.includes(clean)) {
+        groqKeys.push(clean);
+      }
+    });
   }
-}
+});
+
+let groqClients = [];
+groqKeys.forEach((k, idx) => {
+  try {
+    const client = new Groq({ apiKey: k });
+    groqClients.push(client);
+    console.log(`[AI Init] Registered Groq Key #${idx + 1} (${k.substring(0, 6)}...${k.substring(k.length - 4)})`);
+  } catch (err) {
+    console.warn(`[AI Init] Failed to init Groq Key #${idx + 1}:`, err.message);
+  }
+});
+
+let groqClient = groqClients[0] || null;
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxemRrcmVkemRwcXh2ZnJ6anVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2ODE2MzAsImV4cCI6MjExMDI1NzYzMH0.kzQAm9E4QKccOiAZ93GFvqmSelcktHrVmc412qz6eik';
@@ -510,6 +534,21 @@ function generateSmartFallback(userText, isFirstMessage) {
     return 'আমি দাওয়াহ ফ্যাশন থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?';
   }
 
+  // 1a. Warm greetings & wellbeing queries
+  if (/কেমন\s*আছেন|kemon\s*achen|kemon\s*asen|ki\s*obostha|কেমন\s*চলছে|valocen|ভালো\s*আছেন|hi|hello|hey|হ্যালো/i.test(t)) {
+    return `${greeting}আলহামদুলিল্লাহ, আমরা বেশ ভালো আছি! 🌸 আপনি কেমন আছেন? দাওয়াহ ফ্যাশনের এক্সক্লুসিভ কালেকশনে আপনাকে স্বাগতম। আপনি কি কোনো নির্দিষ্ট মডেলের বোরকা দেখতে চাচ্ছেন, নাকি আমাদের সেরা ডিজাইনগুলো একনজরে দেখতে চান?`;
+  }
+
+  // 1b. Showroom / Shop / In-person visits
+  if (/শোরুম|showroom|দোকান|মিরপুর\s*কোথায়|কোথায়\s*আসেন|ঠিকানা\s*কোথায়|সরাসরি\s*এসে|দেখে\s*নেওয়া\s*যাবে|দোকানে\s*আসব/i.test(t)) {
+    return `${greeting}আমাদের মূল প্রোডাকশন হাব ও অফিস ঢাকায় (মিরপুরে)। শোরুমের অতিরিক্ত ভাড়া ও কর্মচারীর খরচ না থাকায় আমরা সরাসরি কারখানার প্রিমিয়াম দুবাই চেরি কাপড়ের বোরকা সুলভ মূল্যে দিতে পারছি। আপনার কষ্ট করে জ্যাম ঠেলে আসার প্রয়োজন নেই—আমরা সারা দেশে সরাসরি হোম ডেলিভারি দিচ্ছি এবং পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে সম্পূর্ণ খুলে দেখে ট্রায়াল দিয়ে নেওয়ার ১০০% সুবিধা পাবেন! 🌸`;
+  }
+
+  // 1c. Short casual prompts (ভাই, আপু, শুনুন)
+  if (/^(?:ভাই|ভাইয়া|vai|bhai|apu|আপু|আপুমনি|শুনুন|shunchen|hello|hi)[!?.\s]*$/i.test(t.trim())) {
+    return `${greeting}জি বলুন, শুনছি! 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?`;
+  }
+
   // 1b. Multiple Piece Combo & Special Offer / Free Delivery
   if (/২টি|২টা|3টি|৩টা|দুটো|দুইটা|তিনটা|2\s*ta|3\s*ta|একসাথে\s*নিলে|কম্বো|combo|দুটোই|দুইটাই/i.test(t)) {
     return `${greeting}আলহামদুলিল্লাহ! আপনি যদি একসাথে ২টি বা তার বেশি বোরকা অর্ডার করেন, তবে আমাদের স্পেশাল কম্বো অফারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি করে দেওয়া হবে (অথবা মোট বিল থেকে ১০০ টাকা বিশেষ ছাড় পাবেন)! আপনি কোন কোন মডেলটি নিতে চাচ্ছেন জানালে পার্সেল রেডি করে দেব। 🌸`;
@@ -862,15 +901,22 @@ function generateSmartFallback(userText, isFirstMessage) {
     return `${greeting}আমাদের প্রিমিয়াম আবায়াগুলোর মূল্য ৳১,৬৫০ থেকে ৳২,৪৫০ টাকার মধ্যে (প্রতিটির সাথেই ম্যাচিং হিজাব ফ্রি)। আপনি কোন মডেলের দাম জানতে চাচ্ছেন জানালে ছবি সহ বিস্তারিত জানিয়ে দিচ্ছি।`;
   }
 
-  // Default pleasant guidance
+  // Default pleasant guidance with smart variety (never sounds like a repetitive robot)
+  const dynamicFallbacks = [
+    'জি, আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন একটু জানালে এখনই শেয়ার করছি। 🌸',
+    'আমাদের ৫টি রানিং হট-সেলিং মডেল রয়েছে (DF-101 থেকে DF-105)। আপনি কি ছবি দেখতে চাচ্ছেন নাকি সাইজ ও প্রাইজ জানতে চাচ্ছেন?',
+    'জি অবশ্যই! আপনার উচ্চতা জানালে (যেমন: ৫ ফুট ২ বা ৫ ফুট ৪) পারফেক্ট ঝুল সাইজ সহ সুন্দর ডিজাইন সাজেস্ট করে দিচ্ছি। 🌸',
+    'জি বলুন, কীভাবে সহযোগিতা করতে পারি? আমাদের প্রতিটি বোরকার সাথে ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি এবং পার্সেল দেখে নেওয়ার সুবিধা রয়েছে।'
+  ];
+  const pick = dynamicFallbacks[Math.floor(Math.random() * dynamicFallbacks.length)];
   if (isFirstMessage) {
-    return 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন?';
+    return 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। ' + pick;
   }
-  return 'জি, আপনি কোন মডেলের ছবি বা সাইজ দেখতে চাচ্ছেন জানালে এখনই শেয়ার করছি।';
+  return pick;
 }
 
 async function callGroqWithFallback(messages, isFirstMessage = false, userText = '') {
-  if (!groqClient) {
+  if (groqClients.length === 0) {
     return generateSmartFallback(userText, isFirstMessage);
   }
 
@@ -881,24 +927,28 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
   ];
 
   const candidateModels = [
-    'openai/gpt-oss-120b',
-    'qwen/qwen3.8-27b'
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'mixtral-8x7b-32768'
   ];
 
-  for (const model of candidateModels) {
-    try {
-      const completion = await groqClient.chat.completions.create({
-        model: model,
-        messages: chatMessages,
-        temperature: 0.65,
-        max_tokens: 500
-      });
-      const reply = completion.choices[0]?.message?.content;
-      if (reply && reply.trim()) {
-        return reply.trim();
+  for (let clientIdx = 0; clientIdx < groqClients.length; clientIdx++) {
+    const client = groqClients[clientIdx];
+    for (const model of candidateModels) {
+      try {
+        const completion = await client.chat.completions.create({
+          model: model,
+          messages: chatMessages,
+          temperature: 0.65,
+          max_tokens: 500
+        });
+        const reply = completion.choices[0]?.message?.content;
+        if (reply && reply.trim()) {
+          return reply.trim();
+        }
+      } catch (err) {
+        console.warn(`[Groq Key #${clientIdx + 1} Model ${model}] Error:`, err.message);
       }
-    } catch (err) {
-      console.warn(`[Groq Model ${model}] Error:`, err.message);
     }
   }
 
@@ -907,7 +957,7 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
 
 // Extract and save order when lead/order details are present
 async function extractAndSaveOrderLead(senderPhone, fullText, conversationHistory) {
-  if (!groqClient || !supabase) return;
+  if (groqClients.length === 0 || !supabase) return;
 
   const orderKeywords = /(01[3-9]\d{8}|অর্ডার|order|ঠিকানা|এড্রেস|address|ডেলিভারি|কুরিয়ার|সাইজ|size|নিব|নিতে চাই|বিকাশ|bkash|টাকা|bdt|রানি|কাফতান|লাইন)/i;
   if (!orderKeywords.test(fullText)) {
@@ -939,8 +989,9 @@ JSON Format:
 }
 `;
 
-    const completion = await groqClient.chat.completions.create({
-      model: 'openai/gpt-oss-120b',
+    const activeClient = groqClients[0];
+    const completion = await activeClient.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: extractPrompt }],
       response_format: { type: 'json_object' },
       temperature: 0.1,
