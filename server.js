@@ -322,7 +322,7 @@ app.post('/api/orders/:id/update-payment', requireAuth, async (req, res) => {
 });
 
 
-// Direct Photo Upload API (Base64 -> Supabase Storage 'product-images')
+// Direct Photo Upload API (Base64 -> Supabase Storage 'product-images' with Local Fallback)
 app.post('/api/upload-image', requireAuth, async (req, res) => {
   try {
     const { imageBase64, filename, contentType } = req.body;
@@ -337,21 +337,36 @@ app.post('/api/upload-image', requireAuth, async (req, res) => {
     const cleanExt = ext && ext.length <= 5 ? ext : '.jpg';
     const cloudFilename = `product_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${cleanExt}`;
 
-    const { data, error } = await supabase.storage
-      .from('product-images')
-      .upload(cloudFilename, buffer, {
-        contentType: contentType || 'image/jpeg',
-        upsert: true
-      });
+    // Attempt 1: Upload to Supabase Storage 'product-images'
+    try {
+      const { data, error } = await supabase.storage
+        .from('product-images')
+        .upload(cloudFilename, buffer, {
+          contentType: contentType || 'image/jpeg',
+          upsert: true
+        });
 
-    if (error) {
-      console.error('[Supabase Storage Upload Error]:', error.message);
-      return res.status(500).json({ success: false, error: error.message });
+      if (!error && data) {
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/product-images/${cloudFilename}`;
+        console.log(`[Image Uploaded to Supabase] Stored at: ${publicUrl}`);
+        return res.json({ success: true, url: publicUrl });
+      } else if (error) {
+        console.warn('[Supabase Storage Warning]:', error.message);
+      }
+    } catch (sbErr) {
+      console.warn('[Supabase Storage Exception, falling back to local filesystem]:', sbErr.message);
     }
 
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/product-images/${cloudFilename}`;
-    console.log(`[Image Uploaded to Supabase] Stored at: ${publicUrl}`);
-    res.json({ success: true, url: publicUrl });
+    // Attempt 2: Local Fallback in /public/uploads/
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const localFilePath = path.join(uploadsDir, cloudFilename);
+    fs.writeFileSync(localFilePath, buffer);
+    const localUrl = `/uploads/${cloudFilename}`;
+    console.log(`[Image Stored Locally] Served at: ${localUrl}`);
+    return res.json({ success: true, url: localUrl });
   } catch (err) {
     console.error('[Upload Exception]:', err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -360,23 +375,29 @@ app.post('/api/upload-image', requireAuth, async (req, res) => {
 
 // Add New Product API (supports 5 photo types: Main, Detail, Hijab, Flare, Real)
 app.post('/api/add-product', requireAuth, async (req, res) => {
-  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url, flare_image_url, real_image_url } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, in_stock, image_url, hijab_image_url, detail_image_url, flare_image_url, real_image_url } = req.body;
+  let insertedItem = null;
   if (name && price) {
-    await supabase.from('products').insert({
-      model_code: model_code ? model_code.toUpperCase().trim() : 'DF-' + Math.floor(Math.random() * 899 + 100),
-      name,
+    const cleanCode = model_code ? model_code.toUpperCase().trim() : 'DF-' + Math.floor(Math.random() * 899 + 100);
+    const { data, error } = await supabase.from('products').insert({
+      model_code: cleanCode,
+      name: name.trim(),
       fabric: fabric || 'দুবাই চেরি',
       price: parseFloat(price),
       sizes: sizes || '৫০, ৫২, ৫৪, ৫৬',
-      hijab_included: hijab_included !== 'false',
+      hijab_included: hijab_included === true || hijab_included === 'true',
       image_url: image_url ? image_url.trim() : null,
       hijab_image_url: hijab_image_url ? hijab_image_url.trim() : null,
       detail_image_url: detail_image_url ? detail_image_url.trim() : null,
       flare_image_url: flare_image_url ? flare_image_url.trim() : null,
       real_image_url: real_image_url ? real_image_url.trim() : null,
-      in_stock: true
-    });
+      in_stock: in_stock === undefined ? true : (in_stock === true || in_stock === 'true')
+    }).select();
+    if (!error && data && data.length > 0) insertedItem = data[0];
     await refreshProductsFromDB();
+  }
+  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+    return res.json({ success: true, product: insertedItem });
   }
   res.redirect('/dashboard#products');
 });
@@ -384,15 +405,16 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
 // Update Existing Product API (supports 5 photo types: Main, Detail, Hijab, Flare, Real)
 app.post('/api/products/:id/update', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { model_code, name, fabric, price, sizes, hijab_included, image_url, hijab_image_url, detail_image_url, flare_image_url, real_image_url } = req.body;
+  const { model_code, name, fabric, price, sizes, hijab_included, in_stock, image_url, hijab_image_url, detail_image_url, flare_image_url, real_image_url } = req.body;
   if (id && name && price) {
     await supabase.from('products').update({
       model_code: model_code ? model_code.toUpperCase().trim() : undefined,
-      name,
+      name: name.trim(),
       fabric: fabric || 'দুবাই চেরি',
       price: parseFloat(price),
       sizes: sizes || '৫০, ৫২, ৫৪, ৫৬',
       hijab_included: hijab_included === 'true' || hijab_included === true,
+      in_stock: in_stock !== undefined ? (in_stock === 'true' || in_stock === true) : undefined,
       image_url: image_url !== undefined ? (image_url ? image_url.trim() : null) : undefined,
       hijab_image_url: hijab_image_url !== undefined ? (hijab_image_url ? hijab_image_url.trim() : null) : undefined,
       detail_image_url: detail_image_url !== undefined ? (detail_image_url ? detail_image_url.trim() : null) : undefined,
@@ -400,6 +422,9 @@ app.post('/api/products/:id/update', requireAuth, async (req, res) => {
       real_image_url: real_image_url !== undefined ? (real_image_url ? real_image_url.trim() : null) : undefined
     }).eq('id', id);
     await refreshProductsFromDB();
+  }
+  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+    return res.json({ success: true, id });
   }
   res.redirect('/dashboard#products');
 });
@@ -433,40 +458,68 @@ app.post('/api/products/bulk-delete', requireAuth, async (req, res) => {
   res.redirect('/dashboard#products');
 });
 
-// 1-Click Delete Order API
-app.post('/api/orders/:id/delete', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  if (id) {
-    await supabase.from('orders').delete().eq('id', id);
-  }
-  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
-    return res.json({ success: true, id });
-  }
-  res.redirect('/dashboard');
-});
-
-// Bulk Delete Orders API
-app.post('/api/orders/bulk-delete', requireAuth, async (req, res) => {
-  let { ids } = req.body;
-  if (typeof ids === 'string') {
-    ids = ids.split(',').map(s => s.trim()).filter(Boolean);
-  }
-  if (Array.isArray(ids) && ids.length > 0) {
-    await supabase.from('orders').delete().in('id', ids);
-  }
-  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
-    return res.json({ success: true, count: ids ? ids.length : 0 });
-  }
-  res.redirect('/dashboard');
-});
-
-// Toggle In-Stock Status
+// Toggle In-Stock Status API
 app.post('/api/products/:id/toggle-stock', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { in_stock } = req.body;
-  await supabase.from('products').update({ in_stock: in_stock === 'true' }).eq('id', id);
+  const isStock = in_stock === 'true' || in_stock === true;
+  await supabase.from('products').update({ in_stock: isStock }).eq('id', id);
   await refreshProductsFromDB();
+  if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
+    return res.json({ success: true, in_stock: isStock, id });
+  }
   res.redirect('/dashboard#products');
+});
+
+// Live Interactive AI Bot Simulator / Test Bench Endpoint
+app.post('/api/test-bot', requireAuth, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, error: 'মেসেজ খালি হতে পারবে না' });
+    }
+    const startTime = Date.now();
+    const reply = await handleIncomingMessage('test_bench_user_01700000000', message.trim());
+    const durationMs = Date.now() - startTime;
+
+    // Detect any photo tags sent by bot
+    const photoCards = [];
+    const tagMatches = [...reply.matchAll(/\[(SEND_[A-Z_]+):([A-Z0-9-]+)\]/g)];
+    for (const match of tagMatches) {
+      const tagType = match[1];
+      const modelCode = match[2];
+      const prod = getProductByCode(modelCode);
+      if (prod) {
+        let photoUrl = null;
+        let label = 'ফটো';
+        if (tagType === 'SEND_MAIN_IMAGE') { photoUrl = prod.image_url; label = '১. মেইন ফ্রন্ট ভিউ'; }
+        else if (tagType === 'SEND_DETAIL_IMAGE') { photoUrl = prod.detail_image_url; label = '২. কারচুপি ক্লোজ-আপ'; }
+        else if (tagType === 'SEND_HIJAB_IMAGE') { photoUrl = prod.hijab_image_url; label = '৩. ম্যাচিং হিজাব'; }
+        else if (tagType === 'SEND_FLARE_IMAGE') { photoUrl = prod.flare_image_url; label = '৪. ঘের ও সাইড অ্যাঙ্গেল'; }
+        else if (tagType === 'SEND_REAL_IMAGE') { photoUrl = prod.real_image_url; label = '৫. আনফিল্টার্ড রিয়েল ছবি'; }
+        else if (tagType === 'SEND_IMAGE') { photoUrl = prod.image_url; label = 'প্রোডাক্ট ছবি'; }
+
+        if (photoUrl) {
+          photoCards.push({ type: tagType, modelCode, url: photoUrl, label, name: prod.name });
+        }
+      }
+    }
+
+    const cleanReply = reply.replace(/\[SEND_[A-Z_]+:[A-Z0-9-]+\]/g, '').trim();
+
+    return res.json({
+      success: true,
+      originalMessage: message.trim(),
+      reply: cleanReply,
+      rawReply: reply,
+      photos: photoCards,
+      latencyMs: durationMs,
+      isFastPath: durationMs < 50
+    });
+  } catch (err) {
+    console.error('[Bot Simulator Error]:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // In-Memory & Persistent Screenshot Log
@@ -1082,72 +1135,81 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     `;
   }).join('');
 
-  // 5 Golden Models Visual Cards Grid Generator
-  const goldenProductCards = (products || []).slice(0, 5).map(p => {
+  // Master Product Cards Grid Generator for ALL products
+  const productCardsHtml = (products || []).map(p => {
     const promoText = `👗 *${p.name}* (${p.model_code})\n💰 মূল্য: *৳${p.price}* টাকা (ম্যাচিং হিজাব একদম ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'প্রিমিয়াম চেরি'}\n📏 সাইজ: ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'}\n🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳${curSettings.inside_dhaka_fee}, বাইরে ৳${curSettings.outside_dhaka_fee}\n📦 ক্যাশ অন ডেলিভারি (পার্সেল দেখে নেওয়ার সুবিধা)।\nঅর্ডার করতে সাইজ, নাম, ঠিকানা ও ফোন নাম্বার লিখে মেসেজ দিন!`.replace(/\'/g, "\\'");
+    const safeName = (p.name || '').replace(/'/g, "\\'");
+    const safeFabric = (p.fabric || 'দুবাই চেরি').replace(/'/g, "\\'");
+    const safeSizes = (p.sizes || '৫০, ৫২, ৫৪, ৫৬').replace(/'/g, "\\'");
+    const searchMeta = `${p.id} ${p.model_code || ''} ${p.name || ''} ${p.fabric || ''} ${p.price || ''}`.toLowerCase();
 
     return `
-    <div class="bg-white rounded-2xl border border-stone-200 p-4 shadow-sm space-y-3 hover:border-amber-400 hover:shadow-md transition">
+    <div class="product-item-card bg-white rounded-3xl border border-stone-200 p-4 shadow-xs space-y-3.5 hover:border-amber-400 hover:shadow-md transition relative" data-product-id="${p.id}" data-search="${searchMeta}">
       <!-- Card Top: SKU, Title, Price, Stock -->
       <div class="flex items-start justify-between gap-2 border-b border-stone-100 pb-2.5">
         <div>
           <div class="flex items-center gap-2">
             <span class="bg-amber-100 text-amber-950 font-mono font-black text-xs px-2.5 py-0.5 rounded-lg border border-amber-300">${p.model_code || 'DF-101'}</span>
-            <span class="text-[10px] font-black ${p.in_stock ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-rose-50 text-rose-800 border border-rose-300'} px-2 py-0.5 rounded-full">
+            <button type="button" onclick="toggleStockLive(${p.id}, ${!p.in_stock}, this)" class="text-[10px] font-black cursor-pointer px-2 py-0.5 rounded-full border transition ${p.in_stock ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100' : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'}">
               ${p.in_stock ? '● In Stock' : '○ Stock Out'}
-            </span>
+            </button>
           </div>
           <h4 class="font-extrabold text-stone-900 text-sm mt-1.5 leading-snug">${p.name}</h4>
           <p class="text-[11px] text-stone-500 font-medium">ফেব্রিক: <span class="text-stone-800 font-semibold">${p.fabric || 'দুবাই চেরি'}</span> • সাইজ: ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'}</p>
         </div>
         <div class="text-right whitespace-nowrap">
           <div class="font-black text-amber-900 text-base">৳${p.price}</div>
-          <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">হিজাব ফ্রি</span>
+          <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">${p.hijab_included ? 'হিজাব ফ্রি' : 'হিজাব ছাড়া'}</span>
         </div>
       </div>
 
       <!-- 5-Angle Badged Photo Strip -->
       <div>
         <div class="flex items-center justify-between text-[11px] font-bold text-stone-600 mb-1.5">
-          <span>📸 ৫টি অ্যাঙ্গেল ফটো (ক্লিক করে বড় ছবি দেখুন):</span>
+          <span>📸 ৫টি অ্যাঙ্গেল ফটো (ক্লিক করে বড় দেখুন):</span>
           <span class="text-[10px] text-amber-800 font-black">HD Badged</span>
         </div>
         <div class="grid grid-cols-5 gap-1.5">
           <!-- 1. Main -->
-          <div class="relative group cursor-pointer" onclick="openLightbox('${p.image_url}', '${p.model_code} - ১. মেইন ফ্রন্ট ভিউ')">
-            <img src="${p.image_url}" class="w-full h-18 object-cover rounded-lg border border-amber-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Main">
+          <div class="relative group cursor-pointer" onclick="openLightbox('${p.image_url || '/images/placeholder.jpg'}', '${p.model_code} - ১. মেইন ফ্রন্ট ভিউ')">
+            <img src="${p.image_url || '/images/placeholder.jpg'}" onerror="this.src='https://placehold.co/120x160?text=Main'" class="w-full h-18 object-cover rounded-lg border border-amber-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Main">
             <span class="absolute bottom-0 inset-x-0 bg-stone-900/80 text-white text-[8px] font-bold text-center py-0.5 rounded-b-lg">মেইন</span>
           </div>
           <!-- 2. Detail -->
-          <div class="relative group cursor-pointer" onclick="openLightbox('${p.detail_image_url}', '${p.model_code} - ২. নিখুঁত কারচুপি ক্লোজ-আপ')">
-            <img src="${p.detail_image_url}" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Detail">
+          <div class="relative group cursor-pointer" onclick="openLightbox('${p.detail_image_url || p.image_url || '/images/placeholder.jpg'}', '${p.model_code} - ২. নিখুঁত কারচুপি ক্লোজ-আপ')">
+            <img src="${p.detail_image_url || p.image_url || '/images/placeholder.jpg'}" onerror="this.src='https://placehold.co/120x160?text=Detail'" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Detail">
             <span class="absolute bottom-0 inset-x-0 bg-stone-900/80 text-white text-[8px] font-bold text-center py-0.5 rounded-b-lg">কাজ</span>
           </div>
           <!-- 3. Hijab -->
-          <div class="relative group cursor-pointer" onclick="openLightbox('${p.hijab_image_url}', '${p.model_code} - ৩. ম্যাচিং প্রিমিয়াম হিজাব')">
-            <img src="${p.hijab_image_url}" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Hijab">
+          <div class="relative group cursor-pointer" onclick="openLightbox('${p.hijab_image_url || p.image_url || '/images/placeholder.jpg'}', '${p.model_code} - ৩. ম্যাচিং প্রিমিয়াম হিজাব')">
+            <img src="${p.hijab_image_url || p.image_url || '/images/placeholder.jpg'}" onerror="this.src='https://placehold.co/120x160?text=Hijab'" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Hijab">
             <span class="absolute bottom-0 inset-x-0 bg-stone-900/80 text-white text-[8px] font-bold text-center py-0.5 rounded-b-lg">হিজাব</span>
           </div>
           <!-- 4. Flare -->
-          <div class="relative group cursor-pointer" onclick="openLightbox('${p.flare_image_url}', '${p.model_code} - ৪. ঘের ও সাইড অ্যাঙ্গেল')">
-            <img src="${p.flare_image_url}" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Flare">
+          <div class="relative group cursor-pointer" onclick="openLightbox('${p.flare_image_url || p.image_url || '/images/placeholder.jpg'}', '${p.model_code} - ৪. ঘের ও সাইড অ্যাঙ্গেল')">
+            <img src="${p.flare_image_url || p.image_url || '/images/placeholder.jpg'}" onerror="this.src='https://placehold.co/120x160?text=Flare'" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Flare">
             <span class="absolute bottom-0 inset-x-0 bg-stone-900/80 text-white text-[8px] font-bold text-center py-0.5 rounded-b-lg">ঘের</span>
           </div>
           <!-- 5. Real -->
-          <div class="relative group cursor-pointer" onclick="openLightbox('${p.real_image_url}', '${p.model_code} - ৫. আনফিল্টার্ড রিয়েল ছবি')">
-            <img src="${p.real_image_url}" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Real">
+          <div class="relative group cursor-pointer" onclick="openLightbox('${p.real_image_url || p.image_url || '/images/placeholder.jpg'}', '${p.model_code} - ৫. আনফিল্টার্ড রিয়েল ছবি')">
+            <img src="${p.real_image_url || p.image_url || '/images/placeholder.jpg'}" onerror="this.src='https://placehold.co/120x160?text=Real'" class="w-full h-18 object-cover rounded-lg border border-stone-200 group-hover:border-amber-500 group-hover:scale-105 transition shadow-2xs" alt="Real">
             <span class="absolute bottom-0 inset-x-0 bg-stone-900/80 text-white text-[8px] font-bold text-center py-0.5 rounded-b-lg">রিয়েল</span>
           </div>
         </div>
       </div>
 
       <!-- Card Action Buttons -->
-      <div class="pt-2 flex items-center justify-between gap-2 border-t border-stone-100">
-        <button onclick="copyPromoText('${promoText}')" class="text-xs bg-[#fcfaf7] hover:bg-amber-50 text-stone-800 hover:text-amber-950 font-bold px-3 py-1.5 rounded-xl border border-stone-300 hover:border-amber-300 inline-flex items-center gap-1.5 shadow-2xs transition cursor-pointer">
-          <span>📋 প্রমো টেক্সট কপি</span>
-        </button>
-        <button onclick="openDrawer('catalogDrawer')" class="text-xs text-amber-900 font-extrabold hover:underline cursor-pointer">
-          ✏️ এডিট / ছবি আপলোড
+      <div class="pt-2 flex items-center justify-between gap-2 border-t border-stone-100 flex-wrap">
+        <div class="flex items-center gap-1.5">
+          <button type="button" onclick="copyPromoText('${promoText}')" class="text-xs bg-[#fcfaf7] hover:bg-amber-50 text-stone-800 hover:text-amber-950 font-bold px-2.5 py-1.5 rounded-xl border border-stone-300 hover:border-amber-300 inline-flex items-center gap-1 shadow-2xs transition cursor-pointer">
+            <span>📋 প্রমো</span>
+          </button>
+          <button type="button" onclick="openEditProductModal(${p.id}, '${p.model_code}', '${safeName}', ${p.price}, '${safeFabric}', '${safeSizes}', ${p.hijab_included}, ${p.in_stock}, '${p.image_url || ''}', '${p.detail_image_url || ''}', '${p.hijab_image_url || ''}', '${p.flare_image_url || ''}', '${p.real_image_url || ''}')" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-950 font-black px-3 py-1.5 rounded-xl border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition cursor-pointer">
+            <span>✏️ এডিট</span>
+          </button>
+        </div>
+        <button type="button" onclick="deleteProductLive(${p.id}, '${p.model_code}')" class="text-xs text-rose-600 hover:text-rose-800 font-bold hover:bg-rose-50 px-2 py-1 rounded-lg transition cursor-pointer">
+          🗑️ মুছুন
         </button>
       </div>
     </div>
@@ -1197,11 +1259,15 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
           <!-- Right: Nav Pill Actions -->
           <div class="flex items-center gap-2">
-            <button onclick="scrollToSection('productsHub')" class="bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700 shadow-2xs flex items-center gap-1.5 transition cursor-pointer">
+            <button type="button" onclick="switchMainView('products')" class="bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700 shadow-2xs flex items-center gap-1.5 transition cursor-pointer">
               <span>👗</span>
-              <span class="hidden md:inline">কালেকশন</span>
+              <span class="hidden md:inline">প্রোডাক্টস</span>
             </button>
-            <button onclick="openDrawer('settingsDrawer')" title="ডেলিভারি চার্জ ও পেমেন্ট রুলস" class="bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700 shadow-2xs flex items-center gap-1.5 transition cursor-pointer">
+            <button type="button" onclick="switchMainView('bot-test')" class="bg-stone-800 hover:bg-stone-700 text-emerald-300 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700 shadow-2xs flex items-center gap-1.5 transition cursor-pointer">
+              <span>⚡</span>
+              <span class="hidden md:inline">টেস্ট বেঞ্চ</span>
+            </button>
+            <button type="button" onclick="openDrawer('settingsDrawer')" title="ডেলিভারি চার্জ ও পেমেন্ট রুলস" class="bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700 shadow-2xs flex items-center gap-1.5 transition cursor-pointer">
               <span>⚙️</span>
               <span class="hidden md:inline">রুলস</span>
             </button>
@@ -1298,26 +1364,146 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         </div>
         ` : ''}
 
-        <!-- ============================================================== -->
-        <!-- SECTION 1: 5 GOLDEN PRODUCT MODELS SHOWCASE (Interactive Grid) -->
-        <!-- ============================================================== -->
-        <div id="productsHub" class="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs space-y-4">
-          <div class="flex items-center justify-between border-b border-stone-100 pb-3 flex-wrap gap-2">
-            <div>
-              <h2 class="font-black text-base text-stone-900 flex items-center gap-2">
-                <span>👗 আমাদের ৫টি এক্সক্লুসিভ বোরকা ও আবায়া কালেকশন</span>
-                <span class="bg-amber-100 text-amber-900 font-mono text-[11px] px-2 py-0.5 rounded-full border border-amber-300">${totalProducts} টি মডেল</span>
-              </h2>
-              <p class="text-xs text-stone-500 font-medium mt-0.5">প্রতিটি মডেলের জন্য ৫টি গোল্ডেন অ্যাঙ্গেল ছবি লাইভ আছে। গ্রাহক চাইলে AI স্বয়ংক্রিয়ভাবে পাঠায়।</p>
-            </div>
-            <button onclick="openDrawer('catalogDrawer')" class="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-4 py-2 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
-              <span>+ নতুন মডেল যোগ / এডিট</span>
-            </button>
-          </div>
+        <!-- Primary Executive View Mode Switcher -->
+        <div class="flex items-center gap-2 border-b border-stone-200 pb-3 overflow-x-auto no-scrollbar">
+          <button type="button" onclick="switchMainView('orders')" id="main-tab-orders" class="main-tab-btn px-4 py-2.5 rounded-2xl bg-stone-900 text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-xs whitespace-nowrap">
+            <span>📦 অর্ডার ও ডেলিভারি</span>
+            <span class="bg-stone-800 text-stone-200 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold" id="badge-total-orders">${totalOrders}</span>
+          </button>
+          <button type="button" onclick="switchMainView('products')" id="main-tab-products" class="main-tab-btn px-4 py-2.5 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:text-stone-900 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-xs whitespace-nowrap">
+            <span>👗 প্রোডাক্টস ও ইনভেন্টরি</span>
+            <span class="bg-amber-100 text-amber-900 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold" id="badge-total-prods">${totalProducts}</span>
+          </button>
+          <button type="button" onclick="switchMainView('bot-test')" id="main-tab-bot-test" class="main-tab-btn px-4 py-2.5 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:text-stone-900 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-xs whitespace-nowrap">
+            <span>⚡ এআই বট টেস্ট বেঞ্চ</span>
+            <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">লাইভ সিমুলেটর</span>
+          </button>
+          <button type="button" onclick="openDrawer('settingsDrawer')" class="px-4 py-2.5 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:text-stone-900 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-xs whitespace-nowrap">
+            <span>⚙️ শপ সেটিংস</span>
+          </button>
+        </div>
 
-          <!-- 5 Product Cards Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            ${goldenProductCards}
+        <!-- ============================================================== -->
+        <!-- SECTION: PRODUCT CATALOG & INVENTORY MANAGEMENT                -->
+        <!-- ============================================================== -->
+        <div id="productsSection" class="hidden space-y-4">
+          <div class="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-stone-100 pb-3 flex-wrap gap-3">
+              <div>
+                <h2 class="font-black text-base text-stone-900 flex items-center gap-2">
+                  <span>👗 প্রোডাক্ট ক্যাটালগ ও লাইভ ইনভেন্টরি</span>
+                  <span class="bg-amber-100 text-amber-900 font-mono text-[11px] px-2.5 py-0.5 rounded-full border border-amber-300 font-bold">${totalProducts} টি মডেল</span>
+                </h2>
+                <p class="text-xs text-stone-500 font-medium mt-0.5">মডেল কোড, মূল্য, সাইজ ও ৫টি গোল্ডেন অ্যাঙ্গেল ফটো ম্যানেজ করুন। স্টক শেষ হলে ১-ক্লিকে স্টক আউট করুন।</p>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <input type="text" id="productSearchInput" onkeyup="filterProducts()" placeholder="🔍 প্রোডাক্ট খুঁজুন..." class="bg-[#fcfaf7] border border-stone-300 text-stone-800 text-xs px-3.5 py-2 rounded-xl focus:outline-none focus:border-amber-500">
+                <button type="button" onclick="openAddProductModal()" class="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-4 py-2 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                  <span>+ নতুন প্রোডাক্ট যোগ করুন</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Products Filter Pill Bar -->
+            <div class="flex items-center gap-2 text-xs font-bold">
+              <button type="button" onclick="filterProductsStock('ALL')" id="prod-filter-all" class="prod-filter-btn px-3 py-1 rounded-xl bg-stone-900 text-white cursor-pointer">সবগুলো (<span id="count-prods-all">${totalProducts}</span>)</button>
+              <button type="button" onclick="filterProductsStock('IN_STOCK')" id="prod-filter-instock" class="prod-filter-btn px-3 py-1 rounded-xl bg-[#fcfaf7] border border-stone-300 text-stone-700 cursor-pointer">স্টকে আছে (${inStockProducts})</button>
+              <button type="button" onclick="filterProductsStock('STOCK_OUT')" id="prod-filter-out" class="prod-filter-btn px-3 py-1 rounded-xl bg-[#fcfaf7] border border-stone-300 text-stone-700 cursor-pointer">স্টক আউট (${totalProducts - inStockProducts})</button>
+            </div>
+
+            <!-- All Product Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="productsGridContainer">
+              ${productCardsHtml}
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SECTION: LIVE INTERACTIVE AI BOT TEST BENCH & TUNING SIMULATOR -->
+        <!-- ============================================================== -->
+        <div id="botTestSection" class="hidden space-y-4">
+          <div class="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-stone-100 pb-3 flex-wrap gap-2">
+              <div>
+                <h2 class="font-black text-base text-stone-900 flex items-center gap-2">
+                  <span>⚡ এআই সেলস অ্যাসিস্ট্যান্ট টেস্ট বেঞ্চ ও টিউনিং</span>
+                  <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300">Fast-Path 11ms</span>
+                </h2>
+                <p class="text-xs text-stone-500 font-medium mt-0.5">ড্যাশবোর্ড থেকেই কাস্টমার সেজে প্রশ্ন করুন এবং তাৎক্ষণিক এআই রিপ্লাই, স্পিড ও ফটো চেক করুন।</p>
+              </div>
+              <button type="button" onclick="clearTestChat()" class="text-xs text-stone-500 hover:text-stone-800 font-bold px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                🗑️ চ্যাট ক্লিয়ার করুন
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <!-- Left Column: Quick Test Presets -->
+              <div class="space-y-3 bg-[#faf7f2] p-4 rounded-2xl border border-stone-200">
+                <div class="font-black text-xs text-stone-800 flex items-center gap-1.5">
+                  <span>💡 কুইক টেস্ট প্রশ্ন (ক্লিক করলেই রান হবে)</span>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <button type="button" onclick="runPresetQuery('DF-101 এর দাম কত?')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    🏷️ DF-101 এর দাম কত?
+                  </button>
+                  <button type="button" onclick="runPresetQuery('আমার উচ্চতা ৫ ফুট ৩ ইঞ্চি, কোন সাইজ লাগবে?')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    📏 আমার উচ্চতা ৫'৩", কোন সাইজ লাগবে?
+                  </button>
+                  <button type="button" onclick="runPresetQuery('ঢাকার বাইরে ডেলিভারি কয়দিনে দেন এবং চার্জ কত?')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    🚚 ডেলিভারি চার্জ কত ও কয়দিন লাগে?
+                  </button>
+                  <button type="button" onclick="runPresetQuery('আমি ২ পিস নিলে কিছু ছাড় দিবেন?')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    💸 ২ বা ৩ পিস নিলে ডিসকাউন্ট হবে?
+                  </button>
+                  <button type="button" onclick="runPresetQuery('পার্সেল কি ডেলিভারি ম্যানের সামনে খুলে দেখা যাবে?')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    📦 পার্সেল খুলে দেখার সুযোগ আছে?
+                  </button>
+                  <button type="button" onclick="runPresetQuery('কাপড় কি পাতলা নাকি শালীনভাবে কভার হবে?')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    🧕 কাপড় কি পাতলা নাকি শালীন?
+                  </button>
+                  <button type="button" onclick="runPresetQuery('DF-102 রানি আবায়ার রিয়েল ছবি দেখতে চাই')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    📸 DF-102 এর রিয়েল ছবি দিন
+                  </button>
+                  <button type="button" onclick="runPresetQuery('অর্ডার কনফার্ম করতে চাই')" class="text-left text-xs bg-white hover:bg-amber-50 text-stone-800 p-2.5 rounded-xl border border-stone-200 hover:border-amber-300 font-semibold shadow-2xs transition cursor-pointer">
+                    🛒 অর্ডার কনফার্ম করতে চাই
+                  </button>
+                </div>
+              </div>
+
+              <!-- Right 2 Columns: Interactive WhatsApp-Style Chat Simulator -->
+              <div class="lg:col-span-2 flex flex-col h-[520px] bg-[#f0ebe3] rounded-2xl border border-stone-300 overflow-hidden shadow-inner">
+                <!-- Chat Window Header -->
+                <div class="bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-sm">DF</div>
+                    <div>
+                      <div class="font-black text-xs">Dawah Fashion WhatsApp AI</div>
+                      <div class="text-[10px] text-emerald-400 font-semibold">● সবসময় অনলাইন (২৪/৭ অটোমেশন)</div>
+                    </div>
+                  </div>
+                  <span id="simulatorLatencyBadge" class="hidden text-[10px] font-mono font-bold bg-white/10 px-2.5 py-1 rounded-full text-amber-300">⚡ 11ms</span>
+                </div>
+
+                <!-- Messages Stream Viewport -->
+                <div id="simulatorChatBody" class="flex-1 p-4 overflow-y-auto space-y-3">
+                  <!-- Initial Intro Bubble -->
+                  <div class="flex justify-start">
+                    <div class="max-w-[85%] bg-white p-3.5 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-800 text-xs leading-relaxed">
+                      🌸 আসসালামু আলাইকুম! এটি দাওয়াহ ফ্যাশন এআই সেলস টেস্ট বেঞ্চ। নিচে যেকোনো প্রশ্ন লিখুন বা বাঁ পাশের প্রিসেট থেকে ক্লিক করে টেস্ট করুন।
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Chat Input Controls Bar -->
+                <form onsubmit="handleSimulatorSubmit(event)" class="p-2.5 bg-white border-t border-stone-200 flex items-center gap-2">
+                  <input type="text" id="simulatorInput" placeholder="এখানে মেসেজ লিখে টেস্ট করুন (যেমন: DF-101 এর প্রাইজ কত)..." class="flex-1 bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-amber-500">
+                  <button type="submit" id="simulatorSendBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1 whitespace-nowrap">
+                    <span>পাঠান</span>
+                    <span>➔</span>
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1473,46 +1659,299 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </div>
 
       <!-- ============================================== -->
-      <!-- SLIDE-OVER DRAWER 2: Product Catalog & SKU Hub -->
+      <!-- MODAL 1: ADD NEW PRODUCT MODEL                 -->
       <!-- ============================================== -->
-      <div id="catalogDrawer" class="fixed inset-0 z-50 pointer-events-none opacity-0 transition-opacity duration-300">
-        <div onclick="closeDrawer('catalogDrawer')" class="absolute inset-0 bg-stone-900/50 backdrop-blur-xs"></div>
-        <div class="absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-white shadow-2xl p-6 flex flex-col justify-between overflow-y-auto transform translate-x-full transition-transform duration-300">
-          <div class="space-y-5">
-            <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+      <div id="addProductModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+          <div class="p-4 sm:p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
+            <div>
+              <h3 class="font-black text-base text-stone-900 flex items-center gap-2">
+                <span>✨ নতুন প্রোডাক্ট মডেল যুক্ত করুন</span>
+              </h3>
+              <p class="text-xs text-stone-500 font-medium mt-0.5">মডেল কোড, মূল্য, সাইজ এবং ৫টি গোল্ডেন অ্যাঙ্গেল ছবি সেট করুন</p>
+            </div>
+            <button type="button" onclick="closeAddProductModal()" class="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold flex items-center justify-center cursor-pointer">✕</button>
+          </div>
+
+          <form onsubmit="saveNewProductLive(event)" class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <h3 class="font-black text-base text-stone-900">👗 বোরকা ও আবায়া ক্যাটালগ ম্যানেজার</h3>
-                <p class="text-xs text-stone-500 font-medium">মডেল কোড ও প্রাইজ আপডেট করুন</p>
+                <label class="block text-xs font-bold text-stone-700 mb-1">মডেল কোড (SKU) *</label>
+                <input type="text" id="add_model_code" placeholder="যেমন: DF-107" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-mono font-bold p-2.5 rounded-xl focus:border-amber-500 outline-none">
               </div>
-              <button onclick="closeDrawer('catalogDrawer')" class="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-500 font-black cursor-pointer">✕</button>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">প্রোডাক্টের নাম *</label>
+                <input type="text" id="add_name" placeholder="যেমন: রোজভ্যালি কারচুপি আবায়া সেট" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-bold p-2.5 rounded-xl focus:border-amber-500 outline-none">
+              </div>
             </div>
 
-            <!-- Product Cards List inside Drawer -->
-            <div class="space-y-3">
-              ${(products || []).map(p => `
-              <div class="bg-[#fcfaf7] p-3.5 rounded-2xl border border-stone-200 flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                  <img src="${p.image_url}" class="w-12 h-14 object-cover rounded-xl border border-amber-300 shadow-2xs">
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <span class="font-mono font-black text-xs bg-amber-100 text-amber-950 px-2 py-0.5 rounded border border-amber-300">${p.model_code}</span>
-                      <span class="font-extrabold text-stone-900 text-xs">${p.name}</span>
-                    </div>
-                    <div class="text-[11px] text-stone-500 mt-1">প্রাইজ: <span class="font-black text-stone-900">৳${p.price}</span> • সাইজ: ${p.sizes}</div>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <span class="text-[10px] font-black ${p.in_stock ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'} px-2 py-0.5 rounded-full border">
-                    ${p.in_stock ? 'In Stock' : 'Stock Out'}
-                  </span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">বিক্রয় মূল্য (টাকা) *</label>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-extrabold text-amber-900 text-sm">৳</span>
+                  <input type="number" id="add_price" placeholder="2450" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-bold p-2.5 rounded-xl focus:border-amber-500 outline-none">
                 </div>
               </div>
-              `).join('')}
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">ফেব্রিক / কাপড়</label>
+                <input type="text" id="add_fabric" value="দুবাই চেরি" class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-medium p-2.5 rounded-xl focus:border-amber-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">উপলব্ধ ঝুল সাইজ</label>
+                <input type="text" id="add_sizes" value="৫০, ৫২, ৫৪, ৫৬" class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-medium p-2.5 rounded-xl focus:border-amber-500 outline-none">
+              </div>
             </div>
+
+            <div class="flex items-center gap-6 p-3 bg-stone-50 rounded-xl border border-stone-200">
+              <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-800">
+                <input type="checkbox" id="add_hijab_included" checked class="w-4 h-4 rounded accent-amber-600">
+                <span>ম্যাচিং হিজাব ফ্রি অন্তর্ভুক্ত</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-800">
+                <input type="checkbox" id="add_in_stock" checked class="w-4 h-4 rounded accent-emerald-600">
+                <span>বর্তমানে ইন-স্টক (লাইভ সেল)</span>
+              </label>
+            </div>
+
+            <!-- 5 Golden Photos Upload Grid -->
+            <div>
+              <label class="block text-xs font-extrabold text-stone-800 mb-1.5">📸 ৫টি গোল্ডেন অ্যাঙ্গেল ছবি (ফাইল আপলোড করুন বা লিংক দিন):</label>
+              <div class="space-y-2.5">
+                <!-- 1. Main -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="add_img_main_preview" src="https://placehold.co/100x120?text=1.+Main" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">১. মেইন ফ্রন্ট ভিউ ফটো *</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 ফাইল আপলোড
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_img_main_preview', 'add_img_main_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="add_img_main_url" placeholder="ইমেজ লিংক দিন বা ফাইল আপলোড করুন..." class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('add_img_main_preview').src = this.value || 'https://placehold.co/100x120?text=1.+Main'">
+                  </div>
+                </div>
+
+                <!-- 2. Detail -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="add_img_detail_preview" src="https://placehold.co/100x120?text=2.+Work" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">২. কারচুপি / নিখুঁত কাজ ক্লোজ-আপ</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 ফাইল আপলোড
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_img_detail_preview', 'add_img_detail_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="add_img_detail_url" placeholder="ইমেজ লিংক দিন বা ফাইল আপলোড করুন..." class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('add_img_detail_preview').src = this.value || 'https://placehold.co/100x120?text=2.+Work'">
+                  </div>
+                </div>
+
+                <!-- 3. Hijab -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="add_img_hijab_preview" src="https://placehold.co/100x120?text=3.+Hijab" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">৩. ম্যাচিং প্রিমিয়াম হিজাব</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 ফাইল আপলোড
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_img_hijab_preview', 'add_img_hijab_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="add_img_hijab_url" placeholder="ইমেজ লিংক দিন বা ফাইল আপলোড করুন..." class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('add_img_hijab_preview').src = this.value || 'https://placehold.co/100x120?text=3.+Hijab'">
+                  </div>
+                </div>
+
+                <!-- 4. Flare -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="add_img_flare_preview" src="https://placehold.co/100x120?text=4.+Flare" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">৪. ঘের ও সাইড অ্যাঙ্গেল</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 ফাইল আপলোড
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_img_flare_preview', 'add_img_flare_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="add_img_flare_url" placeholder="ইমেজ লিংক দিন বা ফাইল আপলোড করুন..." class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('add_img_flare_preview').src = this.value || 'https://placehold.co/100x120?text=4.+Flare'">
+                  </div>
+                </div>
+
+                <!-- 5. Real -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="add_img_real_preview" src="https://placehold.co/100x120?text=5.+Real" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">৫. আনফিল্টার্ড রিয়েল ক্যামেরা ছবি</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 ফাইল আপলোড
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'add_img_real_preview', 'add_img_real_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="add_img_real_url" placeholder="ইমেজ লিংক দিন বা ফাইল আপলোড করুন..." class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('add_img_real_preview').src = this.value || 'https://placehold.co/100x120?text=5.+Real'">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-stone-100 flex items-center justify-end gap-2.5">
+              <button type="button" onclick="closeAddProductModal()" class="px-4 py-2 font-bold text-stone-600 hover:bg-stone-100 rounded-xl text-xs cursor-pointer">বাতিল</button>
+              <button type="submit" id="addProdSubmitBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition cursor-pointer">
+                ✨ প্রোডাক্ট সেভ করুন
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- MODAL 2: EDIT EXISTING PRODUCT MODEL           -->
+      <!-- ============================================== -->
+      <div id="editProductModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+          <div class="p-4 sm:p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
+            <div>
+              <h3 class="font-black text-base text-stone-900 flex items-center gap-2">
+                <span>✏️ প্রোডাক্ট এডিট করুন - </span>
+                <span id="edit_modal_title_code" class="font-mono bg-amber-100 text-amber-950 px-2 py-0.5 rounded border border-amber-300 text-xs">DF-101</span>
+              </h3>
+              <p class="text-xs text-stone-500 font-medium mt-0.5">মডেল কোড, মূল্য, সাইজ ও ছবি পরিবর্তন করুন</p>
+            </div>
+            <button type="button" onclick="closeEditProductModal()" class="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold flex items-center justify-center cursor-pointer">✕</button>
           </div>
-          <div class="text-[11px] text-stone-400 text-center pt-6 border-t border-stone-100">
-            Dawah Fashion বোরকা ক্যাটালগ
-          </div>
+
+          <form onsubmit="saveEditProductLive(event)" class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+            <input type="hidden" id="edit_product_id">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">মডেল কোড (SKU) *</label>
+                <input type="text" id="edit_model_code" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-mono font-bold p-2.5 rounded-xl focus:border-amber-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">প্রোডাক্টের নাম *</label>
+                <input type="text" id="edit_name" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-bold p-2.5 rounded-xl focus:border-amber-500 outline-none">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">বিক্রয় মূল্য (টাকা) *</label>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-extrabold text-amber-900 text-sm">৳</span>
+                  <input type="number" id="edit_price" required class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-bold p-2.5 rounded-xl focus:border-amber-500 outline-none">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">ফেব্রিক / কাপড়</label>
+                <input type="text" id="edit_fabric" class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-medium p-2.5 rounded-xl focus:border-amber-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-700 mb-1">উপলব্ধ ঝুল সাইজ</label>
+                <input type="text" id="edit_sizes" class="w-full bg-[#fcfaf7] border border-stone-300 text-stone-900 text-xs font-medium p-2.5 rounded-xl focus:border-amber-500 outline-none">
+              </div>
+            </div>
+
+            <div class="flex items-center gap-6 p-3 bg-stone-50 rounded-xl border border-stone-200">
+              <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-800">
+                <input type="checkbox" id="edit_hijab_included" class="w-4 h-4 rounded accent-amber-600">
+                <span>ম্যাচিং হিজাব ফ্রি অন্তর্ভুক্ত</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-800">
+                <input type="checkbox" id="edit_in_stock" class="w-4 h-4 rounded accent-emerald-600">
+                <span>বর্তমানে ইন-স্টক (লাইভ সেল)</span>
+              </label>
+            </div>
+
+            <!-- 5 Golden Photos Edit Grid -->
+            <div>
+              <label class="block text-xs font-extrabold text-stone-800 mb-1.5">📸 ৫টি গোল্ডেন অ্যাঙ্গেল ছবি পরিবর্তন / আপলোড:</label>
+              <div class="space-y-2.5">
+                <!-- 1. Main -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="edit_img_main_preview" src="" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">১. মেইন ফ্রন্ট ভিউ ফটো</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 নতুন ছবি দিন
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_main_preview', 'edit_img_main_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="edit_img_main_url" class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('edit_img_main_preview').src = this.value">
+                  </div>
+                </div>
+
+                <!-- 2. Detail -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="edit_img_detail_preview" src="" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">২. কারচুপি / কাজ ক্লোজ-আপ</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 নতুন ছবি দিন
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_detail_preview', 'edit_img_detail_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="edit_img_detail_url" class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('edit_img_detail_preview').src = this.value">
+                  </div>
+                </div>
+
+                <!-- 3. Hijab -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="edit_img_hijab_preview" src="" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">৩. ম্যাচিং হিজাব</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 নতুন ছবি দিন
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_hijab_preview', 'edit_img_hijab_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="edit_img_hijab_url" class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('edit_img_hijab_preview').src = this.value">
+                  </div>
+                </div>
+
+                <!-- 4. Flare -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="edit_img_flare_preview" src="" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">৪. ঘের ও সাইড অ্যাঙ্গেল</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 নতুন ছবি দিন
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_flare_preview', 'edit_img_flare_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="edit_img_flare_url" class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('edit_img_flare_preview').src = this.value">
+                  </div>
+                </div>
+
+                <!-- 5. Real -->
+                <div class="p-2.5 bg-[#fcfaf7] rounded-xl border border-stone-200 flex items-center gap-3">
+                  <img id="edit_img_real_preview" src="" class="w-12 h-14 object-cover rounded-lg border border-stone-300 shadow-2xs">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-black text-stone-800">৫. আনফিল্টার্ড রিয়েল ছবি</span>
+                      <label class="text-[10px] bg-stone-800 hover:bg-black text-white px-2 py-0.5 rounded cursor-pointer font-bold">
+                        📁 নতুন ছবি দিন
+                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'edit_img_real_preview', 'edit_img_real_url')">
+                      </label>
+                    </div>
+                    <input type="text" id="edit_img_real_url" class="w-full bg-white border border-stone-300 text-stone-900 text-[11px] p-1.5 rounded-lg focus:border-amber-500 outline-none" oninput="document.getElementById('edit_img_real_preview').src = this.value">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-stone-100 flex items-center justify-end gap-2.5">
+              <button type="button" onclick="closeEditProductModal()" class="px-4 py-2 font-bold text-stone-600 hover:bg-stone-100 rounded-xl text-xs cursor-pointer">বাতিল</button>
+              <button type="submit" id="editProdSubmitBtn" class="bg-stone-900 hover:bg-black text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition cursor-pointer">
+                💾 আপডেট সেভ করুন
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -1567,6 +2006,402 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         function scrollToSection(id) {
           const el = document.getElementById(id);
           if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ==========================================
+        // Executive Multi-View Tab Switcher
+        // ==========================================
+        function switchMainView(tabName) {
+          const views = {
+            'orders': document.getElementById('ordersSection'),
+            'products': document.getElementById('productsSection'),
+            'bot-test': document.getElementById('botTestSection')
+          };
+          const buttons = {
+            'orders': document.getElementById('main-tab-orders'),
+            'products': document.getElementById('main-tab-products'),
+            'bot-test': document.getElementById('main-tab-bot-test')
+          };
+
+          for (const key in views) {
+            if (views[key]) {
+              if (key === tabName) {
+                views[key].classList.remove('hidden');
+              } else {
+                views[key].classList.add('hidden');
+              }
+            }
+            if (buttons[key]) {
+              if (key === tabName) {
+                buttons[key].className = 'main-tab-btn px-4 py-2.5 rounded-2xl bg-stone-900 text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-xs whitespace-nowrap';
+              } else {
+                buttons[key].className = 'main-tab-btn px-4 py-2.5 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:text-stone-900 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-xs whitespace-nowrap';
+              }
+            }
+          }
+          if (window.location.hash !== '#' + tabName) {
+            history.replaceState(null, null, '#' + tabName);
+          }
+        }
+
+        // On Page Load: check URL hash
+        window.addEventListener('DOMContentLoaded', () => {
+          const hash = window.location.hash.replace('#', '');
+          if (hash === 'products' || hash === 'bot-test') {
+            switchMainView(hash);
+          } else {
+            switchMainView('orders');
+          }
+        });
+
+        // ==========================================
+        // Product Management (Add, Edit, Stock, Delete, Upload)
+        // ==========================================
+        function openAddProductModal() {
+          document.getElementById('addProductModal').classList.remove('hidden');
+        }
+        function closeAddProductModal() {
+          document.getElementById('addProductModal').classList.add('hidden');
+        }
+
+        function openEditProductModal(id, code, name, price, fabric, sizes, hijab, stock, imgMain, imgDetail, imgHijab, imgFlare, imgReal) {
+          document.getElementById('edit_product_id').value = id;
+          document.getElementById('edit_modal_title_code').innerText = code;
+          document.getElementById('edit_model_code').value = code;
+          document.getElementById('edit_name').value = name;
+          document.getElementById('edit_price').value = price;
+          document.getElementById('edit_fabric').value = fabric || 'দুবাই চেরি';
+          document.getElementById('edit_sizes').value = sizes || '৫০, ৫২, ৫৪, ৫৬';
+          document.getElementById('edit_hijab_included').checked = (hijab === true || hijab === 'true');
+          document.getElementById('edit_in_stock').checked = (stock === true || stock === 'true');
+
+          document.getElementById('edit_img_main_url').value = imgMain || '';
+          document.getElementById('edit_img_main_preview').src = imgMain || 'https://placehold.co/100x120?text=1.+Main';
+
+          document.getElementById('edit_img_detail_url').value = imgDetail || '';
+          document.getElementById('edit_img_detail_preview').src = imgDetail || 'https://placehold.co/100x120?text=2.+Work';
+
+          document.getElementById('edit_img_hijab_url').value = imgHijab || '';
+          document.getElementById('edit_img_hijab_preview').src = imgHijab || 'https://placehold.co/100x120?text=3.+Hijab';
+
+          document.getElementById('edit_img_flare_url').value = imgFlare || '';
+          document.getElementById('edit_img_flare_preview').src = imgFlare || 'https://placehold.co/100x120?text=4.+Flare';
+
+          document.getElementById('edit_img_real_url').value = imgReal || '';
+          document.getElementById('edit_img_real_preview').src = imgReal || 'https://placehold.co/100x120?text=5.+Real';
+
+          document.getElementById('editProductModal').classList.remove('hidden');
+        }
+
+        function closeEditProductModal() {
+          document.getElementById('editProductModal').classList.add('hidden');
+        }
+
+        async function handleImageUpload(inputElem, previewImgId, urlInputId) {
+          const file = inputElem.files[0];
+          if (!file) return;
+
+          showToast('⏳ ছবি আপলোড হচ্ছে...');
+          const reader = new FileReader();
+          reader.onload = async function(e) {
+            const base64 = e.target.result;
+            try {
+              const res = await fetch('/api/upload-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  imageBase64: base64,
+                  filename: file.name,
+                  contentType: file.type
+                })
+              });
+              const data = await res.json();
+              if (data.success && data.url) {
+                document.getElementById(urlInputId).value = data.url;
+                document.getElementById(previewImgId).src = data.url;
+                showToast('📸 ছবি সফলভাবে আপলোড হয়েছে!');
+              } else {
+                alert('আপলোড ব্যর্থ: ' + (data.error || 'অজানা ত্রুটি'));
+              }
+            } catch (err) {
+              alert('আপলোড এরর: ' + err.message);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+
+        async function saveNewProductLive(e) {
+          e.preventDefault();
+          const btn = document.getElementById('addProdSubmitBtn');
+          btn.innerText = 'সেভ হচ্ছে...';
+          btn.disabled = true;
+
+          const payload = {
+            model_code: document.getElementById('add_model_code').value,
+            name: document.getElementById('add_name').value,
+            price: document.getElementById('add_price').value,
+            fabric: document.getElementById('add_fabric').value,
+            sizes: document.getElementById('add_sizes').value,
+            hijab_included: document.getElementById('add_hijab_included').checked,
+            in_stock: document.getElementById('add_in_stock').checked,
+            image_url: document.getElementById('add_img_main_url').value,
+            detail_image_url: document.getElementById('add_img_detail_url').value,
+            hijab_image_url: document.getElementById('add_img_hijab_url').value,
+            flare_image_url: document.getElementById('add_img_flare_url').value,
+            real_image_url: document.getElementById('add_img_real_url').value,
+            ajax: true
+          };
+
+          try {
+            const res = await fetch('/api/add-product', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('✨ নতুন প্রোডাক্ট সফলভাবে সেভ হয়েছে!');
+              closeAddProductModal();
+              setTimeout(() => {
+                window.location.hash = 'products';
+                window.location.reload();
+              }, 600);
+            } else {
+              alert('প্রোডাক্ট সেভ হয়নি: ' + (data.error || 'ত্রুটি'));
+            }
+          } catch (err) {
+            alert('কানেকশন সমস্যা: ' + err.message);
+          } finally {
+            btn.innerText = '✨ প্রোডাক্ট সেভ করুন';
+            btn.disabled = false;
+          }
+        }
+
+        async function saveEditProductLive(e) {
+          e.preventDefault();
+          const id = document.getElementById('edit_product_id').value;
+          const btn = document.getElementById('editProdSubmitBtn');
+          btn.innerText = 'আপডেট হচ্ছে...';
+          btn.disabled = true;
+
+          const payload = {
+            model_code: document.getElementById('edit_model_code').value,
+            name: document.getElementById('edit_name').value,
+            price: document.getElementById('edit_price').value,
+            fabric: document.getElementById('edit_fabric').value,
+            sizes: document.getElementById('edit_sizes').value,
+            hijab_included: document.getElementById('edit_hijab_included').checked,
+            in_stock: document.getElementById('edit_in_stock').checked,
+            image_url: document.getElementById('edit_img_main_url').value,
+            detail_image_url: document.getElementById('edit_img_detail_url').value,
+            hijab_image_url: document.getElementById('edit_img_hijab_url').value,
+            flare_image_url: document.getElementById('edit_img_flare_url').value,
+            real_image_url: document.getElementById('edit_img_real_url').value,
+            ajax: true
+          };
+
+          try {
+            const res = await fetch('/api/products/' + id + '/update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('💾 প্রোডাক্ট তথ্য সফলভাবে আপডেট হয়েছে!');
+              closeEditProductModal();
+              setTimeout(() => {
+                window.location.hash = 'products';
+                window.location.reload();
+              }, 600);
+            } else {
+              alert('আপডেট হয়নি: ' + (data.error || 'ত্রুটি'));
+            }
+          } catch (err) {
+            alert('কানেকশন সমস্যা: ' + err.message);
+          } finally {
+            btn.innerText = '💾 আপডেট সেভ করুন';
+            btn.disabled = false;
+          }
+        }
+
+        async function toggleStockLive(id, newStockStatus, btnElem) {
+          try {
+            const res = await fetch('/api/products/' + id + '/toggle-stock', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ in_stock: newStockStatus, ajax: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              const inStock = data.in_stock;
+              btnElem.innerText = inStock ? '● In Stock' : '○ Stock Out';
+              btnElem.className = 'text-[10px] font-black cursor-pointer px-2 py-0.5 rounded-full border transition ' + 
+                (inStock ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100' : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100');
+              btnElem.setAttribute('onclick', 'toggleStockLive(' + id + ', ' + (!inStock) + ', this)');
+              showToast('📦 স্টক স্ট্যাটাস আপডেট হয়েছে: ' + (inStock ? 'In Stock' : 'Stock Out'));
+            }
+          } catch (e) {
+            alert('স্টক আপডেট এরর: ' + e.message);
+          }
+        }
+
+        async function deleteProductLive(id, modelCode) {
+          if (!confirm('আপনি কি নিশ্চিত যে ' + modelCode + ' প্রোডাক্টটি সম্পূর্ণ মুছে ফেলতে চান?')) return;
+          try {
+            const res = await fetch('/api/products/' + id + '/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ ajax: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('🗑️ ' + modelCode + ' প্রোডাক্টটি মুছে ফেলা হয়েছে');
+              const card = document.querySelector('[data-product-id="' + id + '"]');
+              if (card) {
+                card.style.opacity = '0';
+                setTimeout(() => card.remove(), 300);
+              }
+            }
+          } catch (e) {
+            alert('ডিলিট ব্যর্থ: ' + e.message);
+          }
+        }
+
+        function filterProducts() {
+          const q = (document.getElementById('productSearchInput')?.value || '').toLowerCase().trim();
+          document.querySelectorAll('.product-item-card').forEach(card => {
+            const s = card.getAttribute('data-search') || '';
+            card.style.display = (!q || s.includes(q)) ? '' : 'none';
+          });
+        }
+
+        function filterProductsStock(type) {
+          document.querySelectorAll('.prod-filter-btn').forEach(b => {
+            b.className = 'prod-filter-btn px-3 py-1 rounded-xl bg-[#fcfaf7] border border-stone-300 text-stone-700 cursor-pointer';
+          });
+          const btnMap = { 'ALL': 'prod-filter-all', 'IN_STOCK': 'prod-filter-instock', 'STOCK_OUT': 'prod-filter-out' };
+          const activeBtn = document.getElementById(btnMap[type]);
+          if (activeBtn) activeBtn.className = 'prod-filter-btn px-3 py-1 rounded-xl bg-stone-900 text-white cursor-pointer';
+
+          document.querySelectorAll('.product-item-card').forEach(card => {
+            const isStock = card.innerText.includes('In Stock');
+            if (type === 'ALL') card.style.display = '';
+            else if (type === 'IN_STOCK') card.style.display = isStock ? '' : 'none';
+            else if (type === 'STOCK_OUT') card.style.display = !isStock ? '' : 'none';
+          });
+        }
+
+        // ==========================================
+        // Live AI Bot Simulator / Tuning Bench
+        // ==========================================
+        function clearTestChat() {
+          const body = document.getElementById('simulatorChatBody');
+          body.innerHTML = '<div class="flex justify-start">' +
+            '<div class="max-w-[85%] bg-white p-3.5 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-800 text-xs leading-relaxed">' +
+            '🌸 আসসালামু আলাইকুম! এটি দাওয়াহ ফ্যাশন এআই সেলস টেস্ট বেঞ্চ। নিচে যেকোনো প্রশ্ন লিখুন বা বাঁ পাশের প্রিসেট থেকে সিলেক্ট করে টেস্ট করুন।' +
+            '</div></div>';
+          document.getElementById('simulatorLatencyBadge').classList.add('hidden');
+        }
+
+        function runPresetQuery(text) {
+          document.getElementById('simulatorInput').value = text;
+          sendSimulatorMessage(text);
+        }
+
+        function handleSimulatorSubmit(e) {
+          e.preventDefault();
+          const input = document.getElementById('simulatorInput');
+          const val = input.value.trim();
+          if (!val) return;
+          sendSimulatorMessage(val);
+          input.value = '';
+        }
+
+        async function sendSimulatorMessage(text) {
+          const chatBody = document.getElementById('simulatorChatBody');
+          const sendBtn = document.getElementById('simulatorSendBtn');
+          const latencyBadge = document.getElementById('simulatorLatencyBadge');
+
+          // Append User Message Bubble
+          const userBubble = document.createElement('div');
+          userBubble.className = 'flex justify-end';
+          userBubble.innerHTML = '<div class="max-w-[80%] bg-emerald-700 text-white p-3 rounded-2xl rounded-tr-none shadow-xs text-xs leading-relaxed font-medium">' +
+            text.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+            '</div>';
+          chatBody.appendChild(userBubble);
+          chatBody.scrollTop = chatBody.scrollHeight;
+
+          // Append Typing Placeholder
+          const typingBubble = document.createElement('div');
+          typingBubble.className = 'flex justify-start typing-indicator-item';
+          typingBubble.innerHTML = '<div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-400 text-xs flex items-center gap-1.5 font-bold">' +
+            '<span class="w-2 h-2 rounded-full bg-stone-400 animate-bounce"></span>' +
+            '<span class="w-2 h-2 rounded-full bg-stone-400 animate-bounce" style="animation-delay: 0.15s"></span>' +
+            '<span class="w-2 h-2 rounded-full bg-stone-400 animate-bounce" style="animation-delay: 0.3s"></span>' +
+            '<span class="ml-1 text-[11px]">AI টাইপ করছে...</span>' +
+            '</div>';
+          chatBody.appendChild(typingBubble);
+          chatBody.scrollTop = chatBody.scrollHeight;
+
+          sendBtn.disabled = true;
+
+          try {
+            const res = await fetch('/api/test-bot', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: text })
+            });
+            const data = await res.json();
+            typingBubble.remove();
+
+            if (data.success) {
+              // Update Latency Badge
+              latencyBadge.classList.remove('hidden');
+              latencyBadge.innerText = (data.isFastPath ? '⚡ ' : '🤖 ') + data.latencyMs + 'ms ' + (data.isFastPath ? 'Fast-Path' : 'Groq');
+
+              // Render Bot Reply
+              const botBubble = document.createElement('div');
+              botBubble.className = 'flex flex-col items-start space-y-2';
+
+              let photosHtml = '';
+              if (data.photos && data.photos.length > 0) {
+                photosHtml = '<div class="flex gap-2 overflow-x-auto max-w-full pb-1 pt-1">';
+                data.photos.forEach(function(ph) {
+                  photosHtml += '<div class="bg-white rounded-xl border border-amber-300 p-1.5 shadow-xs flex-shrink-0 cursor-pointer" onclick="openLightbox(\'' + ph.url + '\', \'' + ph.modelCode + ' - ' + ph.label + '\')">' +
+                    '<img src="' + ph.url + '" class="w-20 h-24 object-cover rounded-lg shadow-2xs">' +
+                    '<div class="text-[9px] font-black text-stone-900 mt-1 text-center font-mono">' + ph.modelCode + '</div>' +
+                    '<div class="text-[8px] text-amber-800 font-bold text-center">' + ph.label + '</div>' +
+                    '</div>';
+                });
+                photosHtml += '</div>';
+              }
+
+              botBubble.innerHTML = '<div class="max-w-[85%] bg-white p-3.5 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-800 text-xs leading-relaxed whitespace-pre-line">' +
+                data.reply.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                '</div>' +
+                photosHtml +
+                '<div class="text-[9px] text-stone-400 font-mono pl-1">' +
+                data.latencyMs + 'ms • Dawah AI Fast-Engine' +
+                '</div>';
+
+              chatBody.appendChild(botBubble);
+            } else {
+              const errBubble = document.createElement('div');
+              errBubble.className = 'flex justify-start';
+              errBubble.innerHTML = '<div class="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs font-bold">⚠️ ' + (data.error || 'এরর হয়েছে') + '</div>';
+              chatBody.appendChild(errBubble);
+            }
+          } catch (err) {
+            typingBubble.remove();
+            const errBubble = document.createElement('div');
+            errBubble.className = 'flex justify-start';
+            errBubble.innerHTML = '<div class="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs font-bold">⚠️ কানেকশন সমস্যা: ' + err.message + '</div>';
+            chatBody.appendChild(errBubble);
+          } finally {
+            sendBtn.disabled = false;
+            chatBody.scrollTop = chatBody.scrollHeight;
+          }
         }
 
         // Lightbox helper

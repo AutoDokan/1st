@@ -98,8 +98,40 @@ const conversationMemory = new Map();
 
 // Intent, Color, and Model Matchers
 function detectModelFromText(text) {
-  const t = (text || '').toLowerCase();
-  // Direct model code or keywords
+  const t = (text || '').toLowerCase().trim();
+  if (!t) return null;
+
+  // 1. Dynamic Check against all loaded products in cachedProductList
+  if (Array.isArray(cachedProductList)) {
+    for (const p of cachedProductList) {
+      if (p.model_code) {
+        const codeClean = p.model_code.toLowerCase().trim(); // e.g. "df-101"
+        const numPart = codeClean.replace(/[^0-9]/g, ''); // e.g. "101"
+        
+        // Match code with space or hyphen (e.g. "df-101", "df 101", "df101")
+        const codeRegex = new RegExp(`(?:^|\\s|[^\w])${codeClean.replace('-', '[ -]?')}(?:$|\\s|[^\w])`, 'i');
+        if (codeRegex.test(t)) return p.model_code.toUpperCase().trim();
+
+        // Match number if at least 3 digits (e.g. \b101\b)
+        if (numPart && numPart.length >= 3) {
+          const numRegex = new RegExp(`(?:^|\\s|[^\w])${numPart}(?:$|\\s|[^\w])`, 'i');
+          if (numRegex.test(t)) return p.model_code.toUpperCase().trim();
+        }
+
+        // Match distinct product name keywords (e.g. "রানি" for Rani Abaya)
+        if (p.name) {
+          const nameTokens = p.name.split(/\s+/).filter(w => w.length > 2 && !['বোরকা', 'আবায়া', 'সেট', 'প্রিমিয়াম', 'এক্সক্লুসিভ', 'কাপড়', 'কালেকশন'].includes(w));
+          for (const token of nameTokens) {
+            if (t.includes(token.toLowerCase())) {
+              return p.model_code.toUpperCase().trim();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Specific Fallbacks for historical keywords & aliases:
   if (/df-?101|\b101\b|কারচুপি|karchupi|কোটি|koti/i.test(t)) return 'DF-101';
   if (/df-?102|\b102\b|রানি|rani/i.test(t)) return 'DF-102';
   if (/df-?103|\b103\b|কাফতান|kaftan|কোরিয়ান|korian|korean|ceri/i.test(t)) return 'DF-103';
@@ -107,7 +139,7 @@ function detectModelFromText(text) {
   if (/df-?105|\b105\b|বাটারফ্লাই|butterfly/i.test(t)) return 'DF-105';
   if (/df-?106|\b106\b|ডাবল লেয়ার|double layer/i.test(t)) return 'DF-106';
 
-  // Ordinal numbering from catalog lists (e.g. "4 number er pic daw", "৩ নাম্বারটা দেখান", "১ নং এর ছবি")
+  // 3. Ordinal numbering from catalog lists
   if (/(?:^|\s|[^\w])(?:১|1)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-101';
   if (/(?:^|\s|[^\w])(?:২|2)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-102';
   if (/(?:^|\s|[^\w])(?:৩|3)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-103';
