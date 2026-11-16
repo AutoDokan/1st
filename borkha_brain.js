@@ -294,14 +294,14 @@ function isAskingForCatalogOverview(text) {
   // If a specific model is named or inferred, it is not a general catalog overview
   if (detectModelFromText(t)) return false;
 
-  // Broad recognition of customer asking to see pictures / collection / designs without picking a model
-  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|ক্যাটালগ|catalog|কালেকশন|collection|ডিজাইন|design|বোরকাগুলো|আবায়াগুলো|সবগুলো|কি কি\s*(বোরকা|ডিজাইন|মডেল|কালেকশন|পোশাক|আছে)|দেখান|পাঠান|দেখব|দেখতে\s*চাই/i.test(t);
+  // Broad recognition of customer asking to see pictures / collection / designs / models without picking a specific model
+  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|ক্যাটালগ|catalog|কালেকশন|collection|ডিজাইন|design|বোরকাগুলো|আবায়াগুলো|সবগুলো|কি কি\s*(বোরকা|ডিজাইন|মডেল|কালেকশন|পোশাক|আছে)|দেখান|পাঠান|দেখব|দেখতে\s*চাই|মডেল|model|mode\b|দেখাও|dekhaw|dekhan|dekhale|dekhi/i.test(t);
 }
 
 function isAskingForImage(text) {
   const t = (text || '').toLowerCase();
   if (isPureQuestion(text)) return false;
-  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|দেখান|দেখাও|দেখব|দেখি|দেখতে\s*চাই|পাঠান|পাঠাও/i.test(t);
+  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|দেখান|দেখাও|দেখব|দেখি|দেখতে\s*চাই|পাঠান|পাঠাও|dekhaw|dekhan|dekhi|pathan|pathaw/i.test(t);
 }
 
 function isAskingForHijab(text) {
@@ -1065,9 +1065,9 @@ function generateSmartFallback(userText, isFirstMessage = false, conversationHis
   if (fast) return fast;
 
   if (isFirstMessage) {
-    return 'আসসালামু আলাইকুম! Dawah Fashion-এ আপনাকে স্বাগতম। 😊 কীভাবে সাহায্য করতে পারি বলুন? আমাদের রানিং কালেকশনের বোরকাগুলো দেখতে চাচ্ছেন নাকি কোনো নির্দিষ্ট ডিজাইন বা সাইজ খুঁজছেন?';
+    return 'আসসালামু আলাইকুম! Dawah Fashion-এ আপনাকে স্বাগতম। কীভাবে সাহায্য করতে পারি বলুন? আমাদের রানিং কালেকশনের বোরকাগুলো দেখতে চাচ্ছেন নাকি কোনো নির্দিষ্ট ডিজাইন বা সাইজ খুঁজছেন?';
   }
-  return 'জি, বলুন কীভাবে সহযোগিতা করতে পারি? আপনি আমাদের কোনো নির্দিষ্ট বোরকার ছবি, সাইজ বা প্রাইজ সম্পর্কে জানতে চাচ্ছেন কি? 😊';
+  return 'জি, বলুন কীভাবে সহযোগিতা করতে পারি? আপনি আমাদের কোনো নির্দিষ্ট বোরকার ছবি, সাইজ বা প্রাইজ সম্পর্কে জানতে চাচ্ছেন কি?';
 }
 
 async function callGroqWithFallback(messages, isFirstMessage = false, userText = '') {
@@ -1082,9 +1082,9 @@ async function callGroqWithFallback(messages, isFirstMessage = false, userText =
   ];
 
   const candidateModels = [
-    'llama-3.1-8b-instant',
-    'llama-3.3-70b-versatile',
-    'mixtral-8x7b-32768'
+    'openai/gpt-oss-120b',
+    'qwen/qwen3.8-27b',
+    'openai/gpt-oss-20b'
   ];
 
   for (let clientIdx = 0; clientIdx < groqClients.length; clientIdx++) {
@@ -1146,7 +1146,7 @@ JSON Format:
 
     const activeClient = groqClients[0];
     const completion = await activeClient.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'openai/gpt-oss-120b',
       messages: [{ role: 'user', content: extractPrompt }],
       response_format: { type: 'json_object' },
       temperature: 0.1,
