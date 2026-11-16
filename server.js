@@ -3083,39 +3083,11 @@ async function processBufferedUserMessages(remoteJid) {
     }
 
         function buildSingleProductCaption(p) {
-      const store = (typeof getStoreSettings === 'function') ? getStoreSettings() : {};
-      const insideFee = store.inside_dhaka_fee || 80;
-      const outsideFee = store.outside_dhaka_fee || 150;
-      const hijabText = p.hijab_included ? 'ম্যাচিং হিজাব একদম ফ্রি' : 'হিজাব আলাদা';
-
-      return `👗 *${p.name}* (${p.model_code || 'DF-101'})
-💰 প্রাইজ: *৳${p.price}* টাকা (${hijabText})
-✨ ফেব্রিক: ${p.fabric || 'প্রিমিয়াম দুবাই চেরি'}
-📏 সাইজ (ঝুল): ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'} (বডি ফ্রি সাইজ)
-──────────
-🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳${insideFee}, ঢাকার বাইরে ৳${outsideFee}
-📦 সম্পূর্ণ ক্যাশ অন ডেলিভারি (পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে চেক করে নিতে পারবেন)।
-
-✨ এই মডেলটির হিজাব, কাজের ক্লোজ-আপ বা ঘেরের আরও ছবি দেখতে চাইলে লিখে জানাতে পারেন। আর অর্ডার করতে চাইলে আপনার সাইজ ও ঠিকানা পাঠিয়ে দিন!`;
+      return `👗 *${p.name}* (${p.model_code || 'DF-101'})`;
     }
 
     function buildProductAlbumCaption(p) {
-      const store = (typeof getStoreSettings === 'function') ? getStoreSettings() : {};
-      const insideFee = store.inside_dhaka_fee || 80;
-      const outsideFee = store.outside_dhaka_fee || 150;
-      const hijabText = p.hijab_included ? 'ম্যাচিং হিজাব একদম ফ্রি' : 'হিজাব আলাদা';
-
-      return `👗 *${p.name}* (${p.model_code || 'DF-101'})
-──────────
-💰 প্রাইজ: *৳${p.price}* টাকা (${hijabText})
-✨ ফেব্রিক: ${p.fabric || 'প্রিমিয়াম দুবাই চেরি'}
-📏 সাইজ (ঝুল): ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'} (বডি ফ্রি সাইজ)
-🪡 কাজ: হাতা ও কটিতে নিখুঁত কারচুপির হ্যান্ডওয়ার্ক
-──────────
-🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳${insideFee}, ঢাকার বাইরে ৳${outsideFee}
-📦 সম্পূর্ণ ক্যাশ অন ডেলিভারি (পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে চেক করে নিতে পারবেন)।
-
-🛍️ অর্ডার করতে চাইলে আপনার পছন্দের *সাইজ, নাম, সম্পূর্ণ ঠিকানা (গ্রাম/এলাকা, থানা, জেলা) ও মোবাইল নাম্বার* লিখে জানিয়ে দিন।`;
+      return `👗 *${p.name}* (${p.model_code || 'DF-101'})`;
     }
 
     async function sendProductAlbum(p) {
@@ -3167,33 +3139,13 @@ async function processBufferedUserMessages(remoteJid) {
       }
     }
 
-    // Helper to send Catalog Overview (Sends only 1 main overview photo with collection summary)
+    // Helper to send Catalog Overview (Sends only 1 main overview photo with title only)
     async function sendCatalogOverview() {
       if (!sock) return false;
       try {
         const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
         const p = allProds[0];
         if (!p || !p.image_url) return false;
-
-        const store = (typeof getStoreSettings === 'function') ? getStoreSettings() : {};
-        const insideFee = store.inside_dhaka_fee || 80;
-        const outsideFee = store.outside_dhaka_fee || 150;
-
-        const masterCaption = `✨ *দাওয়া ফ্যাশন — এক্সক্লুসিভ কালেকশন* ✨
-────────────────────
-আমাদের টপ-সেলিং মডেলের মূল ছবি উপরে দেওয়া হয়েছে।
-
-১. *DF-101*: রয়াল ব্ল্যাক দুবাই চেরি কোটি আবায়া (৳২,৪৫০)
-২. *DF-102*: অলিভ গ্রিন এলিগ্যান্ট বোরকা (৳২,২০০)
-৩. *DF-103*: সি-গ্রিন কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
-৪. *DF-104*: নেভি ব্লু এ-লাইন ক্যাজুয়াল আবায়া (৳১,৬৫০)
-৫. *DF-105*: মেরুন এক্সক্লুসিভ বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
-────────────────────
-✨ প্রতিটির সাথে ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি!
-🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee}, বাইরে ৳${outsideFee}
-📦 সম্পূর্ণ ক্যাশ অন ডেলিভারি (পার্সেল দেখে নেওয়ার সুবিধা)।
-
-👉 আপনার পছন্দের মডেল কোড বা নম্বর লিখে জানালে (যেমন: *DF-102* বা *২ নম্বর*), সেটির সমস্ত ছবি (কাজের ক্লোজ-আপ, হিজাব, ঘের ও রিয়েল ছবি) এবং সাইজ বিস্তারিত পাঠিয়ে দেব! 💖`;
 
         let imagePayload;
         const urlPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '');
@@ -3206,7 +3158,7 @@ async function processBufferedUserMessages(remoteJid) {
 
         await sock.sendMessage(remoteJid, {
           image: imagePayload,
-          caption: masterCaption
+          caption: buildSingleProductCaption(p)
         });
         incrementStats('messages_out');
         await sock.sendPresenceUpdate('available', remoteJid);

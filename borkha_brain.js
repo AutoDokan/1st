@@ -745,26 +745,31 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     }
   }
 
-  // 4c. Pure Pricing & "Pp" rapid handling
-  if (/(?:\bpp\b|\bprice\b|দাম কত|koto dam|dam koto|price please|প্রাইজ কত|মূল্য কত)/i.test(t)) {
-    const code = detectModelFromText(t);
+  // 4c. Price & Details Inquiry (Stage 3 of the Funnel)
+  if (/(?:\bpp\b|\bprice\b|দাম কত|koto dam|dam koto|price please|প্রাইজ কত|মূল্য কত|দাম|প্রাইজ|মূল্য|rate|cost|কত\s*টাকা|details|বিস্তারিত)/i.test(t)) {
+    const code = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : null);
     if (code) {
       const prod = getProductByCode(code);
       if (prod) {
-        return `${greeting}${prod.name} (${code}) এর ফিক্সড মূল্য *৳${prod.price}* টাকা। সাথে আকর্ষণীয় ম্যাচিং প্রিমিয়াম হিজাব সম্পূর্ণ ফ্রি পাচ্ছেন এবং ডেলিভারি ম্যানের সামনে দেখে বুঝে নেওয়ার শতভাগ সুবিধা রয়েছে। আপনার উচ্চতা জানালে পারফেক্ট ঝুল সাইজটি বলে দেব। [SEND_IMAGE:${code}]`;
-      }
-    }
-    return `${greeting}আমাদের কালেকশনের সেরা ৫টি এক্সক্লুসিভ বোরকা ও আবায়ার মূল্য মডেলভেদে ৳১,৬৫০ থেকে ৳২,৪৫০ টাকা পর্যন্ত (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। আপনি কোন মডেলটির ছবি বা বিস্তারিত দেখতে চাচ্ছেন জানালে পাঠিয়ে দিচ্ছি। 😊`;
-  }
+        return `${greeting}👗 *${prod.name}* (${prod.model_code})
+💰 প্রাইজ: *৳${prod.price}* টাকা (ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি)
+✨ ফেব্রিক: ${prod.fabric || '১০০% অরিজিনাল প্রিমিয়াম দুবাই চেরি'}
+📏 সাইজ (ঝুল): ৫০, ৫২, ৫৪, ৫৬ (বডি মার্জিত ঢিলেঢালা ফ্রি সাইজ)
+🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee} (পার্সেল হাতে পেয়ে খুলে দেখে নেওয়ার ১০০% সুযোগ)।
 
-  if (/দাম কত|প্রাইজ কত|price koto|dam koto|মূল্য কত/i.test(t)) {
-    const code = detectModelFromText(t);
-    if (code) {
-      const prod = getProductByCode(code);
-      if (prod) {
-        return `${greeting}${prod.name} (${code}) এর ফিক্সড মূল্য *৳${prod.price}* টাকা। সাথে আকর্ষণীয় ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি পাচ্ছেন! ${code} এর ছবি দেখতে চাইলে লিখে জানান।`;
+👉 অর্ডার করতে চাইলে আপনার পছন্দের সাইজ বা উচ্চতা এবং ডেলিভারির ঠিকানা লিখে জানিয়ে দিন, আমরা কনফার্ম করে দেব।`;
       }
     }
+    // If asking about price without choosing any specific model yet:
+    return `${greeting}আমাদের রানিং ৫টি প্রিমিয়াম মডেলের প্রাইজ তালিকা নিচে দেওয়া হলো (প্রতিটির সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি):
+
+১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট — ৳২,৪৫০
+২. DF-102: দুবাই চেরি রানি আবায়া — ৳২,২০০
+৩. DF-103: কোরিয়ান চেরি ক্যাজুয়াল কাফতান আবায়া — ৳১,৯৫০
+৪. DF-104: লাক্সারি কারচুপি কাফতান সেট — ৳১,৬৫০
+৫. DF-105: গর্জিয়াস দুবাই ফ্রন্ট ওপেন আবায়া — ৳২,২০০
+
+আপনার কোন মডেলটি পছন্দ হয়েছে বলুন তো?`;
   }
 
   // 4d. "Catalogue vs Real" Trust Shield
@@ -987,33 +992,20 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     return `${greeting}${name} (${code}) এর চমৎকার ঘের ও সাইড অ্যাঙ্গেলের ছবি নিচে দেওয়া হলো [SEND_FLARE_IMAGE:${code}]`;
   }
 
-  // 8. Specific model selected or requested (by code, number, ordinal, color, or keyword)
+  // 8. Specific model selected or requested (Stage 2 of the Funnel: send remaining images, no details/price dump)
   const selectedCode = detectModelFromText(t);
   if (selectedCode) {
     const prod = getProductByCode(selectedCode);
     if (prod) {
-      return `${greeting}অবশ্যই! আপনি ${prod.name} (${prod.model_code}) পছন্দ করেছেন। নিচে এই মডেলটির সব অ্যাঙ্গেলের ছবি (কাজের নিখুঁত ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের ও রিয়েল ভিউ) পাঠিয়ে দেওয়া হলো। [SEND_ALL_IMAGES:${prod.model_code}]
+      return `${greeting}অবশ্যই! আপনি ${prod.name} (${prod.model_code}) পছন্দ করেছেন। নিচে এর নিখুঁত কারচুপি কাজ, ম্যাচিং হিজাব, ঘের ও রিয়েল ছবিগুলো দেওয়া হলো [SEND_ALL_IMAGES:${prod.model_code}]।
 
-💰 প্রাইজ: ৳${prod.price} টাকা (ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি)
-✨ ফেব্রিক: ${prod.fabric || '১০০% অরিজিনাল প্রিমিয়াম দুবাই চেরি'}
-📏 সাইজ (ঝুল): ৫০, ৫২, ৫৪, ৫৬ (বডি মার্জিত ঢিলেঢালা ফ্রি সাইজ)
-🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee} (পার্সেল হাতে পেয়ে খুলে দেখে নেওয়ার ১০০% সুযোগ)।
-
-👉 অর্ডার করতে চাইলে আপনার পছন্দের সাইজ বা উচ্চতা এবং ডেলিভারির ঠিকানা লিখে জানিয়ে দিন, আমরা কনফার্ম করে দেব।`;
+ডিজাইনটি কেমন লেগেছে? এটার প্রাইজ বা সাইজ বিস্তারিত জানতে চাইলে লিখে জানাতে পারেন।`;
     }
   }
 
-  // 9. General photo / collection inquiry when no specific model is selected -> SEND ONLY 1 MAIN OVERVIEW PIC!
+  // 9. General photo / collection inquiry when no specific model is selected (Stage 1 of the Funnel: send ONLY 1 main image, no details)
   if (isAskingForCatalogOverview(t) || isAskingForImage(t)) {
-    return `${greeting}আমাদের রানিং ৫টি প্রিমিয়াম হট-সেলিং আবায়া ও বোরকার তালিকা নিচে দেওয়া হলো (প্রতিটির সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি) [SEND_IMAGE:DF-101]:
-
-১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট (৳২,৪৫০)
-২. DF-102: দুবাই চেরি রানি আবায়া (৳২,২০০)
-৩. DF-103: কোরিয়ান চেরি ক্যাজুয়াল কাফতান আবায়া (৳১,৯৫০)
-৪. DF-104: লাক্সারি কারচুপি কাফতান সেট (৳১,৯৫০)
-৫. DF-105: গর্জিয়াস দুবাই ফ্রন্ট ওপেন আবায়া (৳২,২০০)
-
-✨ আমাদের টপ-সেলিং মডেলের মূল ছবি উপরে দেওয়া হয়েছে। আপনার যে মডেলটি পছন্দ হয়, সেটির নাম বা নম্বর লিখে জানালে (যেমন: "DF-102", "২ নম্বর" বা "রানি আবায়া") সেটির সব অ্যাঙ্গেলের ছবি (কাজের ক্লোজ-আপ, হিজাব, ঘের ও রিয়েল ছবি) এবং সাইজ বিস্তারিত পাঠিয়ে দেব।`;
+    return `${greeting}আমাদের রানিং কালেকশনের মূল ডিজাইনটি উপরে দেওয়া হলো [SEND_IMAGE:DF-101]। আপনার কোন ডিজাইন বা কালারটি পছন্দ বলুন তো?`;
   }
 
   // 9b. Customer asking about checking in front of delivery man / Opening parcel / Return policy

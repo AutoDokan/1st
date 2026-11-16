@@ -68,28 +68,33 @@ async function runRegressionSuite() {
   const mem = await handleIncomingMessage('unit_user_mem', '🛒 অর্ডার কনফার্ম করতে চাই');
   assert(mem.includes('DF-102'), 'Bot remembers user selected DF-102 in follow-up', mem);
 
-  // TEST 13: General Catalog Inquiry sends ONLY 1 main overview photo
+  // TEST 13: Funnel Stage 1 - Initial Browse sends ONLY 1 main image, ZERO details dumped
   const catReply = await handleIncomingMessage('unit_user_cat', 'Sob mode dekhaw');
-  assert(catReply.includes('[SEND_IMAGE:DF-101]') && !catReply.includes('[SEND_CATALOG_OVERVIEW]') && catReply.includes('DF-101') && catReply.includes('DF-105'), 
-    'General catalog inquiry sends list and ONLY 1 main photo', catReply);
+  assert(catReply.includes('[SEND_IMAGE:DF-101]') && !catReply.includes('৳') && !catReply.includes('প্রাইজ:'), 
+    'Stage 1: Initial catalog browse sends ONLY 1 main image with NO details/prices', catReply);
 
-  // TEST 14: Specific Model by Name/Code/Number sends ALL pictures of that model
+  // TEST 14: Funnel Stage 2 - Model selection sends remaining album images, NO price dumped yet
   const modelReply1 = await handleIncomingMessage('unit_user_mod1', 'DF-102 দেখাও');
-  assert(modelReply1.includes('[SEND_ALL_IMAGES:DF-102]'), 'Requesting model by code DF-102 sends ALL images', modelReply1);
+  assert(modelReply1.includes('[SEND_ALL_IMAGES:DF-102]') && !modelReply1.includes('প্রাইজ:') && !modelReply1.includes('৳'), 
+    'Stage 2: Model choice sends all album images with NO price dump', modelReply1);
 
   const modelReply2 = await handleIncomingMessage('unit_user_mod2', '২ নম্বর টা দেখতে চাই');
-  assert(modelReply2.includes('[SEND_ALL_IMAGES:DF-102]'), 'Requesting model by number "২ নম্বর" sends ALL images of DF-102', modelReply2);
+  assert(modelReply2.includes('[SEND_ALL_IMAGES:DF-102]') && !modelReply2.includes('প্রাইজ:'), 
+    'Stage 2: Ordinal "২ নম্বর" choice sends all album images with NO price dump', modelReply2);
 
-  const modelReply3 = await handleIncomingMessage('unit_user_mod3', 'রানি আবায়া');
-  assert(modelReply3.includes('[SEND_ALL_IMAGES:DF-102]'), 'Requesting model by name "রানি আবায়া" sends ALL images of DF-102', modelReply3);
+  // TEST 15: Funnel Stage 3 - Asking for price/details sends full price, fabric, size, and delivery card
+  await handleIncomingMessage('unit_user_step3', 'DF-102 দেখাও');
+  const priceReply = await handleIncomingMessage('unit_user_step3', 'এটার দাম কত?');
+  assert(priceReply.includes('DF-102') && (priceReply.includes('2200') || priceReply.includes('২,২০০')) && priceReply.includes('ফেব্রিক') && priceReply.includes('ডেলিভারি চার্জ'), 
+    'Stage 3: Asking for price outputs full price, fabric, size and delivery details', priceReply);
 
-  // TEST 15: Zero Flower Emojis
-  const allOutputs = [hiReply, wellbeingReply, h1, h2, h3, h4, del, combo, open, fab, mem, catReply, modelReply1, modelReply2, modelReply3].join(' ');
+  // TEST 16: Zero Flower Emojis
+  const allOutputs = [hiReply, wellbeingReply, h1, h2, h3, h4, del, combo, open, fab, mem, catReply, modelReply1, modelReply2, priceReply].join(' ');
   assert(!allOutputs.includes('🌸'), 'Strict zero flower emoji enforcement', allOutputs);
 
   console.log('\n========================================');
   if (failedTests === 0) {
-    console.log('   ALL 15 RIGOROUS BRAIN TESTS PASSED!  ');
+    console.log('   ALL 16 RIGOROUS BRAIN TESTS PASSED!  ');
     console.log('========================================\n');
     process.exit(0);
   } else {
