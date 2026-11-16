@@ -133,12 +133,13 @@ function detectModelFromText(text) {
   if (/\b105\b|১০৫/.test(t)) return 'DF-105';
   if (/\b106\b|১০৬/.test(t)) return 'DF-106';
 
-  // 3. Ordinals and Serial Numbers (e.g. "১ নম্বর", "১ম টা", "প্রথমটা", "১ নং", "১টা", "1st")
-  if (/(?:^|\s|[^\w])(?:১|1|১ম|1st|প্রথম|প্রথমটা|prothom)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-101';
-  if (/(?:^|\s|[^\w])(?:২|2|২য়|2nd|দ্বিতীয়|দ্বিতীয়টা|ditio)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-102';
-  if (/(?:^|\s|[^\w])(?:৩|3|৩য়|3rd|তৃতীয়|তৃতীয়টা|tritio)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-103';
-  if (/(?:^|\s|[^\w])(?:৪|4|৪র্থ|4th|চতুর্থ|চতুর্থটা|choturtho)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-104';
-  if (/(?:^|\s|[^\w])(?:৫|5|৫ম|5th|পঞ্চম|পঞ্চমটা|ponchom)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-105';
+  // 3. Ordinals and Serial Numbers
+  // Must explicitly have ordinal suffix (১ম, ১ম টা, ১ নম্বর, ১ নং, 1st, প্রথম) OR be standalone single digit (^1$ or ^১$)
+  if (/^(?:১|1)$|(?:\b|[^0-9])(?:১|1)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|১ম|1st|প্রথম|prothom/i.test(t)) return 'DF-101';
+  if (/^(?:২|2)$|(?:\b|[^0-9])(?:২|2)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|২য়|2nd|দ্বিতীয়|ditio/i.test(t)) return 'DF-102';
+  if (/^(?:৩|3)$|(?:\b|[^0-9])(?:৩|3)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|৩য়|3rd|তৃতীয়|tritio/i.test(t)) return 'DF-103';
+  if (/^(?:৪|4)$|(?:\b|[^0-9])(?:৪|4)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|৪র্থ|4th|চতুর্থ|choturtho/i.test(t)) return 'DF-104';
+  if (/^(?:৫|5)$|(?:\b|[^0-9])(?:৫|5)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|৫ম|5th|পঞ্চম|ponchom/i.test(t)) return 'DF-105';
 
   // 4. Characteristic Features & Color aliases
   // DF-101: 3-piece exclusive karchupi koti set (black)
@@ -252,7 +253,9 @@ function isAskingForFlare(text) {
 
 function isAskingForReal(text) {
   const t = (text || '').toLowerCase();
-  return /রিয়েল|real|মোবাইল|mobile|আনফিল্টার|unfilter|ক্যামেরা|camera|লাইভ|live/i.test(t);
+  // Strip out phone number references like "মোবাইল নাম্বার", "mobile no" so they don't false trigger
+  const cleaned = t.replace(/(?:মোবাইল|mobile|phone|ফোন)\s*(?:নাম্বার|নম্বর|নং|no|number)?\s*[:\s-]*\s*01[3-9]\d{8}/gi, '');
+  return /রিয়েল\s*(?:ছবি|পিক|পিকচার|ভিউ|লুক|দেখান|দেখব|চাই|পাঠান)?|real\s*(?:pic|photo|image|view|look)?|আনফিল্টার|unfilter|মোবাইলের\s*(?:ছবি|পিক)|মোবাইলে\s*তোলা|ক্যামেরার\s*(?:ছবি|পিক)|স্বাভাবিক\s*আলো/i.test(cleaned) && /(?:ছবি|পিক|পিকচার|pic|photo|image|দেখান|পাঠান|দেখব|চাই)/i.test(cleaned);
 }
 
 function isAskingForAllImages(text) {
@@ -525,6 +528,29 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
   const t = (userText || '').toLowerCase();
   const greeting = isFirstMessage ? 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। ' : 'জি, ';
 
+  // 0. Customer submitted complete address & phone number directly -> Send Digital Cash Memo & Order Confirmation!
+  const hasPhoneInText = /01[3-9]\d{8}/.test(t);
+  const hasAddressWordInText = /(?:বাসা|বাড়ি|বাড়ি|রোড|গ্রাম|থানা|জেলা|উপজেলা|ঢাকা|চট্টগ্রাম|চিটাগং|সিলেট|রাজশাহী|খুলনা|বরিশাল|রংপুর|মিরপুর|উত্তরা|ধানমন্ডি|মোহাম্মদপুর|বসুন্ধরা|পোস্ট|কোড|address|road|house|dhaka|ctg)/i.test(t);
+  if (hasPhoneInText && hasAddressWordInText) {
+    const code = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : null) || 'DF-101';
+    const prod = getProductByCode(code);
+    const prodName = prod ? prod.name : '৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট';
+    const prodPrice = prod ? prod.price : 2450;
+    const isOutside = !/(?:ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|বসুন্ধরা|যাত্রাবাড়ী|মতিঝিল|বাড্ডা|খিলগাঁও|মহাখালী|তেজগাঁও|ফার্মগেট|আজিমপুর|পুরান\s*ঢাকা)/i.test(t);
+    const fee = isOutside ? storeSettings.outside_dhaka_fee : storeSettings.inside_dhaka_fee;
+
+    return `${greeting}আলহামদুলিল্লাহ! আপনার ডেলিভারির ঠিকানা ও তথ্যগুলো আমরা সঠিকভাবে পেয়েছি। 🌸
+
+🧾 *ডিজিটাল ক্যাশ মেমো ও অর্ডার সামারি:*
+────────────────────
+👗 পোশাক: *${prodName} (${code})*
+💰 পোশাকের মূল্য: *৳${prodPrice}* টাকা (ম্যাচিং হিজাব ফ্রি)
+🚚 ডেলিভারি চার্জ: *৳${fee}* টাকা (${isOutside ? 'ঢাকার বাইরে' : 'ঢাকার ভেতরে'})
+📦 ক্যাশ অন ডেলিভারি (Due COD): *৳${prodPrice}* টাকা
+────────────────────
+অর্ডারটি সাথে সাথে ফাইনাল বুকিং করতে শুধুমাত্র ডেলিভারি চার্জটি (৳${fee}) আমাদের বিকাশ বা নগদ পার্সোনাল নাম্বারে (${storeSettings.bkash_number}) সেন্ড মানি করে শেষের ৪টি ডিজিট জানিয়ে দিন। পেমেন্ট কনফার্ম হওয়ামাত্রই আমরা পার্সেল রেডি করে কুরিয়ারে বুকিং করে দেব ইনশাআল্লাহ! 🌸`;
+  }
+
   // 1. Personal / Identity / Robot questions
   if (isIdentityOrPersonalQuery(t)) {
     return 'আমি দাওয়াহ ফ্যাশন থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?';
@@ -785,10 +811,44 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     return `${greeting}আপনার অর্ডারের সম্পূর্ণ বিবরণ দিয়ে আমাদের ডিজিটাল ক্যাশ মেমো প্রস্তুত করে দেওয়া হয়। আপনার পছন্দের মডেল, সাইজ, নাম ও সম্পূর্ণ ডেলিভারি ঠিকানা জানালে এখনই মেমো রেডি করে পাঠিয়ে দেওয়া হবে। 🌸`;
   }
 
-  // 5. Asking for all pictures or multiple photos
-  if (isAskingForAllImages(t) && isAskingForImage(t)) {
-    const code = detectModelFromText(t) || 'DF-101';
-    return `${greeting}অবশ্যই! ${code} মডেলের সবগুলো অ্যাঙ্গেলের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:${code}]`;
+  // 4k. Detachable Koti Query (DF-101 3-Piece Set)
+  if (/কটি\s*(?:কি\s*)?আলাদা|কোটি\s*(?:কি\s*)?আলাদা|koti\s*(?:ki\s*)?alada|কটি\s*(?:কি\s*)?জোড়া|কোটি\s*(?:কি\s*)?জোড়া|jora\s*naki\s*alada|আলাদা\s*পরা\s*যাবে|আলাদা\s*করা\s*যায়/i.test(t)) {
+    return `${greeting}আলহামদুলিল্লাহ, DF-101 মডেলের ৩-পিস সেটের গর্জিয়াস কারচুপি কোটিটি সম্পূর্ণ আলাদা (ডিট্যাচেবল)! অর্থাৎ আপনি পাচ্ছেন: ১. ভেতরের লং ইনার আবায়া, ২. সম্পূর্ণ আলাদা এক্সক্লুসিভ কারচুপি কোটি, এবং ৩. ম্যাচিং প্রিমিয়াম হিজাব। আপনি চাইলে যেকোনো সাধারণ অনুষ্ঠানে কোটি ছাড়াও পড়তে পারবেন, আবার পার্টিতে কোটির সাথে পরে দারুণ গর্জিয়াস লুক পেতে পারেন! 🌸 [SEND_IMAGE:DF-101]`;
+  }
+
+  // 4l. Delivery Charge & Advance Payment Objection Handling
+  if (/ডেলিভারি\s*চার্জ\s*(?:ছাড়া|ফ্রি|দিতে\s*পারব\s*না|বাদ)|অগ্রিম\s*(?:দিব\s*না|দেওয়া\s*যাবে\s*না|কেন\s*দিব)|টাকা\s*আগে\s*(?:দিব\s*না|দেওয়া\s*যাবে\s*না)|পার্সেল\s*(?:পেয়ে|পাওয়ার\s*পর)\s*সব\s*(?:টাকা\s*)?দিব|delivery\s*charge\s*chara|age\s*taka\s*dibo\s*na/i.test(t)) {
+    return `${greeting}আপনার নিরাপত্তার বিষয়টি আমরা শতভাগ সম্মান করি! অতীতে কিছু অনাকাঙ্ক্ষিত ফেক অর্ডারের কারণে ডেলিভারি ম্যান কাস্টমারের ঠিকানায় যাওয়ার পর রিসিভ না করলে কুরিয়ার রিটার্ন চার্জের যে বড় ক্ষতি হয়, শুধুমাত্র সেই সিকিউরিটি হিসেবে ডেলিভারি চার্জটি (ঢাকার ভেতর ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) অগ্রিম নেওয়া হয়। তবে আপনার শতভাগ নিশ্চয়তার জন্য বোরকার কোনো টাকাই আমরা অগ্রিম নিচ্ছি না—বোরকার পুরো মূল্য পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে সম্পূর্ণ খুলে দেখে চেক করে তারপর পরিশোধ করবেন! 🌸`;
+  }
+
+  // 4m. Plus Size & Body Fit Handling
+  if (/(?:বডি|body)\s*(?:[৩-৪3-4][০-৮0-8]|ফ্রি\s*সাইজ|সাইজ\s*কত|মাপ)|(?:আমি\s*একটু|একটু\s*)?(?:মোটা|স্বাস্থ্যবান|হেলদি|প্লাস\s*সাইজ|plus\s*size)/i.test(t)) {
+    return `${greeting}জি অবশ্যই! আমাদের প্রতিটি বোরকা ও কোটি ৩৮ থেকে ৪৬ বডি সাইজের যে কারও গায়ে অত্যন্ত আরামদায়ক ও নিখুঁতভাবে ফিট হবে (সম্পূর্ণ ফ্রি-সাইজ ও মার্জিত ঢিলেঢালা কাটিং)। তাই বডি ফিটিং নিয়ে একদম চিন্তা করতে হবে না। শুধুমাত্র আপনার উচ্চতা কত (যেমন: ৫ ফুট ২ বা ৫ ফুট ৪) জানালে আমরা পারফেক্ট ঝুল সাইজটি (৫০, ৫২, ৫৪, ৫৬) বুক করে দেব। 🌸`;
+  }
+
+  // 4n. Washing & Maintenance Instructions
+  if (/ধোয়া|ধুতে|ওয়াশ|wash|লন্ড্রি|ইস্ত্রি|আয়রন|iron|রং\s*(?:উঠবে|যাবে|জ্বলবে)|কালার\s*(?:গ্যারান্টি|উঠবে|ফ্যাকাসে)/i.test(t)) {
+    return `${greeting}জি অবশ্যই! এটি ১০০% অরিজিনাল প্রিমিয়াম চেরি কাপড় হওয়ায় কালার ১০০% পাকা এবং ধুলে কোনো রং উঠবে না বা কুঁচকে যাবে না। সাধারণ শ্যাম্পু বা মাইল্ড ডিটারজেন্ট পানিতে গুলে হালকা হাতে ওয়াশ করা যাবে। কোনো ব্রাশ ব্যবহার না করার পরামর্শ দিচ্ছি। কাপড় দ্রুত শুকায় এবং কুঁচকায় না বলে আয়রনও খুব একটা লাগে না। 🌸`;
+  }
+
+  // 4o. Hijab Measurement & Full Coverage
+  if (/হিজাব.*(?:সাইজ|মাপ|কত\s*বড়|বড়\s*তো|লং|চওড়া)|hijab.*(?:size|map|boro)|নিকাব|niqab|পর্দা\s*করা\s*যাবে|বক্ষ/i.test(t)) {
+    return `${greeting}আমাদের প্রতিটা বোরকার সাথেই ম্যাচিং প্রিমিয়াম চেরি হিজাব একদম ফ্রি দেওয়া হয়। হিজাবের সাইজ ফুল লং সাইজ (দৈর্ঘ্য প্রায় ৭৫-৮০ ইঞ্চি এবং প্রস্থ ৩০-৩২ ইঞ্চি), যা মাথা ও বক্ষ সম্পূর্ণ ঢেকে পরিপূর্ণ পর্দা করার জন্য যথেষ্ট বড়। সাথে মডেলভেদে ম্যাচিং সফট নিকাব কভারেজ সুবিধাও রয়েছে। 🌸`;
+  }
+
+  // 4p. Urgent / Next-day Delivery Inquiries
+  if (/(?:কালকে|কালকেই|আগামীকাল|আজকেই|জরুরি|urgent|emergency|খুব\s*তাড়াতাড়ি).*(?:লাগবে|পাব|ডেলিভারি|দেওয়া\s*যাবে|সম্ভব)|(?:kalke|agamikal).*(?:dorkar|lagbe|pabo)/i.test(t)) {
+    return `${greeting}ঢাকার ভেতরে আমরা সাধারণত ১ থেকে ২ দিনের মধ্যে এবং ঢাকার বাইরে ২ থেকে ৩ দিনের মধ্যে বিশ্বস্ত কুরিয়ারে দ্রুততম সময়ে ডেলিভারি সম্পন্ন করি। আপনার ঠিকানা ঢাকার ভেতরে হলে এবং খুব জরুরি প্রয়োজন থাকলে আমরা দ্রুততম এক্সপ্রেস সার্ভিসে পাঠানোর সর্বোচ্চ চেষ্টা করব! আপনার নাম, মোবাইল, সম্পূর্ণ ঠিকানা ও সাইজটি দ্রুত কনফার্ম করে দিন। 🌸`;
+  }
+
+  // 4q. bKash Personal vs Merchant Clarification
+  if (/পার্সোনাল\s*নাকি\s*মার্চেন্ট|personal\s*naki\s*merchant|সেন্ড\s*মানি\s*নাকি\s*পেমেন্ট|send\s*money\s*naki\s*payment|বিকাশ\s*কি\s*নাম্বার/i.test(t)) {
+    return `${greeting}আমাদের বিকাশ ও নগদ নাম্বারটি (${storeSettings.bkash_number}) ব্যক্তিগত/পার্সোনাল নাম্বার। তাই শুধুমাত্র ডেলিভারি চার্জটি (ঢাকার ভেতর ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) "সেন্ড মানি" (Send Money) করে শেষের ৪ ডিজিট জানিয়ে দিলেই আমরা সাথে সাথে অর্ডারটি কনফার্ম করে নেব। 🌸`;
+  }
+
+  // 4q2. Size Exchange Policy
+  if (/সাইজ\s*(?:ছোট\s*বড়|না\s*মিললে|পরিবর্তন|চেঞ্জ|বদল|এক্সচেঞ্জ|exchange)|বোরকা\s*(?:পরিবর্তন|বদল)/i.test(t)) {
+    return `${greeting}জি অবশ্যই! পার্সেল রিসিভ করার পর কোনো কারণে যদি সাইজ ছোট বা বড় মনে হয়, তবে পার্সেল পাওয়ার ২৪ ঘণ্টার মধ্যে আমাদের জানালে আমরা সম্পূর্ণ ফ্রেশ সাইজে এক্সচেঞ্জ করে দেওয়ার ব্যবস্থা করি। আপনার সন্তুষ্টিই আমাদের প্রথম অগ্রাধিকার! 🌸`;
   }
 
   // 5. Asking for all pictures or multiple photos of a model
