@@ -1030,7 +1030,7 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     const allProds = getAllCachedProducts();
     const topProd = (allProds && allProds.length > 0) ? allProds[0] : null;
     const topCode = topProd ? topProd.model_code : 'DF-101';
-    return `${greeting}আমাদের রানিং কালেকশনের মূল ডিজাইনটি উপরে দেওয়া হলো [SEND_IMAGE:${topCode}]। আপনি কি আমাদের স্টকে থাকা সব কয়টি মডেলের ছবি দেখতে চান? "সবগুলো দেখান" লিখে জানালেই সব পাঠিয়ে দেব। আর আপনার নির্দিষ্ট কোনো কালার পছন্দ থাকলে বলুন তো?`;
+    return `${greeting}আমাদের রানিং কালেকশনের মূল ডিজাইনটি উপরে দেওয়া হলো [SEND_IMAGE:${topCode}]। আপনি কি আমাদের স্টকে থাকা সব কয়টি মডেলের ছবি দেখতে চান? "সবগুলো দেখান" লিখে জানালেই সব পাঠিয়ে দেব। আর আপনার নির্দিষ্ট কোনো ডিজাইন পছন্দ থাকলে বলুন তো?`;
   }
 
   // 9b. Customer asking about checking in front of delivery man / Opening parcel / Return policy
