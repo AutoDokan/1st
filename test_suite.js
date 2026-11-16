@@ -47,11 +47,15 @@ async function runRegressionSuite() {
   const del = await handleIncomingMessage('unit_user_del', 'ঢাকার বাইরে ডেলিভারি কয়দিনে দেন এবং চার্জ কত?');
   assert(del.includes('২৪ থেকে ৪৮') && del.includes('২ থেকে ৩'), 'Delivery timeline and fee accurate', del);
 
-  // TEST 8: 2-Piece Combo Offer
+  // TEST 8: 2-Piece Combo Inquiry (Strict No Unauthorized Free Delivery)
   const combo = await handleIncomingMessage('unit_user_combo', 'আমি ২ পিস নিলে কিছু ছাড় দিবেন?');
-  assert(combo.includes('কম্বো অফারে') || combo.includes('ছাড়') || combo.includes('ফ্রি'), '2-piece combo discount triggered', combo);
+  assert(!combo.includes('ডেলিভারি চার্জ একদম ফ্রি') && (combo.includes('এক চার্জেই') || combo.includes('একই পার্সেলে') || combo.includes('হিজাব সম্পূর্ণ উপহার') || combo.includes('অফার')), '2-piece combo explains single parcel shipping without unauthorized free delivery', combo);
 
-  // TEST 9: Open Parcel Inspection
+  // TEST 9: Free Delivery Demand Rejected Courteously
+  const freeDelReq = await handleIncomingMessage('unit_user_freedel', 'ডেলিভারি চার্জ ফ্রি করে দেওয়া যাবে?');
+  assert(freeDelReq.includes('কুরিয়ার কোম্পানির বুকিং ফি') || freeDelReq.includes('কুরিয়ার সার্ভিসের বুকিং ফি'), 'Free delivery demand politely declined explaining courier cost', freeDelReq);
+
+  // TEST 10: Open Parcel Inspection
   const open = await handleIncomingMessage('unit_user_open', 'পার্সেল কি ডেলিভারি ম্যানের সামনে খুলে দেখা যাবে?');
   assert(open.includes('খুলে দেখে-শুনে') || open.includes('খুলে দেখে'), 'Open parcel inspection verified', open);
 

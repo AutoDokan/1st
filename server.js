@@ -256,16 +256,17 @@ app.post('/api/orders/:id/status', requireAuth, async (req, res) => {
 
 // Update Global Store & Delivery Rules API (supports AJAX & Form)
 app.post('/api/settings/update', requireAuth, async (req, res) => {
-  const { inside_dhaka_fee, outside_dhaka_fee, bkash_number, nagad_number, auto_followup } = req.body;
+  const { inside_dhaka_fee, outside_dhaka_fee, bkash_number, nagad_number, auto_followup, promo_offer } = req.body;
   if (auto_followup !== undefined) {
     autoFollowupEnabled = (auto_followup === 'true' || auto_followup === true);
   }
   await supabase.from('store_settings').upsert({
     id: 1,
     inside_dhaka_fee: Number(inside_dhaka_fee) || 80,
-    outside_dhaka_fee: Number(outside_dhaka_fee) || 150,
+    outside_dhaka_fee: Number(outside_dhaka_fee) || 120,
     bkash_number: (bkash_number || '01613-129192').trim(),
     nagad_number: (nagad_number || '01677-557292').trim(),
+    promo_offer: (promo_offer !== undefined ? promo_offer : '').trim(),
     updated_at: new Date().toISOString()
   });
   await refreshSettingsFromDB();
@@ -1647,6 +1648,12 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 <input type="text" id="drawer_nagad" value="${curSettings.nagad_number}" required class="w-full bg-white border border-stone-300 text-stone-900 text-sm font-mono font-bold p-2.5 rounded-lg focus:border-amber-500 outline-none">
               </div>
 
+              <div class="bg-[#fcfaf7] p-3.5 rounded-xl border border-stone-200">
+                <label class="block text-xs font-bold text-stone-800 mb-1">🎁 বিশেষ অফার / কম্বো ছাড় (ঐচ্ছিক)</label>
+                <p class="text-[11px] text-stone-500 font-medium mb-1.5">২টা বা ৩টা নিলে কোনো ছাড় থাকলে এখানে লিখুন (খালি রাখলে AI কোনো মনগড়া ছাড় বা ডেলিভারি ফ্রি অফার করবে না)</p>
+                <input type="text" id="drawer_promo_offer" value="${curSettings.promo_offer || ''}" placeholder="যেমন: ২টি নিলে ১০০ টাকা বিশেষ ছাড় (খালি থাকলে কোনো অফার নেই)" class="w-full bg-white border border-stone-300 text-stone-900 text-xs font-medium p-2.5 rounded-lg focus:border-amber-500 outline-none">
+              </div>
+
               <div class="bg-[#fcfaf7] p-3.5 rounded-xl border border-stone-200 flex items-center justify-between">
                 <div>
                   <label class="block text-xs font-bold text-stone-800">🤖 গোস্টিং অটো-রিকভারি (Auto Recovery)</label>
@@ -2637,6 +2644,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           const outside = document.getElementById('drawer_outside_fee').value;
           const bkash = document.getElementById('drawer_bkash').value;
           const nagad = document.getElementById('drawer_nagad').value;
+          const promoOffer = document.getElementById('drawer_promo_offer') ? document.getElementById('drawer_promo_offer').value.trim() : '';
           const autoFollowup = document.getElementById('drawer_auto_followup') ? document.getElementById('drawer_auto_followup').checked : true;
 
           try {
@@ -2648,6 +2656,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 outside_dhaka_fee: outside,
                 bkash_number: bkash,
                 nagad_number: nagad,
+                promo_offer: promoOffer,
                 auto_followup: autoFollowup,
                 ajax: true
               })
