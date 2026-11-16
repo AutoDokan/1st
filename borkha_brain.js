@@ -137,11 +137,11 @@ function detectModelFromText(text) {
 
   // 3. Ordinals and Serial Numbers
   // Must explicitly have ordinal suffix (১ম, ১ম টা, ১ নম্বর, ১ নং, 1st, প্রথম) OR be standalone single digit (^1$ or ^১$)
-  if (/^(?:১|1)$|(?:\b|[^0-9])(?:১|1)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|১ম|1st|প্রথম|prothom/i.test(t)) return 'DF-101';
-  if (/^(?:২|2)$|(?:\b|[^0-9])(?:২|2)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|২য়|2nd|দ্বিতীয়|ditio/i.test(t)) return 'DF-102';
-  if (/^(?:৩|3)$|(?:\b|[^0-9])(?:৩|3)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|৩য়|3rd|তৃতীয়|tritio/i.test(t)) return 'DF-103';
-  if (/^(?:৪|4)$|(?:\b|[^0-9])(?:৪|4)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|৪র্থ|4th|চতুর্থ|choturtho/i.test(t)) return 'DF-104';
-  if (/^(?:৫|5)$|(?:\b|[^0-9])(?:৫|5)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)|৫ম|5th|পঞ্চম|ponchom/i.test(t)) return 'DF-105';
+  if (/^(?:১|1)$|(?:^|[^\d০-৯])(?:১|1)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা|model|মডেল)|১ম|1st|প্রথম|prothom/i.test(t)) return 'DF-101';
+  if (/^(?:২|2)$|(?:^|[^\d০-৯])(?:২|2)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা|model|মডেল)|২য়|2nd|দ্বিতীয়|ditio/i.test(t)) return 'DF-102';
+  if (/^(?:৩|3)$|(?:^|[^\d০-৯])(?:৩|3)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা|model|মডেল)|৩য়|3rd|তৃতীয়|tritio/i.test(t)) return 'DF-103';
+  if (/^(?:৪|4)$|(?:^|[^\d০-৯])(?:৪|4)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা|model|মডেল)|৪র্থ|4th|চতুর্থ|choturtho/i.test(t)) return 'DF-104';
+  if (/^(?:৫|5)$|(?:^|[^\d০-৯])(?:৫|5)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা|model|মডেল)|৫ম|5th|পঞ্চম|ponchom/i.test(t)) return 'DF-105';
 
   // 4. Characteristic Features & Color aliases
   // DF-101: 3-piece exclusive karchupi koti set (black)
@@ -978,20 +978,20 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
   if (selectedCode) {
     const prod = getProductByCode(selectedCode);
     if (prod) {
-      return `${greeting}অবশ্যই! আপনি ${prod.name} (${prod.model_code}) পছন্দ করেছেন। নিচে এর মূল ছবি পাঠিয়ে দেওয়া হলো। [SEND_IMAGE:${prod.model_code}]
+      return `${greeting}অবশ্যই! আপনি ${prod.name} (${prod.model_code}) পছন্দ করেছেন। নিচে এই মডেলটির সব অ্যাঙ্গেলের ছবি (কাজের নিখুঁত ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের ও রিয়েল ভিউ) পাঠিয়ে দেওয়া হলো। [SEND_ALL_IMAGES:${prod.model_code}]
 
 💰 প্রাইজ: ৳${prod.price} টাকা (ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি)
 ✨ ফেব্রিক: ${prod.fabric || '১০০% অরিজিনাল প্রিমিয়াম দুবাই চেরি'}
 📏 সাইজ (ঝুল): ৫০, ৫২, ৫৪, ৫৬ (বডি মার্জিত ঢিলেঢালা ফ্রি সাইজ)
 🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee} (পার্সেল হাতে পেয়ে খুলে দেখে নেওয়ার ১০০% সুযোগ)।
 
-👉 এই মডেলটির কাজের নিখুঁত ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের বা স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল ছবি দেখতে চাইলে "সব ছবি দিন" বা "রিয়েল ছবি দিন" লিখে জানান। আর অর্ডার করতে চাইলে আপনার উচ্চতা জানালে পারফেক্ট সাইজ বুক করে দেব। 😊`;
+👉 অর্ডার করতে চাইলে আপনার পছন্দের সাইজ বা উচ্চতা এবং ডেলিভারির ঠিকানা লিখে জানিয়ে দিন, আমরা কনফার্ম করে দেব।`;
     }
   }
 
-  // 9. General photo / collection inquiry when no specific model is selected -> SEND MAIN PIC OF ALL RUNNING MODELS!
+  // 9. General photo / collection inquiry when no specific model is selected -> SEND ONLY 1 MAIN OVERVIEW PIC!
   if (isAskingForCatalogOverview(t) || isAskingForImage(t)) {
-    return `${greeting}আমাদের রানিং ৫টি প্রিমিয়াম হট-সেলিং আবায়া ও বোরকার মূল ছবি নিচে পাঠিয়ে দেওয়া হলো (প্রতিটির সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি):
+    return `${greeting}আমাদের রানিং ৫টি প্রিমিয়াম হট-সেলিং আবায়া ও বোরকার তালিকা নিচে দেওয়া হলো (প্রতিটির সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি) [SEND_IMAGE:DF-101]:
 
 ১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট (৳২,৪৫০)
 ২. DF-102: দুবাই চেরি রানি আবায়া (৳২,২০০)
@@ -999,7 +999,7 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
 ৪. DF-104: লাক্সারি কারচুপি কাফতান সেট (৳১,৯৫০)
 ৫. DF-105: গর্জিয়াস দুবাই ফ্রন্ট ওপেন আবায়া (৳২,২০০)
 
-✨ আপনার যে মডেলটি পছন্দ হয়, সেটির নাম বা নম্বর লিখে জানালে (যেমন: "DF-101", "১ নম্বর" বা "মেরুন রানি আবায়া") সেটির সব অ্যাঙ্গেলের ছবি (কাজের ক্লোজ-আপ, হিজাব, ঘের ও স্বাভাবিক আলোর রিয়েল ছবি) এবং সাইজ বিস্তারিত পাঠিয়ে দেব। 😊 [SEND_CATALOG_OVERVIEW]`;
+✨ আমাদের টপ-সেলিং মডেলের মূল ছবি উপরে দেওয়া হয়েছে। আপনার যে মডেলটি পছন্দ হয়, সেটির নাম বা নম্বর লিখে জানালে (যেমন: "DF-102", "২ নম্বর" বা "রানি আবায়া") সেটির সব অ্যাঙ্গেলের ছবি (কাজের ক্লোজ-আপ, হিজাব, ঘের ও রিয়েল ছবি) এবং সাইজ বিস্তারিত পাঠিয়ে দেব।`;
   }
 
   // 9b. Customer asking about checking in front of delivery man / Opening parcel / Return policy
@@ -1287,9 +1287,9 @@ async function handleIncomingMessage(senderId, userText) {
     // Pure Q&A (pricing, size, fabric, delivery, etc.) -> Strictly strip ANY image tags!
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
   } else if (isAskingForCatalogOverview(userText)) {
-    // Customer wants catalog / all designs -> Send 1 front image per model!
+    // Customer wants catalog / all designs -> Send ONLY 1 main overview image!
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-    aiReply += ' [SEND_CATALOG_OVERVIEW]';
+    aiReply += ' [SEND_IMAGE:DF-101]';
   } else {
     // If specific model is requested with image intent
     const hasImageTag = /\[\s*SEND_[A-Z_]+[^\]]*\]/i.test(aiReply);
@@ -1305,18 +1305,11 @@ async function handleIncomingMessage(senderId, userText) {
           aiReply += ` [SEND_FLARE_IMAGE:${detectedModel}]`;
         } else if (isAskingForReal(userText)) {
           aiReply += ` [SEND_REAL_IMAGE:${detectedModel}]`;
-        } else if (isAskingForAllImages(userText)) {
-          aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
         } else {
-          aiReply += ` [SEND_IMAGE:${detectedModel}]`;
+          aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
         }
       }
     }
-  }
-
-  // Downgrade SEND_ALL_IMAGES to SEND_IMAGE if customer did not explicitly ask for all images
-  if (!isAskingForAllImages(userText)) {
-    aiReply = aiReply.replace(/\[\s*SEND_ALL_IMAGES\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi, '[SEND_IMAGE:$1]');
   }
 
   // Vocabulary localizer shield (strips robotic phrases)

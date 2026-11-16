@@ -68,13 +68,28 @@ async function runRegressionSuite() {
   const mem = await handleIncomingMessage('unit_user_mem', '🛒 অর্ডার কনফার্ম করতে চাই');
   assert(mem.includes('DF-102'), 'Bot remembers user selected DF-102 in follow-up', mem);
 
-  // TEST 12: Zero Flower Emojis
-  const allOutputs = [hiReply, wellbeingReply, h1, h2, h3, h4, del, combo, open, fab, mem].join(' ');
+  // TEST 13: General Catalog Inquiry sends ONLY 1 main overview photo
+  const catReply = await handleIncomingMessage('unit_user_cat', 'Sob mode dekhaw');
+  assert(catReply.includes('[SEND_IMAGE:DF-101]') && !catReply.includes('[SEND_CATALOG_OVERVIEW]') && catReply.includes('DF-101') && catReply.includes('DF-105'), 
+    'General catalog inquiry sends list and ONLY 1 main photo', catReply);
+
+  // TEST 14: Specific Model by Name/Code/Number sends ALL pictures of that model
+  const modelReply1 = await handleIncomingMessage('unit_user_mod1', 'DF-102 দেখাও');
+  assert(modelReply1.includes('[SEND_ALL_IMAGES:DF-102]'), 'Requesting model by code DF-102 sends ALL images', modelReply1);
+
+  const modelReply2 = await handleIncomingMessage('unit_user_mod2', '২ নম্বর টা দেখতে চাই');
+  assert(modelReply2.includes('[SEND_ALL_IMAGES:DF-102]'), 'Requesting model by number "২ নম্বর" sends ALL images of DF-102', modelReply2);
+
+  const modelReply3 = await handleIncomingMessage('unit_user_mod3', 'রানি আবায়া');
+  assert(modelReply3.includes('[SEND_ALL_IMAGES:DF-102]'), 'Requesting model by name "রানি আবায়া" sends ALL images of DF-102', modelReply3);
+
+  // TEST 15: Zero Flower Emojis
+  const allOutputs = [hiReply, wellbeingReply, h1, h2, h3, h4, del, combo, open, fab, mem, catReply, modelReply1, modelReply2, modelReply3].join(' ');
   assert(!allOutputs.includes('🌸'), 'Strict zero flower emoji enforcement', allOutputs);
 
   console.log('\n========================================');
   if (failedTests === 0) {
-    console.log('   ALL 12 RIGOROUS BRAIN TESTS PASSED!  ');
+    console.log('   ALL 15 RIGOROUS BRAIN TESTS PASSED!  ');
     console.log('========================================\n');
     process.exit(0);
   } else {

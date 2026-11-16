@@ -486,19 +486,18 @@ app.post('/api/test-bot', requireAuth, async (req, res) => {
     // Detect any photo tags sent by bot
     const photoCards = [];
 
-    // 1. Catalog overview tag: add main image of all 5 products
+    // 1. Catalog overview tag: send only 1 main overview image of our top signature model
     if (/\[\s*SEND_CATALOG_OVERVIEW\s*\]/i.test(reply)) {
       const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
-      for (const prod of allProds) {
-        if (prod.image_url) {
-          photoCards.push({
-            type: 'SEND_IMAGE',
-            modelCode: prod.model_code,
-            url: prod.image_url,
-            label: `${prod.model_code} - ৳${prod.price}`,
-            name: prod.name
-          });
-        }
+      const prod = allProds[0];
+      if (prod && prod.image_url) {
+        photoCards.push({
+          type: 'SEND_IMAGE',
+          modelCode: prod.model_code,
+          url: prod.image_url,
+          label: `${prod.model_code} - ৳${prod.price}`,
+          name: prod.name
+        });
       }
     }
 
@@ -3168,21 +3167,21 @@ async function processBufferedUserMessages(remoteJid) {
       }
     }
 
-    // Helper to send Catalog Overview (1 badged main front photo per model for all 5 products)
+    // Helper to send Catalog Overview (Sends only 1 main overview photo with collection summary)
     async function sendCatalogOverview() {
       if (!sock) return false;
       try {
         const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
-        const catalogProds = allProds.slice(0, 5);
-        if (catalogProds.length === 0) return false;
+        const p = allProds[0];
+        if (!p || !p.image_url) return false;
 
         const store = (typeof getStoreSettings === 'function') ? getStoreSettings() : {};
         const insideFee = store.inside_dhaka_fee || 80;
         const outsideFee = store.outside_dhaka_fee || 150;
 
-        const masterCaption = `😊 *দাওয়া ফ্যাশন — এক্সক্লুসিভ কালেকশন ওভারভিউ* 😊
+        const masterCaption = `✨ *দাওয়া ফ্যাশন — এক্সক্লুসিভ কালেকশন* ✨
 ────────────────────
-আমাদের ৫টি রানিং হট-সেলিং আবায়া ও বোরকার ছবি নিচে দেওয়া হলো। প্রতিটির ছবির ওপর মডেল কোড ও মূল্য উল্লেখ আছে।
+আমাদের টপ-সেলিং মডেলের মূল ছবি উপরে দেওয়া হয়েছে।
 
 ১. *DF-101*: রয়াল ব্ল্যাক দুবাই চেরি কোটি আবায়া (৳২,৪৫০)
 ২. *DF-102*: অলিভ গ্রিন এলিগ্যান্ট বোরকা (৳২,২০০)
@@ -3194,34 +3193,22 @@ async function processBufferedUserMessages(remoteJid) {
 🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee}, বাইরে ৳${outsideFee}
 📦 সম্পূর্ণ ক্যাশ অন ডেলিভারি (পার্সেল দেখে নেওয়ার সুবিধা)।
 
-👉 আপনার পছন্দের মডেল কোড বা নম্বর লিখে জানালে (যেমন: *DF-103* বা *৩ নম্বর*), সেটির সমস্ত রিয়েল ছবি ও সাইজ বিস্তারিত জানিয়ে দিচ্ছি! 💖`;
+👉 আপনার পছন্দের মডেল কোড বা নম্বর লিখে জানালে (যেমন: *DF-102* বা *২ নম্বর*), সেটির সমস্ত ছবি (কাজের ক্লোজ-আপ, হিজাব, ঘের ও রিয়েল ছবি) এবং সাইজ বিস্তারিত পাঠিয়ে দেব! 💖`;
 
-        for (let i = 0; i < catalogProds.length; i++) {
-          const p = catalogProds[i];
-          const url = p.image_url;
-          if (!url) continue;
-
-          let imagePayload;
-          const urlPath = url.replace(/^https?:\/\/[^\/]+/, '');
-          const localFile = path.join(__dirname, 'public', urlPath);
-          if (fs.existsSync(localFile)) {
-            imagePayload = fs.readFileSync(localFile);
-          } else {
-            imagePayload = { url: url };
-          }
-
-          const msgOptions = {
-            image: imagePayload,
-            ...(i === 0 ? { caption: masterCaption } : {})
-          };
-
-          await sock.sendMessage(remoteJid, msgOptions);
-          incrementStats('messages_out');
-
-          if (i < catalogProds.length - 1) {
-            await new Promise(r => setTimeout(r, 280));
-          }
+        let imagePayload;
+        const urlPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '');
+        const localFile = path.join(__dirname, 'public', urlPath);
+        if (fs.existsSync(localFile)) {
+          imagePayload = fs.readFileSync(localFile);
+        } else {
+          imagePayload = { url: p.image_url };
         }
+
+        await sock.sendMessage(remoteJid, {
+          image: imagePayload,
+          caption: masterCaption
+        });
+        incrementStats('messages_out');
         await sock.sendPresenceUpdate('available', remoteJid);
         return true;
       } catch (err) {
