@@ -188,20 +188,84 @@ function isBargainingPrice(text) {
   return /দাম কম|কম রাখা|kom rakha|dam kom|kom koren|kom kora|kom hobe|discount|ডিসকাউন্ট|মূল্যছাড়|কিছু\s*ছাড়|ছাড়\s*(?:হবে|পাব|দেন|দিন|আছে)|kom e sell|kome sell|sobai to kom/i.test(cleaned);
 }
 
-function calculateSizeFromHeight(text) {
-  const t = text || '';
-  if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[০-১0-1]|শূন্য|এক)\s*(?:ইঞ্চি|inch)?/i.test(t) || /(?:৫|5)\s*(?:ফুট|ফিট|ft)\s*$/i.test(t.trim())) {
-    return '৫০';
-  } else if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[২-৩2-3]|দুই|তিন)/i.test(t)) {
-    return '৫২';
-  } else if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[৪-৫4-5]|চার|পাঁচ)/i.test(t)) {
-    return '৫৪';
-  } else if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[৬-৯6-9]|ছয়|সাত|আট|নয়)/i.test(t) || /(?:৬|6)\s*(?:ফুট|ফিট|ft)/i.test(t)) {
-    return '৫৬';
-  } else if (/(?:৪|4)\s*(?:ফুট|ফিট|ft)/i.test(t)) {
-    return '৫০';
+function parseHeight(text) {
+  const t = (text || '').toLowerCase().replace(/['’]/g, "'").replace(/["”]/g, '"');
+  const bengaliDigits = {'০':'0','১':'1','২':'2','৩':'3','৪':'4','৫':'5','৬':'6','৭':'7','৮':'8','৯':'9'};
+  const normalized = t.replace(/[০-৯]/g, d => bengaliDigits[d]);
+
+  // Case 1: X'Y" or X'Y or X.Y (e.g. 5'3", 5'5, 4'4, 5.5)
+  const apostropheMatch = normalized.match(/([4-6])\s*['.]\s*(\d{1,2})/);
+  if (apostropheMatch) {
+    return { feet: parseInt(apostropheMatch[1]), inches: parseInt(apostropheMatch[2]) };
   }
+
+  // Case 2: X foot Y inch / X ফুট Y ইঞ্চি / X ফিট Y / X fut Y
+  const textMatch = normalized.match(/([4-6])\s*(?:ফুট|ফিট|ft|foot|feet|fut)\s*(?:and\s*)?(\d{1,2})?\s*(?:ইঞ্চি|inch|in)?/i);
+  if (textMatch) {
+    return { feet: parseInt(textMatch[1]), inches: textMatch[2] ? parseInt(textMatch[2]) : 0 };
+  }
+
+  // Case 3: Just "5 ft" or "৫ ফুট"
+  const justFeetMatch = normalized.match(/([4-6])\s*(?:ফুট|ফিট|ft|foot|feet|fut)/i);
+  if (justFeetMatch) {
+    return { feet: parseInt(justFeetMatch[1]), inches: 0 };
+  }
+
   return null;
+}
+
+function calculateSizeFromHeight(text) {
+  const p = parseHeight(text);
+  if (!p) return null;
+  const totalInches = (p.feet * 12) + p.inches;
+  if (totalInches <= 61) return '৫০';
+  if (totalInches <= 63) return '৫২';
+  if (totalInches <= 65) return '৫৪';
+  return '৫৬';
+}
+
+function getBorkhaSizeRecommendation(userText, greeting = '') {
+  const parsed = parseHeight(userText);
+  if (!parsed) return null;
+  const { feet, inches } = parsed;
+  const hasHeels = /(?:হিল|heel|হিল\s*জুতো|উঁচু\s*জুতো)/i.test(userText);
+  const totalInches = (feet * 12) + inches;
+
+  const feetStr = feet.toString().replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
+  const inchStr = inches ? inches.toString().replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]) : '';
+  const heightDisplay = `${feetStr} ফুট ${inchStr ? inchStr + ' ইঞ্চি' : ''}`.trim();
+
+  // Very short height (under 4'10" / 58 inches), e.g. 4'4", 4'6"
+  if (totalInches < 58) {
+    return `${greeting}মাশাল্লাহ! আপনার ${heightDisplay} উচ্চতার জন্য রেগুলার ৫০ সাইজের বোরকা কিছুটা লম্বা হতে পারে (সাধারণত ৪৪ বা ৪৬ ইঞ্চি ঝুল আপনার জন্য একদম ফ্লোর-টাচ পারফেক্ট হবে)। আমাদের নিজস্ব কারখানায় স্পেশাল কাস্টমাইজড করে আপনার মাপ অনুযায়ী নিখুঁত ঝুল তৈরি করে দেওয়া যাবে—কোনো অতিরিক্ত চার্জ ছাড়া! আপনি কি কাস্টমাইজ সাইজে নিতে চাচ্ছেন? 😊`;
+  }
+
+  // 4'10" - 5'1" (58 - 61 inches) -> 50
+  if (totalInches <= 61) {
+    const size = hasHeels ? '৫২' : '৫০';
+    return `${greeting}মাশাল্লাহ! আপনার ${heightDisplay} উচ্চতার জন্য পারফেক্ট সাইজ হবে *${size} ইঞ্চি (ঝুল)*${hasHeels ? ' (হিল জুতোর জন্য ১ সাইজ বাড়ানো হয়েছে)' : ''}। আমাদের প্রতিটি বোরকা সম্পূর্ণ মার্জিত ও ঢিলেঢালা ফ্রি-সাইজ কাটিংয়ে তৈরি, ভেতরে/বাইরে এডজাস্টেবল ফিতা থাকে, তাই যেকোনো বডিতেই খুব সুন্দর ও আরামদায়কভাবে মানিয়ে যাবে। কোন মডেলটি পছন্দ হয়েছে বলুন তো? 😊`;
+  }
+
+  // 5'2" - 5'3" (62 - 63 inches) -> 52
+  if (totalInches <= 63) {
+    const size = hasHeels ? '৫৪' : '৫২';
+    return `${greeting}মাশাল্লাহ! আপনার ${heightDisplay} উচ্চতার জন্য পারফেক্ট সাইজ হবে *${size} ইঞ্চি (ঝুল)*${hasHeels ? ' (হিল জুতোর জন্য ১ সাইজ বাড়ানো হয়েছে)' : ''}। আমাদের বোরকাগুলো সম্পূর্ণ মার্জিত ও ঢিলেঢালা ফ্রি-সাইজ কাটিংয়ে তৈরি, ভেতরে/বাইরে এডজাস্টেবল ফিতা থাকে, তাই যেকোনো বডিতেই খুব সুন্দর ও আরামদায়কভাবে মানিয়ে যাবে। কোন মডেলটি পছন্দ হয়েছে বলুন তো? 😊`;
+  }
+
+  // 5'4" - 5'5" (64 - 65 inches) -> 54
+  if (totalInches <= 65) {
+    const size = hasHeels ? '৫৬' : '৫৪';
+    return `${greeting}মাশাল্লাহ! আপনার ${heightDisplay} উচ্চতার জন্য পারফেক্ট সাইজ হবে *${size} ইঞ্চি (ঝুল)*${hasHeels ? ' (হিল জুতোর জন্য ১ সাইজ বাড়ানো হয়েছে)' : ''}। আমাদের প্রতিটি বোরকা সম্পূর্ণ ঢিলেঢালা ফ্রি-সাইজ কাটিংয়ে তৈরি, তাই বডি ফিটিং নিয়ে একদম চিন্তা করতে হবে না—খুব সুন্দর ও আরামদায়কভাবে ফিট হবে। কোন ডিজাইনটি দেখতে চাচ্ছেন বলুন তো? 😊`;
+  }
+
+  // 5'6" - 5'7" (66 - 67 inches) -> 56
+  if (totalInches <= 67) {
+    const size = hasHeels ? '৫৮' : '৫৬';
+    return `${greeting}মাশাল্লাহ! আপনার ${heightDisplay} উচ্চতার জন্য আমাদের রেগুলার ম্যাক্সিমাম সাইজ *${size} ইঞ্চি ঝুল* একদম পারফেক্ট ড্রপ দেবে। আমাদের প্রতিটি আবায়া মার্জিত ফ্রি-সাইজ কাটিংয়ের, তাই চমৎকার লুক পাবেন। কোন কালারটি আপনার পছন্দ বলুন তো? 😊`;
+  }
+
+  // Tall height (5'8"+ / 68+ inches)
+  return `${greeting}মাশাল্লাহ! আপনার ${heightDisplay} উচ্চতার জন্য আমাদের সবচেয়ে বড় রেগুলার সাইজ হলো *৫৬ ইঞ্চি ঝুল* (অথবা আপনি যদি হিল জুতো পরেন বা সম্পূর্ণ পা ঢেকে রাখতে চান, তবে আমরা স্পেশাল অর্ডারে *৫৮ ইঞ্চি সাইজ* কাস্টমাইজ করে দিতে পারব)। আপনি কি হিল পরেন নাকি ফ্ল্যাট জুতো? 😊`;
 }
 
 function isIdentityOrPersonalQuery(text) {
@@ -558,21 +622,15 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     return 'আমি দাওয়াহ ফ্যাশন থেকে বলছি 😊 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?';
   }
 
-  // 1a. Warm greetings & wellbeing queries
-  if (/কেমন\s*আছেন|kemon\s*achen|kemon\s*asen|ki\s*obostha|কেমন\s*চলছে|valocen|ভালো\s*আছেন|hi|hello|hey|হ্যালো/i.test(t)) {
-    return `${greeting}আলহামদুলিল্লাহ, আমরা বেশ ভালো আছি! 😊 আপনি কেমন আছেন? দাওয়াহ ফ্যাশনের এক্সক্লুসিভ কালেকশনে আপনাকে স্বাগতম। আপনি কি কোনো নির্দিষ্ট মডেলের বোরকা দেখতে চাচ্ছেন, নাকি আমাদের সেরা ডিজাইনগুলো একনজরে দেখতে চান?`;
+  // 1a. Simple greetings (hi, hello, সালাম) — just welcome warmly, NOT আলহামদুলিল্লাহ আমরা ভালো আছি
+  if (/^(?:hi|hello|hey|হ্যালো|হাই|হেলো|সালাম|আস-সালাম|আস্সালামু\s*আলাইকুম|ওয়া\s*আলাইকুম)[!?.\s]*$/i.test(t.trim())) {
+    return `আস্সালামু আলাইকুম! Dawah Fashion-এ আপনাকে স্বাগতম 😊 কীভাবে সাহায্য করতে পারি বলুন? আমাদের রানিং বোরকা কালেকশন দেখতে চাইলে বলুন, অথবা কোনো নির্দিষ্ট মডেল বা সাইজ নিয়ে জানতে চাইলে এখনই জানাচ্ছি।`;
   }
 
-  // 1b. Showroom / Shop / In-person visits
-  if (/শোরুম|showroom|দোকান|মিরপুর\s*কোথায়|কোথায়\s*আসেন|ঠিকানা\s*কোথায়|সরাসরি\s*এসে|দেখে\s*নেওয়া\s*যাবে|দোকানে\s*আসব/i.test(t)) {
-    return `${greeting}আমাদের মূল প্রোডাকশন হাব ও অফিস ঢাকায় (মিরপুরে)। শোরুমের অতিরিক্ত ভাড়া ও কর্মচারীর খরচ না থাকায় আমরা সরাসরি কারখানার প্রিমিয়াম দুবাই চেরি কাপড়ের বোরকা সুলভ মূল্যে দিতে পারছি। আপনার কষ্ট করে জ্যাম ঠেলে আসার প্রয়োজন নেই—আমরা সারা দেশে সরাসরি হোম ডেলিভারি দিচ্ছি এবং পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে সম্পূর্ণ খুলে দেখে ট্রায়াল দিয়ে নেওয়ার ১০০% সুবিধা পাবেন! 😊`;
+  // 1b. Wellbeing queries (কেমন আছেন) — customer explicitly asked how we are doing
+  if (/কেমন\s*আছেন|kemon\s*achen|kemon\s*asen|ki\s*obostha|কেমন\s*চলছে|valocen|ভালো\s*আছেন/i.test(t)) {
+    return `${greeting}আলহামদুলিল্লাহ, আমরা বেশ ভালো আছি! 😊 আপনি কেমন আছেন? দাওয়াহ ফ্যাশনের এক্সক্লুসিভ কালেকশনে আপনাকে স্বাগতম। আপনি কি কোনো নির্দিষ্ট মডেলের বোরকা দেখতে চাচ্ছেন, নাকি আমাদের সেরা ডিজাইনগুলো একনজরে দেখতে চান?`;
   }
-
-  // 1c. Short casual prompts (ভাই, আপু, শুনুন)
-  if (/^(?:ভাই|ভাইয়া|vai|bhai|apu|আপু|আপুমনি|শুনুন|shunchen|hello|hi)[!?.\s]*$/i.test(t.trim())) {
-    return `${greeting}জি বলুন, শুনছি! 😊 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?`;
-  }
-
   // 1b. Multiple Piece Combo & Special Offer / Free Delivery
   if (/(?:২|3|4|5|২|৩|৪|৫|[2-5])\s*(?:টি|টা|পিস|piece|জোড়া|সেট)|দুটো|দুইটা|তিনটা|একসাথে\s*(?:নিলে|কিনলে)|কম্বো|combo|দুটোই|দুইটাই/i.test(t)) {
     return `${greeting}আরে বাহ! আপনি একসাথে ২টি বা তার বেশি বোরকা নিলে তো দারুণ ব্যাপার! আমাদের স্পেশাল কম্বো অফারে সম্পূর্ণ ডেলিভারি চার্জ একদম ফ্রি করে দেব (অথবা বিল থেকে ১০০ টাকা বিশেষ ছাড় পাবেন)। কোন কোন মডেল বা কালার আপনার পছন্দ হয়েছে বলুন তো? 😊`;
@@ -767,32 +825,10 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     return `${greeting}আলহামদুলিল্লাহ! আপনার পছন্দ হয়েছে এবং সাইজ পারফেক্ট হয়েছে জেনে আমাদের পুরো টিম আনন্দিত। 😊 আপনার সুন্দর সন্তুষ্টি আমাদের জন্য অনেক বড় প্রেরণা। দাওয়াহ ফ্যাশনের সাথে থাকার জন্য জাযাকাল্লাহু খাইরান। ভবিষ্যতে আপনার যেকোনো প্রয়োজনে আমরা সবসময় পাশে আছি। 😊`;
   }
 
-    // Exact Height to Length (ঝুল) Size Recommender (with Heels support)
-  const hasHeight = /(?:উচ্চতা|height|লম্বা|ফিট|ফুট|ft)/i.test(t) || /[৪-৬4-6]\s*(?:ফুট|ফিট|ft|'|\.)/i.test(t);
-  const hasHeels = /(?:হিল|heel|হিল\s*জুতো|উঁচু\s*জুতো)/i.test(t);
-  if (hasHeight) {
-    let recSize = '৫২';
-    let heelSize = '৫৪';
-    if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[০-১0-1]|শূন্য|এক)\s*(?:ইঞ্চি|inch)?/i.test(t) || /(?:৫|5)\s*(?:ফুট|ফিট|ft)\s*$/i.test(t.trim())) {
-      recSize = '৫০';
-      heelSize = '৫২';
-    } else if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[২-৩2-3]|দুই|তিন)/i.test(t)) {
-      recSize = '৫২';
-      heelSize = '৫৪';
-    } else if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[৪-৫4-5]|চার|পাঁচ)/i.test(t)) {
-      recSize = '৫৪';
-      heelSize = '৫৬';
-    } else if (/(?:৫|5)\s*(?:ফুট|ফিট|ft|'|\.)?\s*(?:[৬-৯6-9]|ছয়|সাত|আট|নয়)/i.test(t) || /(?:৬|6)\s*(?:ফুট|ফিট|ft)/i.test(t)) {
-      recSize = '৫৬';
-      heelSize = '৫৮';
-    } else if (/(?:৪|4)\s*(?:ফুট|ফিট|ft)/i.test(t)) {
-      recSize = '৫০';
-      heelSize = '৫২';
-    }
-    if (hasHeels) {
-      return `${greeting}আপনার উচ্চতায় নরমাল ফ্ল্যাট জুতো পরলে ঝুল *${recSize} ইঞ্চি* মানানসই হবে। তবে যেহেতু আপনি হিল জুতো পরবেন, আমরা রিকমেন্ড করছি ১ সাইজ বাড়িয়ে *${heelSize} ইঞ্চি ঝুল* বেছে নেওয়ার জন্য, যাতে মাটিতে স্পর্শ না করে কিন্তু নিচে সুন্দর ড্রপ ও কভারেজ থাকে। বোরকাগুলো সম্পূর্ণ ঢিলেঢালা ফ্রি সাইজ হওয়ায় বডি নিয়ে চিন্তা করতে হবে না। 😊`;
-    }
-    return `${greeting}আপনার উচ্চতার জন্য পারফেক্ট সাইজ হবে *${recSize} ইঞ্চি (ঝুল)*। বোরকাগুলো সম্পূর্ণ ঢিলেঢালা ফ্রি সাইজ হওয়ায় বডি বা বুকের মাপ নিয়ে একদম চিন্তা করতে হবে না, সুন্দরভাবে ফিট হবে। আপনি কোন মডেলটি অর্ডার করতে চাচ্ছেন জানালে পার্সেল রেডি করে দেব। 😊`;
+    // Universal Height to Length (ঝুল) Size Recommender (Handles any height: 4'4", 5'5", 5'8", etc.)
+  const heightRecommendation = getBorkhaSizeRecommendation(t, greeting);
+  if (heightRecommendation) {
+    return heightRecommendation;
   }
 
   if (/সাইজ কি|size ki|কি কি সাইজ|কি সাইজ|ঝুল কত|কোন সাইজ|সাইজ কত|বডি সাইজ|মাপ/i.test(t)) {
