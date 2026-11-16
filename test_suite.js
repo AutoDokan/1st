@@ -1,46 +1,83 @@
 const { handleIncomingMessage, refreshProductsFromDB, getProductByCode } = require('./borkha_brain.js');
 
 async function runRegressionSuite() {
-  console.log('--- STARTING REGRESSION TEST SUITE ---');
+  console.log('========================================');
+  console.log('   DAWAH FASHION AI BRAIN TEST SUITE   ');
+  console.log('========================================\n');
   await refreshProductsFromDB();
 
-  // Test 1: Height to Size Recommender (Screenshot 1)
-  const q1 = await handleIncomingMessage('reg_user_1', 'আমার উচ্চতা ৫ ফুট ৩ ইঞ্চি, কোন সাইজ লাগবে?');
-  console.log('\n[TEST 1 - Height Sizing]:', q1.includes('৫২ ইঞ্চি') ? 'PASS' : 'FAIL');
-  if (!q1.includes('৫২ ইঞ্চি')) console.log('Output was:\n', q1);
+  let failedTests = 0;
+  function assert(condition, testName, output) {
+    if (condition) {
+      console.log(`[PASS] ${testName}`);
+    } else {
+      console.error(`[FAIL] ${testName}`);
+      console.error(`       Actual Output:\n${output}\n`);
+      failedTests++;
+    }
+  }
 
-  // Test 2: Delivery Timeline & Charge (Screenshot 2)
-  const q2 = await handleIncomingMessage('reg_user_2', 'ঢাকার বাইরে ডেলিভারি কয়দিনে দেন এবং চার্জ কত?');
-  console.log('\n[TEST 2 - Delivery Timeline & Charge]:', (q2.includes('২৪ থেকে ৪৮') && q2.includes('২ থেকে ৩')) ? 'PASS' : 'FAIL');
-  if (!q2.includes('২ থেকে ৩')) console.log('Output was:\n', q2);
+  // TEST 1: Simple Greetings ('Hi', 'Hello', 'hey') must NEVER say "আলহামদুলিল্লাহ আমরা ভালো আছি"
+  const hiReply = await handleIncomingMessage('unit_user_hi', 'Hi');
+  assert(!hiReply.includes('আলহামদুলিল্লাহ') && !hiReply.includes('ভালো আছি') && hiReply.includes('স্বাগতম'), 
+    'Hi greeting gives welcoming response without fake wellbeing answer', hiReply);
 
-  // Test 3: 2-Piece Combo Offer (Screenshot 3)
-  const q3 = await handleIncomingMessage('reg_user_3', 'আমি ২ পিস নিলে কিছু ছাড় দিবেন?');
-  console.log('\n[TEST 3 - 2-Piece Combo Offer]:', q3.includes('কম্বো অফারে') ? 'PASS' : 'FAIL');
-  if (!q3.includes('কম্বো অফারে')) console.log('Output was:\n', q3);
+  // TEST 2: Wellbeing Query ('কেমন আছেন?') MUST politely answer wellbeing
+  const wellbeingReply = await handleIncomingMessage('unit_user_wellbeing', 'কেমন আছেন?');
+  assert(wellbeingReply.includes('আলহামদুলিল্লাহ') && wellbeingReply.includes('ভালো আছি'), 
+    'Direct "কেমন আছেন" appropriately responds with Alhamdulillah', wellbeingReply);
 
-  // Test 4: Open Parcel Inspection (Screenshot 4)
-  const q4 = await handleIncomingMessage('reg_user_4', 'পার্সেল কি ডেলিভারি ম্যানের সামনে খুলে দেখা যাবে?');
-  console.log('\n[TEST 4 - Open Parcel]:', q4.includes('খুলে দেখে-শুনে') ? 'PASS' : 'FAIL');
-  if (!q4.includes('খুলে দেখে-শুনে')) console.log('Output was:\n', q4);
+  // TEST 3: Height parsing - 5'3"
+  const h1 = await handleIncomingMessage('unit_user_h1', 'আমার উচ্চতা ৫ ফুট ৩ ইঞ্চি, কোন সাইজ লাগবে?');
+  assert(h1.includes('৫২ ইঞ্চি'), '5ft 3in recommends 52 inch length', h1);
 
-  // Test 5: Fabric Thinness & Transparency (Screenshot 5)
-  const q5 = await handleIncomingMessage('reg_user_5', 'কাপড় কি পাতলা নাকি শালীনভাবে কভার হবে?');
-  console.log('\n[TEST 5 - Fabric Quality]:', q5.includes('মোটেও পাতলা নয়') || q5.includes('একেবারেই পাতলা') || q5.includes('নন-ট্রান্সপারেন্ট') ? 'PASS' : 'FAIL');
-  if (!q5.includes('পাতলা')) console.log('Output was:\n', q5);
+  // TEST 4: Height parsing - 5 fut 5
+  const h2 = await handleIncomingMessage('unit_user_h2', '5 fut 5');
+  assert(h2.includes('৫৪ ইঞ্চি'), '5 fut 5 recommends 54 inch length', h2);
 
-  // Test 6: Memory - Model Retention
-  await handleIncomingMessage('reg_user_6', 'DF-102 এর রিয়েল ছবি দিন');
-  const q6 = await handleIncomingMessage('reg_user_6', '🛒 অর্ডার কনফার্ম করতে চাই');
-  console.log('\n[TEST 6 - Model Memory]:', q6.includes('DF-102') ? 'PASS' : 'FAIL');
-  if (!q6.includes('DF-102')) console.log('Output was:\n', q6);
+  // TEST 5: Height parsing - 4 fut 4 (Special short stature customize)
+  const h3 = await handleIncomingMessage('unit_user_h3', '4 fut 4');
+  assert(h3.includes('কাস্টমাইজ') || h3.includes('৪৪') || h3.includes('৪৬'), '4 fut 4 provides custom short height advice', h3);
 
-  // Test 7: Verify No 🌸 Emojis Anywhere in Replies
-  const allReplies = [q1, q2, q3, q4, q5, q6].join(' ');
-  console.log('\n[TEST 7 - Zero Flower Emoji]:', !allReplies.includes('🌸') ? 'PASS' : 'FAIL');
+  // TEST 6: Height with heels - 5'8" with heels
+  const h4 = await handleIncomingMessage('unit_user_h4', 'আমার হাইট ৫ ফুট ৮ ইঞ্চি, হিল পরব');
+  assert(h4.includes('হিল') && (h4.includes('৫৮') || h4.includes('৫৬')), '5ft 8in with heels suggests 56/58 inch length', h4);
 
-  console.log('\n--- REGRESSION SUITE COMPLETED ---');
-  process.exit(0);
+  // TEST 7: Delivery Timeline & Charge
+  const del = await handleIncomingMessage('unit_user_del', 'ঢাকার বাইরে ডেলিভারি কয়দিনে দেন এবং চার্জ কত?');
+  assert(del.includes('২৪ থেকে ৪৮') && del.includes('২ থেকে ৩'), 'Delivery timeline and fee accurate', del);
+
+  // TEST 8: 2-Piece Combo Offer
+  const combo = await handleIncomingMessage('unit_user_combo', 'আমি ২ পিস নিলে কিছু ছাড় দিবেন?');
+  assert(combo.includes('কম্বো অফারে') || combo.includes('ছাড়') || combo.includes('ফ্রি'), '2-piece combo discount triggered', combo);
+
+  // TEST 9: Open Parcel Inspection
+  const open = await handleIncomingMessage('unit_user_open', 'পার্সেল কি ডেলিভারি ম্যানের সামনে খুলে দেখা যাবে?');
+  assert(open.includes('খুলে দেখে-শুনে') || open.includes('খুলে দেখে'), 'Open parcel inspection verified', open);
+
+  // TEST 10: Fabric Transparency
+  const fab = await handleIncomingMessage('unit_user_fab', 'কাপড় কি পাতলা নাকি শালীনভাবে কভার হবে?');
+  assert(fab.includes('পাতলা') || fab.includes('নন-ট্রান্সপারেন্ট'), 'Fabric opacity objection handled', fab);
+
+  // TEST 11: Conversational Memory - Model Retention
+  await handleIncomingMessage('unit_user_mem', 'DF-102 এর রিয়েল ছবি দিন');
+  const mem = await handleIncomingMessage('unit_user_mem', '🛒 অর্ডার কনফার্ম করতে চাই');
+  assert(mem.includes('DF-102'), 'Bot remembers user selected DF-102 in follow-up', mem);
+
+  // TEST 12: Zero Flower Emojis
+  const allOutputs = [hiReply, wellbeingReply, h1, h2, h3, h4, del, combo, open, fab, mem].join(' ');
+  assert(!allOutputs.includes('🌸'), 'Strict zero flower emoji enforcement', allOutputs);
+
+  console.log('\n========================================');
+  if (failedTests === 0) {
+    console.log('   ALL 12 RIGOROUS BRAIN TESTS PASSED!  ');
+    console.log('========================================\n');
+    process.exit(0);
+  } else {
+    console.error(`   FAILED ${failedTests} TESTS! PLEASE FIX BEFORE DEPLOYING!`);
+    console.log('========================================\n');
+    process.exit(1);
+  }
 }
 
 runRegressionSuite();

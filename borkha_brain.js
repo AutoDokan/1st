@@ -1044,17 +1044,10 @@ function generateSmartFallback(userText, isFirstMessage = false, conversationHis
   const fast = getFastPathReply(userText, isFirstMessage, conversationHistory);
   if (fast) return fast;
 
-  const dynamicFallbacks = [
-    'জি, আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন একটু জানালে এখনই শেয়ার করছি। 😊',
-    'আমাদের ৫টি রানিং হট-সেলিং মডেল রয়েছে (DF-101 থেকে DF-105)। আপনি কি ছবি দেখতে চাচ্ছেন নাকি সাইজ ও প্রাইজ জানতে চাচ্ছেন?',
-    'জি অবশ্যই! আপনার উচ্চতা জানালে (যেমন: ৫ ফুট ২ বা ৫ ফুট ৪) পারফেক্ট ঝুল সাইজ সহ সুন্দর ডিজাইন সাজেস্ট করে দিচ্ছি। 😊',
-    'জি বলুন, কীভাবে সহযোগিতা করতে পারি? আমাদের প্রতিটি বোরকার সাথে ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি এবং পার্সেল দেখে নেওয়ার সুবিধা রয়েছে।'
-  ];
-  const pick = dynamicFallbacks[Math.floor(Math.random() * dynamicFallbacks.length)];
   if (isFirstMessage) {
-    return 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। আমাদের এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট, দুবাই চেরি রানি আবায়া ও কাফতান কালেকশন রয়েছে (সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি)। ' + pick;
+    return 'আসসালামু আলাইকুম! Dawah Fashion-এ আপনাকে স্বাগতম। 😊 কীভাবে সাহায্য করতে পারি বলুন? আমাদের রানিং কালেকশনের বোরকাগুলো দেখতে চাচ্ছেন নাকি কোনো নির্দিষ্ট ডিজাইন বা সাইজ খুঁজছেন?';
   }
-  return pick;
+  return 'জি, বলুন কীভাবে সহযোগিতা করতে পারি? আপনি আমাদের কোনো নির্দিষ্ট বোরকার ছবি, সাইজ বা প্রাইজ সম্পর্কে জানতে চাচ্ছেন কি? 😊';
 }
 
 async function callGroqWithFallback(messages, isFirstMessage = false, userText = '') {
