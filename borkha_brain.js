@@ -216,7 +216,7 @@ function isPureQuestion(text) {
   if (/ছবি\s*(দেন|দেখান|পাঠান|দেখব|চাই|আসে|আসবে)|pic\s*(den|dekhan|pathan|chai)|photo\s*(den|dekhan|chai)|পিক\s*(দেন|দেখান|পাঠান|চাই)|ইমেজ|image/i.test(t)) {
     return false;
   }
-  return /দাম কত|প্রাইজ কত|price koto|dam koto|মূল্য কত|সাইজ কি|size ki|কি কি সাইজ|কি সাইজ|ঝুল কত|ফেব্রিক কি|কাপড় কি|কাপড় কি|fabric ki|ডেলিভারি চার্জ|delivery charge|ক্যাশ অন|cash on|অর্ডার করতে চাই|order korte chai|বিকাশ|bkash|নগদ|nogod|পেমেন্ট|payment|চেক করে|ডেলিভারি ম্যানের সামনে|রিটার্ন|ফেরত|কয়দিন|কতদিন|koydin|kotodin|জরুরি|urgent|আগামীকাল|চট্টগ্রাম|সিলেট|গ্রামে|থানা|হোম ডেলিভারি|সুন্দরবন|এসএ পরিবহন|এক্সচেঞ্জ|exchange|বদল|হিজাবের সাইজ|হিজাবের মাপ|নিকাব|ঘের কত|ইলাস্টিক|ওজু|দোকান কোথায়|শোরুম|কম্বো|২টা নিলে|৩টা নিলে|পাতলা|ইনার|ছেঁড়া|ডিফেক্ট/i.test(t);
+  return /(?:দাম|প্রাইজ|মূল্য|price|dam|cost|rate)|(?:সাইজ|size|ঝুল|লম্বা)|(?:ফেব্রিক|কাপড়|কাপড়|fabric)|(?:ডেলিভারি|delivery|কুরিয়ার|চার্জ)|(?:ক্যাশ অন|cash on|কড|cod)|(?:অর্ডার|order|কনফার্ম|confirm|নিতে চাই|nite chai|কিনতে চাই|kinte chai)|(?:বিকাশ|bkash|নগদ|nogod|পেমেন্ট|payment|advance|অগ্রিম)|(?:চেক করে|খুলে দেখে|ডেলিভারি ম্যান)|(?:রিটার্ন|ফেরত|এক্সচেঞ্জ|exchange|বদল)|(?:কয়দিন|কতদিন|koydin|kotodin|জরুরি|urgent|আগামীকাল)|(?:শোরুম|দোকান|মিরপুর|ঠিকানা|address)|(?:হিজাব|নিকাব|ঘের|ইলাস্টিক|ওজু)|(?:কম্বো|ডিসকাউন্ট|ছাড়|অফার|২টা|৩টা)|(?:পাতলা|ইনার|ছেঁড়া|ডিফেক্ট)/i.test(t);
 }
 
 function isAskingForCatalogOverview(text) {
@@ -518,8 +518,8 @@ ${cachedProductsText}
 `;
 }
 
-// Smart Dynamic Fallback Generator when LLM is unavailable
-function generateSmartFallback(userText, isFirstMessage) {
+// Fast-Path Rule Engine: Returns instant reply (0ms-15ms) for recognized intents, or null for LLM handling
+function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
   const t = (userText || '').toLowerCase();
   const greeting = isFirstMessage ? 'আসসালামু আলাইকুম! Dawah Fashion-এ স্বাগতম। ' : 'জি, ';
 
@@ -865,17 +865,20 @@ function generateSmartFallback(userText, isFirstMessage) {
     return `${greeting}ধন্যবাদ! আপনি যে বিকাশ বা নগদ নাম্বার থেকে টাকা পাঠিয়েছেন সেই নাম্বারটি (অথবা নাম্বারের শেষের ২ বা ৪টি ডিজিট) এবং কত টাকা পাঠিয়েছেন লিখে জানিয়ে দিন।`;
   }
 
-  // 9d. Customer asking to order / buy / provide address
-  if (/অর্ডার করতে চাই|order korte chai|নিতে চাই|nite chai|অর্ডার করব|অর্ডার নিব|অর্ডার দেন|order den|kinte chai|কিনতে চাই|এড্রেস|address|ঠিকানা/i.test(t)) {
-    return `${greeting}অর্ডার কনফার্ম করতে আপনার ডেলিভারির ঠিকানাটি একটু লিখে দিন:
+  // 9d. Customer asking to order / buy / confirm / provide address
+  if (/(?:অর্ডার|order).*(?:কনফার্ম|করতে|করব|নিব|দেন|দিন|চাই|ক্লিক|হবে|প্রসেস)|(?:কনফার্ম|confirm).*(?:অর্ডার|করতে|করব|চাই|দেন|দিন)|নিতে\s*চাই|nite\s*chai|কিনতে\s*চাই|kinte\s*chai|অর্ডার\s*দেন|order\s*den|এড্রেস|address|ঠিকানা|বুকিং\s*কর/i.test(t)) {
+    const detectedModel = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : null);
+    const prod = detectedModel ? getProductByCode(detectedModel) : null;
+    const modelHeader = prod ? `${prod.name} (${prod.model_code}) এর অর্ডার কনফার্ম করতে` : 'আপনার অর্ডার কনফার্ম করতে';
+
+    return `${greeting}অবশ্যই! ${modelHeader} ডেলিভারির সম্পূর্ণ ঠিকানা ও তথ্যগুলো একটু লিখে দিন:
 ১. আপনার পুরো নাম
 ২. মোবাইল নাম্বার
-৩. বাসা/বাড়ি নং, রোড নং বা ব্লক (যদি থাকে)
-৪. গ্রাম বা এলাকা
-৫. পোস্ট অফিস ও পোস্ট কোড
-৬. থানা বা উপজেলা
-৭. জেলা
-এবং অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) আমাদের বিকাশ/নগদে (${storeSettings.bkash_number}) সেন্ড মানি করে শেষের ৪ ডিজিট জানিয়ে দিলে আমরা অর্ডারটি কনফার্ম করে নিব।`;
+৩. আপনার উচ্চতা (যেমন: ৫'২" বা ৫'৪" - পারফেক্ট ঝুল সাইজের জন্য)
+৪. সম্পূর্ণ ঠিকানা (বাসা নং, রোড/গ্রাম, থানা, জেলা)
+
+📦 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, ঢাকার বাইরে ৳${storeSettings.outside_dhaka_fee}।
+অর্ডারটি কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ আমাদের বিকাশ/নগদে (${storeSettings.bkash_number}) সেন্ড মানি করে শেষের ৪ ডিজিট জানিয়ে দিলে আমরা অর্ডারটি দ্রুত রেডি করে পাঠিয়ে দিব। বোরকার পুরো মূল্য পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে পরিশোধ করবেন! 🌸`;
   }
 
   // 10. Asking for payment / bKash / Nagad / advance
@@ -895,7 +898,15 @@ function generateSmartFallback(userText, isFirstMessage) {
     return `${greeting}আমাদের প্রিমিয়াম আবায়াগুলোর মূল্য ৳১,৬৫০ থেকে ৳২,৪৫০ টাকার মধ্যে (প্রতিটির সাথেই ম্যাচিং হিজাব ফ্রি)। আপনি কোন মডেলের দাম জানতে চাচ্ছেন জানালে ছবি সহ বিস্তারিত জানিয়ে দিচ্ছি।`;
   }
 
-  // Default pleasant guidance with smart variety (never sounds like a repetitive robot)
+  // If none of the specific rule intents matched, return null to delegate to LLM
+  return null;
+}
+
+// Fallback guidance when LLM is unavailable or unserviceable
+function generateSmartFallback(userText, isFirstMessage = false, conversationHistory = []) {
+  const fast = getFastPathReply(userText, isFirstMessage, conversationHistory);
+  if (fast) return fast;
+
   const dynamicFallbacks = [
     'জি, আপনি কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন একটু জানালে এখনই শেয়ার করছি। 🌸',
     'আমাদের ৫টি রানিং হট-সেলিং মডেল রয়েছে (DF-101 থেকে DF-105)। আপনি কি ছবি দেখতে চাচ্ছেন নাকি সাইজ ও প্রাইজ জানতে চাচ্ছেন?',
@@ -1070,18 +1081,17 @@ async function handleIncomingMessage(senderId, userText) {
 
   let aiReply = '';
 
-  // 0ms Fast-Path: Instantly answer standard inquiries (Price, Sizing, Delivery, Hijab, Gher, Exchange, Rider etc.)
-  const fastReply = generateSmartFallback(userText, isFirstMessageForContact);
-  const isDefaultFallback = fastReply.includes('কোন মডেলের ছবি বা বিস্তারিত দেখতে চাচ্ছেন') || fastReply.includes('কোন মডেলের ছবি বা সাইজ দেখতে চাচ্ছেন');
+  // 0ms Fast-Path: Instantly answer standard inquiries (Price, Sizing, Delivery, Hijab, Gher, Exchange, Rider, Orders etc.)
+  const fastReply = getFastPathReply(userText, isFirstMessageForContact, history);
 
-  if (!isDefaultFallback) {
+  if (fastReply) {
     aiReply = fastReply;
   } else {
     try {
       aiReply = await callGroqWithFallback(history, isFirstMessageForContact, userText);
     } catch (error) {
       console.error('[AI Error]:', error.message);
-      aiReply = fastReply;
+      aiReply = generateSmartFallback(userText, isFirstMessageForContact, history);
     }
   }
 
