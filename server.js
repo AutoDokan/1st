@@ -1906,6 +1906,23 @@ async function processBufferedUserMessages(remoteJid) {
       return p;
     }
 
+        function buildSingleProductCaption(p) {
+      const store = (typeof getStoreSettings === 'function') ? getStoreSettings() : {};
+      const insideFee = store.inside_dhaka_fee || 80;
+      const outsideFee = store.outside_dhaka_fee || 150;
+      const hijabText = p.hijab_included ? 'ম্যাচিং হিজাব একদম ফ্রি' : 'হিজাব আলাদা';
+
+      return `👗 *${p.name}* (${p.model_code || 'DF-101'})
+💰 প্রাইজ: *৳${p.price}* টাকা (${hijabText})
+✨ ফেব্রিক: ${p.fabric || 'প্রিমিয়াম দুবাই চেরি'}
+📏 সাইজ (ঝুল): ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'} (বডি ফ্রি সাইজ)
+──────────
+🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳${insideFee}, ঢাকার বাইরে ৳${outsideFee}
+📦 সম্পূর্ণ ক্যাশ অন ডেলিভারি (পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে চেক করে নিতে পারবেন)।
+
+✨ এই মডেলটির হিজাব, কাজের ক্লোজ-আপ বা ঘেরের আরও ছবি দেখতে চাইলে লিখে জানাতে পারেন। আর অর্ডার করতে চাইলে আপনার সাইজ ও ঠিকানা পাঠিয়ে দিন!`;
+    }
+
     function buildProductAlbumCaption(p) {
       const store = (typeof getStoreSettings === 'function') ? getStoreSettings() : {};
       const insideFee = store.inside_dhaka_fee || 80;
@@ -1916,16 +1933,15 @@ async function processBufferedUserMessages(remoteJid) {
 ──────────
 💰 প্রাইজ: *৳${p.price}* টাকা (${hijabText})
 ✨ ফেব্রিক: ${p.fabric || 'প্রিমিয়াম দুবাই চেরি'}
-📏 এভেইলেবল সাইজ: ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'}
-🪡 কাজ: হাতা ও কটিতে নিখুঁত অ্যান্টিক গোল্ডেন জারদৌসি ও কারচুপির হ্যান্ডওয়ার্ক
+📏 সাইজ (ঝুল): ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'} (বডি ফ্রি সাইজ)
+🪡 কাজ: হাতা ও কটিতে নিখুঁত কারচুপির হ্যান্ডওয়ার্ক
 ──────────
-🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee}, বাইরে ৳${outsideFee}
-✨ শুধু ডেলিভারি চার্জ অগ্রিম দিয়ে কনফার্ম করতে হয়। বোরকার পুরো দাম ক্যাশ অন ডেলিভারি। পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে-শুনে নিতে পারবেন—পছন্দ হলে মূল্য পরিশোধ করবেন, পছন্দ না হলে পেমেন্ট করতে হবে না!
+🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳${insideFee}, ঢাকার বাইরে ৳${outsideFee}
+📦 সম্পূর্ণ ক্যাশ অন ডেলিভারি (পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে দেখে চেক করে নিতে পারবেন)।
 
 🛍️ অর্ডার করতে চাইলে আপনার পছন্দের *সাইজ, নাম, সম্পূর্ণ ঠিকানা (গ্রাম/এলাকা, থানা, জেলা) ও মোবাইল নাম্বার* লিখে জানিয়ে দিন।`;
     }
 
-    // Helper to send a product's photos as a unified WhatsApp Album with complete details
     async function sendProductAlbum(p) {
       if (!sock || !p) return false;
       try {
@@ -2099,17 +2115,13 @@ async function processBufferedUserMessages(remoteJid) {
         }
       }
 
-      // Handle Main Image: if single product requested, promote to ALL 5 PHOTOS!
+      // Handle Main Image: sends ONLY 1 MAIN BADGED PHOTO!
       for (const match of mainMatches) {
         const code = match[1].toUpperCase().trim();
         if (allMatches.some(m => m[1].toUpperCase().trim() === code)) continue;
         const p = findProd(code);
-        if (p) {
-          if (mainMatches.length === 1 && (p.detail_image_url || p.hijab_image_url || p.flare_image_url || p.real_image_url)) {
-            await sendProductAlbum(p);
-          } else if (p.image_url) {
-            await sendWaPhoto(p.image_url, `👗 *${p.name}*\n💰 মূল্য: *৳${p.price}* টাকা (হিজাব ফ্রি)\n✨ ফেব্রিক: ${p.fabric || 'দুবাই চেরি'}`);
-          }
+        if (p && p.image_url) {
+          await sendWaPhoto(p.image_url, buildSingleProductCaption(p));
         }
       }
     }

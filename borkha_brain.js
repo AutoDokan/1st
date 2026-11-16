@@ -150,7 +150,9 @@ function isPureQuestion(text) {
 function isAskingForCatalogOverview(text) {
   const t = (text || '').toLowerCase();
   if (isPureQuestion(text)) return false;
-  return /কি কি\s*(বোরকা|ডিজাইন|মডেল|কালেকশন)|সব\s*(বোরকা|ডিজাইন|মডেল|কালেকশন)|ক্যাটালগ|catalog|কালেকশনগুলো|বোরকাগুলো|ডিজাইনগুলো|ki ki ache|ki ki design|sob design|sob gulo|সবগুলো|সবগুলা|সব গুলো|মডেলগুলো\s*দেখান/i.test(t);
+  // If a specific model is named, it is not a general catalog overview
+  if (detectModelFromText(t)) return false;
+  return /কি কি\s*(বোরকা|ডিজাইন|মডেল|কালেকশন)|সব\s*(বোরকা|ডিজাইন|মডেল|কালেকশন|পোশাক)|ক্যাটালগ|catalog|কালেকশনগুলো|বোরকাগুলো|ডিজাইনগুলো|ki ki ache|ki ki design|sob design|মডেলগুলো\s*দেখান|ডিজাইন\s*দেখান/i.test(t);
 }
 
 function isAskingForImage(text) {
@@ -181,7 +183,7 @@ function isAskingForReal(text) {
 
 function isAskingForAllImages(text) {
   const t = (text || '').toLowerCase();
-  return /সব|all|একাধিক|কয়েকটা|আরও|আর কি|ডিটেইল|আর ছবি নাই|ar pic nai|আরো ছবি|aro pic|pic dekhan|ছবি দেখান|ছবি দেন|পিক দেন/i.test(t);
+  return /সবগুলো\s*(ছবি|পিক|ভিউ|view)|সব\s*(ছবি|পিক)|বাকি\s*(ছবি|সব)|সব\s*কয়টা|সব\s*কয়টা|সব\s*অ্যাঙ্গেল|all\s*images|all\s*pics|all\s*photos/i.test(t);
 }
 
 function buildSystemPrompt(isFirstMessage) {
@@ -213,12 +215,12 @@ ${salamRule}
    - কাস্টমার যদি ব্যক্তিগত প্রশ্ন করে (যেমন: "আপনার নাম কি?", "আপনি কি ম্যারেড?", "ছেলে না মেয়ে?", "আপনি কি রোবট?"):
      কখনোই "আমি একটি এআই / রোবট" বলবে না!
      মার্জিতভাবে বলবে:
-     "আমি দাওয়াহ ফ্যাশনের অনলাইন সাপোর্ট টিম থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া সিলেক্ট করতে কীভাবে সাহায্য করতে পারি বলুন?"
+     "আমি দাওয়াহ ফ্যাশন থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?"
 
 5. PRICE BARGAINING & JUSTIFICATION (দাম কমানোর অনুরোধে করণীয়):
    - কাস্টমার যদি দাম কমাতে বলে বা বলে "সবাই তো কমে সেল করছে / দাম কম রাখা যায় না / ডিসকাউন্ট হবে?":
      কখনোই রোবটের মতো "দুঃখিত, দাম কমানো সম্ভব নয়" বলবে না! প্রিমিয়াম কোয়ালিটি ব্যাখ্যা করে আন্তরিকভাবে বলবে:
-     "আমাদের প্রতিটি বোরকা ও আবায়া অরিজিনাল প্রিমিয়াম দুবাই ও কোরিয়ান চেরি ফেব্রিক দিয়ে নিখুঁত কারচুপি ও সেলাই ফিনিশিংয়ে প্রস্তুত করা। সাথে আকর্ষণীয় ম্যাচিং হিজাব সম্পূর্ণ ফ্রি পাচ্ছেন এবং সারা দেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে। কোয়ালিটি বিবেচনায় প্রাইজটি একদম রিজনেবল ও ফিক্সড রাখা হয়েছে।"
+     "আমাদের প্রতিটা বোরকা অরিজিনাল প্রিমিয়াম দুবাই ও কোরিয়ান চেরি কাপড়ে নিখুঁত কারচুপির হ্যান্ডওয়ার্কে তৈরি। সাথে সুন্দর ম্যাচিং হিজাব একদম ফ্রি পাচ্ছেন এবং সারা দেশে ক্যাশ অন ডেলিভারিতে চেক করে নেওয়ার সুবিধা আছে। কাপড়ের প্রিমিয়াম কোয়ালিটি ও ফিনিশিং বিবেচনায় প্রাইজটা একদম ফিক্সড ও রিজনেবল রাখা হয়েছে।"
 
 6. FEMALE SHOPPING PSYCHOLOGY & COLOR/DESIGN CONSULTANT RULES (কালার ও ডিজাইন চয়েস সমাধান - অত্যন্ত গোছানো ও পরিপাটি উত্তর):
    নারী কাস্টমারদের কেনাকাটার বিশেষ দ্বিধাদ্বন্দ্বগুলো অত্যন্ত গোছানো ও আন্তরিকভাবে সমাধান করতে হবে:
@@ -258,15 +260,17 @@ ${salamRule}
    - যেমন: "৪ নাম্বার এর পিক দেন" / "4 number er pic daw" -> কাস্টমার DF-104 চাচ্ছে! সরাসরি বলবে:
      "DF-104 সিম্পল এ-লাইন ক্যাজুয়াল ডেইলি ওয়্যার বোরকার ছবি পাঠিয়ে দিচ্ছি [SEND_IMAGE:DF-104]"
 
-7. GOLDEN 5-SHOT PHOTO RULE (সম্পূর্ণ ৫টি প্রফেশনাল ফটো প্রদান):
-   - কাস্টমার যখনই কোনো মডেল বা নির্দিষ্ট ড্রেসের ছবি দেখতে চাইবে (যেমন "১ এর ছবি দেন", "ছবি দেখান", "pic dekhan", "DF-101 এর ছবি দেন", "ছবি দেন", "আর ছবি নাই", "পিক দেখতে চাই"):
-     * অবশ্যই [SEND_ALL_IMAGES:DF-XXX] ট্যাগ দিবে! কারণ কাস্টমারকে একবারে ৫টি প্রফেশনাল ছবি (ফ্রন্ট লুক, কাজের ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের ভিউ, এবং আনফিল্টার্ড রিয়েল ডে-লাইট লুক) পাঠানো আবশ্যক।
-     * শুধুমাত্র কাস্টমার যদি নির্দিষ্ট কোনো একটি পার্ট চেয়ে থাকে:
-       - শুধু হিজাব চাইলে: [SEND_HIJAB_IMAGE:DF-XXX]
-       - শুধু কাজের বা হাতার ক্লোজ-আপ চাইলে: [SEND_DETAIL_IMAGE:DF-XXX]
-       - শুধু ঘের চাইলে: [SEND_FLARE_IMAGE:DF-XXX]
-       - শুধু রিয়েল বা ক্যামেরার ছবি চাইলে: [SEND_REAL_IMAGE:DF-XXX]
-     * অতি জরুরি (CRITICAL FORMAT): ব্র্যাকেটের ভেতরে কোনো অতিরিক্ত স্পেস দেওয়া যাবে না। হুবহু [SEND_ALL_IMAGES:DF-101] লিখবে, কখনোই [ SEND_ALL_IMAGES:DF-101 ] বা কোড টেক্সটে লিখবে না। কাস্টমারের সাথে আলাপে কোনো কোড বা ট্যাগ দৃশ্যমান হবে না।
+7. PHOTO SENDING RULE (ডিফল্টভাবে শুধুমাত্র ১টি মেইন ছবি পাঠাবে):
+   - কাস্টমার যখন কোনো মডেলের ছবি দেখতে চাইবে (যেমন "১ এর ছবি দেন", "ছবি দেখান", "pic dekhan", "DF-101 এর ছবি দেন", "ছবি দেন", "পিক দেখতে চাই"):
+     * অবশ্যই শুধুমাত্র ১টি মেইন ছবি দিবে: [SEND_IMAGE:DF-XXX]
+     * কোনোভাবেই অপ্রয়োজনে একসাথে ৫টি ছবি পাঠাবে না!
+   - শুধুমাত্র কাস্টমার যদি বিশেষভাবে চায়:
+     * সবগুলো বা বাকি ছবি চাইলে: [SEND_ALL_IMAGES:DF-XXX]
+     * শুধু হিজাব চাইলে: [SEND_HIJAB_IMAGE:DF-XXX]
+     * শুধু কাজের বা হাতার ক্লোজ-আপ চাইলে: [SEND_DETAIL_IMAGE:DF-XXX]
+     * শুধু ঘের চাইলে: [SEND_FLARE_IMAGE:DF-XXX]
+     * শুধু রিয়েল বা ক্যামেরার ছবি চাইলে: [SEND_REAL_IMAGE:DF-XXX]
+   - অতি জরুরি: ব্র্যাকেটের ভেতরে কোনো স্পেস দেওয়া যাবে না। হুবহু [SEND_IMAGE:DF-101] লিখবে। কাস্টমারের সাথে আলাপে কোনো কোড বা ট্যাগ দৃশ্যমান হবে না।
 
 8. STRICT PRICING, DELIVERY & 100% RISK-FREE CUSTOMER TRUST POLICY:
    - বোরকার আসল দাম সম্পূর্ণ ক্যাশ অন ডেলিভারি (COD)। বোরকার জন্য ১ টাকাও অগ্রিম নেওয়া হয় না!
@@ -285,11 +289,11 @@ ${salamRule}
        "ধন্যবাদ! আপনি যে বিকাশ বা নগদ নাম্বার থেকে টাকা পাঠিয়েছেন সেই নাম্বারটি (অথবা নাম্বারের শেষের ২ বা ৪টি ডিজিট) এবং কত টাকা পাঠিয়েছেন লিখে জানিয়ে দিন।"
      * আর কাস্টমার যদি নাম্বার বা শেষের ডিজিট জানিয়ে দেয় (যেমন: "017XXXXXXXX থেকে পাঠিয়েছি", "লাস্ট ৪ ডিজিট ১২৩৪", "১২৩৪", "8901 theke disi"):
        অবশ্যই ঠিক এই কথাটি বলবে:
-       "ধন্যবাদ! আমাদের অ্যাকাউন্টস ম্যানেজার আপনার পেমেন্টটি ভেরিফাই করে কনফার্মেশনের জন্য আপনাকে দ্রুত কল করবেন। ইনশাআল্লাহ আপনার পার্সেলটি যত্নসহকারে পাঠিয়ে দেওয়া হবে।"
+       "ধন্যবাদ! আমাদের অ্যাকাউন্টস ম্যানেজার আপনার পেমেন্টটি ভেরিফাই করে কনফার্মেশনের জন্য আপনাকে দ্রুত একটি কল করবেন। এরপর আমরা আপনার পার্সেলটি সুন্দরভাবে রেডি করে পাঠিয়ে দেব।"
 
 10. STRUCTURED BANGLADESHI DELIVERY ADDRESS COLLECTION:
     - কাস্টমার যখন অর্ডার করতে চাইবে বা ঠিকানা দিতে বলবে, তখন পুরো ঠিকানা সুন্দরভাবে গুছিয়ে বাংলায় চাইবে:
-      "অর্ডারটি কনফার্ম করতে অনুগ্রহ করে আপনার সম্পূর্ণ ডেলিভারি ঠিকানাটি এভাবে লিখে দিন:
+      "অর্ডার কনফার্ম করতে আপনার ডেলিভারির ঠিকানাটি একটু লিখে দিন:
       ১. আপনার পুরো নাম
       ২. মোবাইল নাম্বার
       ৩. বাসা/বাড়ি নং, রোড নং বা ব্লক (যদি থাকে)
@@ -320,7 +324,7 @@ function generateSmartFallback(userText, isFirstMessage) {
 
   // 1. Personal / Identity / Robot questions
   if (isIdentityOrPersonalQuery(t)) {
-    return 'আমি দাওয়াহ ফ্যাশনের অনলাইন সাপোর্ট টিম থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া সিলেক্ট করতে কীভাবে সাহায্য করতে পারি বলুন?';
+    return 'আমি দাওয়াহ ফ্যাশন থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?';
   }
 
   // 2. Price bargaining
@@ -391,7 +395,7 @@ function generateSmartFallback(userText, isFirstMessage) {
 
   // 4b. Asking for catalog overview / all models
   if (isAskingForCatalogOverview(t)) {
-    return `${greeting}আমাদের বর্তমান জনপ্রিয় সেরা ৫টি বোরকার ফ্রন্ট লুক উপরে পাঠিয়ে দেওয়া হলো। প্রতিটি ছবির নিচে মডেল কোড ও মূল্য উল্লেখ রয়েছে।
+    return `${greeting}আমাদের জনপ্রিয় ৫টি বোরকার মেইন ছবি নিচে পাঠিয়ে দিয়েছি। প্রতিটির ছবির ওপর মডেল কোড ও প্রাইজ দেওয়া আছে।
 
 ✨ আপনার যে মডেলটি পছন্দ হয়, সেটির *মডেল কোড* (যেমন: *DF-101* বা *১ নম্বর*) লিখে জানালে আমরা সেটির সম্পূর্ণ ৫টি ভিউ (কাজের ক্লোজ-আপ, হিজাব, ঘের ও রিয়েল লুক) ও সকল বিস্তারিত জানিয়ে দেব। 🌸 [SEND_CATALOG_OVERVIEW]`;
   }
@@ -408,7 +412,7 @@ function generateSmartFallback(userText, isFirstMessage) {
   }
 
   if (/সাইজ কি|size ki|কি কি সাইজ|কি সাইজ|ঝুল কত/i.test(t)) {
-    return `${greeting}আমাদের বোরকাগুলোর ঝুল এভেইলেবল রয়েছে: ৫০, ৫২, ৫৪ এবং ৫৬ ইঞ্চি। বডি সাইজ ফ্রি (৩৮ থেকে ৪৬ পর্যন্ত সহজেই এডজাস্টেবল)। আপনার উচ্চতা কত তা জানালে সঠিক ঝুল সাইজ বলে দিতে পারব।`;
+    return `${greeting}আমাদের বোরকাগুলোর সাইজ (ঝুল): ৫০, ৫২, ৫৪ এবং ৫৬ ইঞ্চি। বডি সাইজ ফ্রি (৩৮ থেকে ৪৬ পর্যন্ত যে কেউই সুন্দরভাবে পরতে পারবেন)। আপনার উচ্চতা জানালে সঠিক সাইজটি বলে দিতে পারব।`;
   }
 
   if (/ফেব্রিক কি|কাপড় কি|কাপড় কি|fabric ki/i.test(t)) {
@@ -421,7 +425,7 @@ function generateSmartFallback(userText, isFirstMessage) {
   // 5. Asking for all pictures or multiple photos
   if (isAskingForAllImages(t) && isAskingForImage(t)) {
     const code = detectModelFromText(t) || 'DF-101';
-    return `${greeting}অবশ্যই! ${code} মডেলের ৫টি প্রফেশনাল ছবি ও সম্পূর্ণ প্রোডাক্ট ডিটেইলস একসাথে অ্যালবামে নিচে দেওয়া হলো [SEND_ALL_IMAGES:${code}]`;
+    return `${greeting}অবশ্যই! ${code} মডেলের সবগুলো অ্যাঙ্গেলের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:${code}]`;
   }
 
   // 6. Asking for hijab photo
@@ -454,9 +458,12 @@ function generateSmartFallback(userText, isFirstMessage) {
     if (code) {
       const prod = getProductByCode(code);
       const name = prod ? prod.name : code;
-      return `${greeting}${name} এর ৫টি সুন্দর অ্যাঙ্গেলের প্রফেশনাল ছবি (মেইন ফ্রন্ট লুক, কাজের ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের ও স্বাভাবিক আলোর রিয়েল লুক) নিচে পাঠিয়ে দেওয়া হলো [SEND_ALL_IMAGES:${code}]`;
+      if (isAskingForAllImages(t)) {
+        return `${greeting}${name} এর সবগুলো অ্যাঙ্গেলের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:${code}]`;
+      }
+      return `${greeting}${name} এর ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_IMAGE:${code}]`;
     }
-    return `${greeting}আমাদের সেরা মডেল ৩-পিস কারচুপি কোটি সেটের ৫টি সম্পূর্ণ অ্যাঙ্গেলের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:DF-101]`;
+    return `${greeting}আমাদের সেরা মডেল ৩-পিস কারচুপি কোটি সেটের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_IMAGE:DF-101]`;
   }
 
   // 9. Asking for models or collection
@@ -472,7 +479,7 @@ function generateSmartFallback(userText, isFirstMessage) {
 
   // 9b. Customer asking about checking in front of delivery man / return policy / trust
   if (/দেখে নিতে পারব|dekhe nite|চেক করে|check kore|পছন্দ না হলে|pochondo na hole|ফেরত|return|খারাপ হলে|আগে চেক/i.test(t)) {
-    return `${greeting}অবশ্যই! পার্সেল হাতে পেয়ে আপনি ডেলিভারি ম্যানের সামনে দেখে-শুনে চেক করে নিতে পারবেন। পছন্দ হলে বোরকার মূল্য পরিশোধ করবেন, আর পছন্দ না হলে কোনো পেমেন্ট করতে হবে না! অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) অগ্রিম দিতে হয়, বোরকার সম্পূর্ণ টাকা ক্যাশ অন ডেলিভারি।`;
+    return `${greeting}অবশ্যই! পার্সেল হাতে পেয়ে আপনি ডেলিভারি ম্যানের সামনে দেখে-শুনে চেক করে নিতে পারবেন। পছন্দ হলে ডেলিভারি ম্যানকে টাকা দিয়ে পার্সেল বুঝে নেবেন, আর কোনো কারণে পছন্দ না হলে রিটার্ন করতে পারবেন—বোরকার জন্য কোনো টাকা দিতে হবে না! অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জ (ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}) অগ্রিম দিতে হয়, বোরকার সম্পূর্ণ টাকা ক্যাশ অন ডেলিভারি।`;
   }
 
   // 9c. Payment confirmation & Accounts manager flow
@@ -492,7 +499,7 @@ function generateSmartFallback(userText, isFirstMessage) {
 
   // 9d. Customer asking to order / buy / provide address
   if (/অর্ডার করতে চাই|order korte chai|নিতে চাই|nite chai|অর্ডার করব|অর্ডার নিব|অর্ডার দেন|order den|kinte chai|কিনতে চাই|এড্রেস|address|ঠিকানা/i.test(t)) {
-    return `${greeting}অর্ডারটি কনফার্ম করতে অনুগ্রহ করে আপনার ডেলিভারি ঠিকানাটি এভাবে লিখে দিন:
+    return `${greeting}অর্ডার কনফার্ম করতে আপনার ডেলিভারির ঠিকানাটি একটু লিখে দিন:
 ১. আপনার পুরো নাম
 ২. মোবাইল নাম্বার
 ৩. বাসা/বাড়ি নং, রোড নং বা ব্লক (যদি থাকে)
@@ -714,7 +721,7 @@ async function handleIncomingMessage(senderId, userText) {
 
   // Shield against AI/Robot identity leakage:
   if (/কৃত্রিম\s*বুদ্ধিমত্তা|artificial intelligence|\bAI\b|রোবট|robot/i.test(aiReply)) {
-    aiReply = 'আমি দাওয়াহ ফ্যাশনের অনলাইন সাপোর্ট টিম থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া সিলেক্ট করতে কীভাবে সাহায্য করতে পারি বলুন?';
+    aiReply = 'আমি দাওয়াহ ফ্যাশন থেকে বলছি 🌸 আপনাকে সুন্দর একটি বোরকা বা আবায়া বেছে নিতে কীভাবে সাহায্য করতে পারি বলুন?';
   }
 
   // Soften robotic price rejection:
@@ -745,12 +752,29 @@ async function handleIncomingMessage(senderId, userText) {
           aiReply += ` [SEND_FLARE_IMAGE:${detectedModel}]`;
         } else if (isAskingForReal(userText)) {
           aiReply += ` [SEND_REAL_IMAGE:${detectedModel}]`;
-        } else {
+        } else if (isAskingForAllImages(userText)) {
           aiReply += ` [SEND_ALL_IMAGES:${detectedModel}]`;
+        } else {
+          aiReply += ` [SEND_IMAGE:${detectedModel}]`;
         }
       }
     }
   }
+
+  // Downgrade SEND_ALL_IMAGES to SEND_IMAGE if customer did not explicitly ask for all images
+  if (!isAskingForAllImages(userText)) {
+    aiReply = aiReply.replace(/\[\s*SEND_ALL_IMAGES\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi, '[SEND_IMAGE:$1]');
+  }
+
+  // Vocabulary localizer shield (strips robotic phrases)
+  aiReply = aiReply
+    .replace(/উপলব্ধ\s*রয়েছে|উপলব্ধ\s*আছে|উপলব্ধ/gi, 'আমাদের কাছে আছে')
+    .replace(/এভেইলেবল\s*রয়েছে|এভেইলেবল\s*আছে|এভেইলেবল/gi, 'স্টকে আছে')
+    .replace(/অনলাইন\s*সাপোর্ট\s*টিম\s*থেকে\s*বলছি/gi, 'দাওয়াহ ফ্যাশন থেকে বলছি')
+    .replace(/মূল্য\s*পরিশোধ\s*করবেন/gi, 'টাকা ডেলিভারি ম্যানকে দিয়ে পার্সেল বুঝে নেবেন')
+    .replace(/পার্সেল\s*যত্নসহকারে\s*পাঠিয়ে\s*দেওয়া\s*হবে/gi, 'পার্সেলটি সুন্দরভাবে রেডি করে পাঠিয়ে দেওয়া হবে')
+    .replace(/অনুগ্রহ\s*করে\s*আপনার\s*সম্পূর্ণ\s*ডেলিভারি\s*ঠিকানাটি/gi, 'আপনার ডেলিভারির ঠিকানাটি')
+    .replace(/প্রস্তুত\s*করা/gi, 'তৈরি করা');
 
   // 4. Financial Calculation Protection Shield:
   // Strictly prevent any hallucinated advance calculations (e.g. 1000 TK / 1080 TK advance).
