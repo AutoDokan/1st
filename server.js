@@ -2459,26 +2459,31 @@ async function connectToWhatsApp() {
       }
 
       // Check if incoming is non-text media (photo, voice note, video, sticker, document)
-      const hasMedia = !!(
-        unwrappedMsg?.imageMessage ||
-        unwrappedMsg?.audioMessage ||
-        unwrappedMsg?.pttMessage ||
+      const isImage = !!unwrappedMsg?.imageMessage;
+      const isAudio = !!(unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage);
+      const hasMedia = isImage || isAudio || !!(
         unwrappedMsg?.videoMessage ||
         unwrappedMsg?.stickerMessage ||
         unwrappedMsg?.documentMessage
       );
 
-      // If user sent media without text (or voice note/video), send polite text-only guidance
+      // If user sent media without text (or voice note/video), send polite smart guidance
       if (hasMedia && !messageContent.trim()) {
-        console.log(`[WhatsApp Non-Text Media] Media received from ${remoteJid}`);
+        console.log(`[WhatsApp Non-Text Media] Media received from ${remoteJid} (isImage: ${isImage}, isAudio: ${isAudio})`);
         const now = Date.now();
         const lastSent = lastVoiceReplyTime.get(remoteJid) || 0;
         if (now - lastSent > 45000 && sock) {
           lastVoiceReplyTime.set(remoteJid, now);
           try {
-            await sock.sendMessage(remoteJid, {
-              text: 'আসসালামু আলাইকুম! আমাদের এই হোয়াটসঅ্যাপ নাম্বারে শুধুমাত্র লিখে মেসেজ দেওয়া যায়, কোনো ছবি, ভয়েস বা ভিডিও মেসেজ এখানে দেখা বা শোনা যায় না।\n\nঅনুগ্রহ করে আপনি যে বোরকাটি নিতে চাচ্ছেন বা যে বিষয়ে জানতে চাচ্ছেন তা লিখে মেসেজ করুন, আমরা দ্রুত ছবি ও সকল বিস্তারিত জানিয়ে সাহায্য করছি। ধন্যবাদ! 🌸'
-            });
+            let mediaReply = '';
+            if (isImage) {
+              mediaReply = 'জি, আপনার পাঠানো ছবিটি পেয়েছি! 🌸 আপনি কি এই ডিজাইনটির সাইজ, ফেব্রিক ও মূল্য জানতে চাচ্ছেন? আপনার উচ্চতা কত (যেমন: ৫ ফুট ২ বা ৫ ফুট ৪) একটু লিখে জানালে পারফেক্ট ঝুল সাইজ সহ সকল বিস্তারিত জানিয়ে দিচ্ছি।';
+            } else if (isAudio) {
+              mediaReply = 'জি, আপনার ভয়েস মেসেজটি পেয়েছি 🌸 আমাদের টিম দ্রুত চেক করে জানাচ্ছে। আপনি কি নির্দিষ্ট কোনো মডেল বা সাইজ অর্ডার করতে চাচ্ছেন? একটু লিখে জানালে এখনই পার্সেল রেডি করে দিতে পারব।';
+            } else {
+              mediaReply = 'জি, আপনার মেসেজটি পেয়েছি 🌸 আপনি কোন মডেলটি অর্ডার করতে চাচ্ছেন বা আপনার উচ্চতা কত লিখে জানালে সঠিক সাইজ সহ বিস্তারিত জানিয়ে দিচ্ছি।';
+            }
+            await sock.sendMessage(remoteJid, { text: mediaReply });
             incrementStats('messages_out');
           } catch (e) {
             console.error('[Media Reply Error]:', e.message);
