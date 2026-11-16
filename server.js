@@ -256,7 +256,10 @@ app.post('/api/orders/:id/status', requireAuth, async (req, res) => {
 
 // Update Global Store & Delivery Rules API (supports AJAX & Form)
 app.post('/api/settings/update', requireAuth, async (req, res) => {
-  const { inside_dhaka_fee, outside_dhaka_fee, bkash_number, nagad_number } = req.body;
+  const { inside_dhaka_fee, outside_dhaka_fee, bkash_number, nagad_number, auto_followup } = req.body;
+  if (auto_followup !== undefined) {
+    autoFollowupEnabled = (auto_followup === 'true' || auto_followup === true);
+  }
   await supabase.from('store_settings').upsert({
     id: 1,
     inside_dhaka_fee: Number(inside_dhaka_fee) || 80,
@@ -267,7 +270,7 @@ app.post('/api/settings/update', requireAuth, async (req, res) => {
   });
   await refreshSettingsFromDB();
   if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
-    return res.json({ success: true });
+    return res.json({ success: true, auto_followup_enabled: autoFollowupEnabled });
   }
   res.redirect('/dashboard');
 });
@@ -538,6 +541,60 @@ async function syncScreenshotToOrder(cleanPhone, screenshotUrl) {
   }
 }
 
+// State for Abandoned Lead Ghosting Recovery
+const followupCooldownMap = new Map(); // cleanPhone -> timestamp
+let autoFollowupEnabled = true;
+
+// Helper: Generate Official Digital Cash Memo in Bengali
+function generateDigitalCashMemo(order) {
+  const dateStr = new Date(order.created_at || Date.now()).toLocaleDateString('bn-BD', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+  const dressPrice = Number(order.total_bdt) || 2200;
+  const deliveryFee = Number(order.delivery_fee) || 80;
+  const advance = Number(order.advance_paid) || 0;
+  const dueCod = Number(order.due_cod) || dressPrice;
+
+  return `🧾 *দাওয়া ফ্যাশন — ডিজিটাল ক্যাশ মেমো / ইনভয়েস*
+━━━━━━━━━━━━━━━━━━━━━━━━
+📌 *ইনভয়েস আইডি:* #DF-${order.id}
+🗓️ *তারিখ:* ${dateStr}
+
+👤 *কাস্টমার তথ্য:*
+• নাম: ${order.customer_name || 'সম্মানিত গ্রাহক'}
+• ফোন: ${order.customer_phone || 'N/A'}
+• ডেলিভারি ঠিকানা: ${order.address || 'ঠিকানা সংগৃহীত হচ্ছে'}
+
+🛍️ *পণ্যের বিবরণ:*
+• মডেল কোড: ${order.model_code || 'DF-Collection'}
+• পোশাক: ${order.product_details || 'দুবাই চেরি আবায়া সেট'}
+• সাইজ (ঝুল): ${order.length_size ? `${order.length_size} ইঞ্চি (ঢিলেঢালা ফ্রি বডি সাইজ)` : '৫০-৫৬ ইঞ্চি (ফ্রি বডি সাইজ)'}
+• উপহার: ম্যাচিং প্রিমিয়াম হিজাব (সম্পূর্ণ ফ্রি) 🎁
+
+💰 *পেমেন্ট ও বিল সামারি:*
+• পোশাকের মূল্য: ৳${dressPrice.toLocaleString('bn-BD')} টাকা
+• ডেলিভারি চার্জ: ৳${deliveryFee.toLocaleString('bn-BD')} টাকা
+• অগ্রিম পরিশোধিত: ৳${advance.toLocaleString('bn-BD')} টাকা (${advance > 0 ? 'পরিশোধিত' : 'বকেয়া'})
+━━━━━━━━━━━━━━━━━━━━━━━━
+💵 *ডেলিভারি ম্যানকে ক্যাশ অন ডেলিভারি (COD):* *৳${dueCod.toLocaleString('bn-BD')} টাকা*
+━━━━━━━━━━━━━━━━━━━━━━━━
+✨ *১০০% কাস্টমার ট্রাস্ট গ্যারান্টি:*
+পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে প্রোডাক্ট দেখে ও চেক করে নেওয়ার শতভাগ সুবিধা রয়েছে। পছন্দ হলে মূল্য পরিশোধ করবেন।
+
+দাওয়া ফ্যাশনের সাথে থাকার জন্য আন্তরিক ধন্যবাদ! 🌸`;
+}
+
+// Helper: Generate Polite Bengali Follow-up for Abandoned / Ghosted Leads
+function generateFollowupMessage(order) {
+  const model = order.model_code;
+  const name = order.customer_name ? `${order.customer_name} আপু` : 'আপু';
+  if (model) {
+    return `আসসালামু আলাইকুম ${name} 🌸\n\nআপনি কি আমাদের *${model}* আবায়াটি নিয়ে আর কিছু জানতে চেয়েছিলেন? আমাদের প্রতিটি মডেলের স্টক কিন্তু খুব দ্রুত শেষ হয়ে যাচ্ছে। আপনার জন্য পছন্দের ঝুল সাইজটি কি বুক করে রাখব?\n\nসাইজ বা ফেব্রিক নিয়ে কোনো কিছু জানার থাকলে নিঃসংকোচে বলুন, আমরা সুন্দর একটি বোরকা বেছে নিতে সাহায্য করব। 🌸`;
+  } else {
+    return `আসসালামু আলাইকুম ${name} 🌸\n\nআপনি কি আমাদের বোরকা বা আবায়া কালেকশন নিয়ে আর কিছু জানতে চেয়েছিলেন? আপনার কোনো প্রশ্ন বা সাইজ নিয়ে দ্বিধা থাকলে নিঃসংকোচে জানান, আমরা সুন্দর একটি ডিজাইন বেছে দিতে সাহায্য করব। 🌸`;
+  }
+}
+
 // 1-Click Approve Payment & Confirm Order Endpoint
 app.post('/api/orders/:id/approve-payment', requireAuth, async (req, res) => {
   const { id } = req.params;
@@ -555,8 +612,14 @@ app.post('/api/orders/:id/approve-payment', requireAuth, async (req, res) => {
       if (notify_customer && sock && order.customer_phone) {
         const cleanNumber = order.customer_phone.replace(/[^0-9]/g, '');
         const jid = `${cleanNumber}@s.whatsapp.net`;
+        const memoText = generateDigitalCashMemo({
+          ...order,
+          status: 'Approved',
+          advance_paid: order.delivery_fee || 80,
+          trx_id_or_last4: trx_id || order.trx_id_or_last4 || 'Verified'
+        });
         await sock.sendMessage(jid, {
-          text: `আলহামদুলিল্লাহ! আপনার পেমেন্ট স্ক্রিনশটটি সফলভাবে ভেরিফাই করা হয়েছে এবং অর্ডারটি কনফার্ম হয়েছে। 🌸\n\nঅর্ডার কোড: #${order.id}\nপোশাক: ${order.product_details || 'আবায়া'}\nকুরিয়ারে বকেয়া পরিশোধ (Due COD): ৳${order.due_cod || order.total_bdt} টাকা।\n\nশীঘ্রই ডেলিভারি ট্র্যাকিং নম্বর সহ আপডেট জানিয়ে দেওয়া হবে। ধন্যবাদ!`
+          text: `আলহামদুলিল্লাহ! আপনার পেমেন্টটি সফলভাবে ভেরিফাই করা হয়েছে এবং অর্ডারটি কনফার্ম হয়েছে। নিচে আপনার অফিসিয়াল ডিজিটাল ক্যাশ মেমো দেওয়া হলো:\n\n${memoText}`
         });
       }
     }
@@ -568,6 +631,107 @@ app.post('/api/orders/:id/approve-payment', requireAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Send Digital Cash Memo to WhatsApp
+app.post('/api/orders/:id/send-memo', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data: order, error } = await supabase.from('orders').select('*').eq('id', id).single();
+    if (error || !order) return res.status(404).json({ error: 'অর্ডার পাওয়া যায়নি' });
+    if (!order.customer_phone) return res.status(400).json({ error: 'কাস্টমারের ফোন নম্বর নেই' });
+    if (!sock) return res.status(503).json({ error: 'WhatsApp সংযোগ নেই' });
+
+    const cleanNumber = order.customer_phone.replace(/[^0-9]/g, '');
+    const jid = `${cleanNumber}@s.whatsapp.net`;
+    const memoText = generateDigitalCashMemo(order);
+
+    await sock.sendMessage(jid, { text: memoText });
+    incrementStats('messages_out');
+    res.json({ success: true, message: 'ডিজিটাল ক্যাশ মেমো পাঠানো হয়েছে' });
+  } catch (err) {
+    console.error('[Send Memo Error]:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send Manual Lead Recovery Follow-up to WhatsApp
+app.post('/api/orders/:id/send-followup', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data: order, error } = await supabase.from('orders').select('*').eq('id', id).single();
+    if (error || !order) return res.status(404).json({ error: 'অর্ডার বা লিড পাওয়া যায়নি' });
+    if (!order.customer_phone) return res.status(400).json({ error: 'কাস্টমারের ফোন নম্বর নেই' });
+    if (!sock) return res.status(503).json({ error: 'WhatsApp সংযোগ নেই' });
+
+    const cleanNumber = order.customer_phone.replace(/[^0-9]/g, '');
+    const jid = `${cleanNumber}@s.whatsapp.net`;
+    const followupText = generateFollowupMessage(order);
+
+    await sock.sendMessage(jid, { text: followupText });
+    incrementStats('messages_out');
+    followupCooldownMap.set(cleanNumber, Date.now());
+    res.json({ success: true, message: 'রিকভারি ফলো-আপ পাঠানো হয়েছে' });
+  } catch (err) {
+    console.error('[Send Follow-up Error]:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Automated Abandoned Lead Recovery Background Engine
+async function checkAndSendAbandonedLeadFollowups() {
+  if (!sock || !autoFollowupEnabled) return;
+
+  // Respectful Bangladeshi Business Hours Check (9:30 AM to 10:00 PM BST / UTC+6)
+  const now = new Date();
+  const utcHours = now.getUTCHours();
+  const bdHours = (utcHours + 6) % 24;
+  if (bdHours < 9 || bdHours >= 22) {
+    return; // Outside friendly business hours, pause automated follow-ups
+  }
+
+  try {
+    // Find pending leads created between 2 hours and 36 hours ago
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const thirtySixHoursAgo = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString();
+
+    const { data: abandonedLeads, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('status', 'Pending')
+      .lt('created_at', twoHoursAgo)
+      .gt('created_at', thirtySixHoursAgo)
+      .limit(6);
+
+    if (error || !abandonedLeads || abandonedLeads.length === 0) return;
+
+    for (const lead of abandonedLeads) {
+      if (!lead.customer_phone) continue;
+      const cleanPhone = lead.customer_phone.replace(/[^0-9]/g, '');
+
+      // Cooldown check: At least 24 hours between automated follow-ups
+      const lastSent = followupCooldownMap.get(cleanPhone) || 0;
+      if (Date.now() - lastSent < 24 * 60 * 60 * 1000) {
+        continue;
+      }
+
+      const jid = `${cleanPhone}@s.whatsapp.net`;
+      const followupMsg = generateFollowupMessage(lead);
+
+      console.log(`[Auto Recovery] Sending polite follow-up to ${cleanPhone} (Lead #${lead.id})`);
+      await sock.sendMessage(jid, { text: followupMsg });
+      incrementStats('messages_out');
+      followupCooldownMap.set(cleanPhone, Date.now());
+
+      // Natural pause between messages
+      await new Promise(r => setTimeout(r, 4500));
+    }
+  } catch (err) {
+    console.error('[Auto Follow-up Error]:', err.message);
+  }
+}
+
+// Check every 25 minutes
+setInterval(checkAndSendAbandonedLeadFollowups, 25 * 60 * 1000);
 
 // Unified Master Dashboard (Executive F-Commerce Command Center for Dawah Fashion)
 // Unified Master Dashboard (Executive Mobile-First F-Commerce Command Center for Dawah Fashion)
@@ -669,6 +833,14 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           <button onclick="copyCourierData('${courierData}')" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 px-2.5 py-1.5 rounded-xl font-bold border border-amber-300 shadow-2xs cursor-pointer inline-flex items-center gap-1 transition">
             <span>📋 কুরিয়ার কপি</span>
           </button>
+          <button onclick="sendDigitalCashMemo(${o.id})" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2.5 py-1.5 rounded-xl font-bold border border-emerald-300 shadow-2xs cursor-pointer inline-flex items-center gap-1 transition" title="কাস্টমারকে হোয়াটসঅ্যাপে ডিজিটাল মেমো পাঠান">
+            <span>🧾 মেমো পাঠান</span>
+          </button>
+          ${(o.status === 'Pending' || !o.address) ? `
+          <button onclick="sendFollowupDirect(${o.id})" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 px-2.5 py-1.5 rounded-xl font-bold border border-amber-300 shadow-2xs cursor-pointer inline-flex items-center gap-1 transition" title="গোস্টিং হওয়া কাস্টমারকে রিকভারি মেসেজ পাঠান">
+            <span>📩 ফলো-আপ</span>
+          </button>
+          ` : ''}
           ${screenshotUrl ? `
           <button type="button" onclick="openScreenshotModal('${screenshotUrl}', ${o.id}, '${o.customer_phone}', '${(o.customer_name || 'কাস্টমার').replace(/'/g, "\\'")}')" class="text-xs bg-violet-100 hover:bg-violet-200 text-violet-900 px-2.5 py-1.5 rounded-xl font-black border border-violet-300 inline-flex items-center gap-1 shadow-2xs cursor-pointer">
             <span>📸 স্ক্রিনশট</span>
@@ -850,6 +1022,14 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         ${o.status === 'Pending Verification' ? `
         <button onclick="approveOrderDirect(${o.id})" class="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-black px-2 py-1 rounded block mt-1.5 text-center shadow-2xs w-full cursor-pointer">
           ✅ ১-ক্লিকে কনফার্ম
+        </button>
+        ` : ''}
+        <button onclick="sendDigitalCashMemo(${o.id})" class="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold px-2 py-1 rounded block mt-1 text-center shadow-2xs w-full cursor-pointer" title="কাস্টমারকে হোয়াটসঅ্যাপে ডিজিটাল মেমো পাঠান">
+          🧾 ডিজিটাল মেমো
+        </button>
+        ${(o.status === 'Pending' || !o.address) ? `
+        <button onclick="sendFollowupDirect(${o.id})" class="text-[10px] bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-1 rounded block mt-1 text-center shadow-2xs w-full cursor-pointer" title="গোস্টিং হওয়া কাস্টমারকে রিকভারি মেসেজ পাঠান">
+          📩 রিকভারি মেসেজ
         </button>
         ` : ''}
       </td>
@@ -1270,6 +1450,14 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 <input type="text" id="drawer_nagad" value="${curSettings.nagad_number}" required class="w-full bg-white border border-stone-300 text-stone-900 text-sm font-mono font-bold p-2.5 rounded-lg focus:border-amber-500 outline-none">
               </div>
 
+              <div class="bg-[#fcfaf7] p-3.5 rounded-xl border border-stone-200 flex items-center justify-between">
+                <div>
+                  <label class="block text-xs font-bold text-stone-800">🤖 গোস্টিং অটো-রিকভারি (Auto Recovery)</label>
+                  <p class="text-[11px] text-stone-500 font-medium">২ ঘণ্টা পার হলে কাস্টমারকে শালীন ফলো-আপ পাঠানো</p>
+                </div>
+                <input type="checkbox" id="drawer_auto_followup" ${autoFollowupEnabled ? 'checked' : ''} class="w-5 h-5 rounded accent-amber-600 cursor-pointer">
+              </div>
+
               <button type="submit" class="w-full bg-stone-900 hover:bg-black text-white text-xs font-black py-3 rounded-xl shadow-sm transition cursor-pointer">
                 💾 রুলস সেভ করুন
               </button>
@@ -1504,6 +1692,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           const outside = document.getElementById('drawer_outside_fee').value;
           const bkash = document.getElementById('drawer_bkash').value;
           const nagad = document.getElementById('drawer_nagad').value;
+          const autoFollowup = document.getElementById('drawer_auto_followup') ? document.getElementById('drawer_auto_followup').checked : true;
 
           try {
             const res = await fetch('/api/settings/update', {
@@ -1514,11 +1703,12 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 outside_dhaka_fee: outside,
                 bkash_number: bkash,
                 nagad_number: nagad,
+                auto_followup: autoFollowup,
                 ajax: true
               })
             });
             if (res.ok) {
-              showToast('⚙️ ডেলিভারি চার্জ ও বিকাশ রুলস সেভ হয়েছে! AI এখন নতুন রেট বলবে।');
+              showToast('⚙️ ডেলিভারি চার্জ ও অটো-ফলোআপ রুলস সেভ হয়েছে! AI এখন নতুন নিয়মে চলবে।');
               closeDrawer('settingsDrawer');
             }
           } catch (err) {
@@ -1644,6 +1834,36 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         async function approveOrderDirect(id) {
           await updateOrderStatusLive(id, 'Approved');
           showToast('✅ অর্ডার কনফার্ম করা হয়েছে!');
+        }
+
+        async function sendDigitalCashMemo(id) {
+          if (!confirm('কাস্টমারের হোয়াটসঅ্যাপে ডিজিটাল ক্যাশ মেমো পাঠাতে চান?')) return;
+          try {
+            const res = await fetch('/api/orders/' + id + '/send-memo', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.success) {
+              showToast('🧾 ডিজিটাল ক্যাশ মেমো হোয়াটসঅ্যাপে সফলভাবে পাঠানো হয়েছে!');
+            } else {
+              showToast('⚠️ এরর: ' + (data.error || 'পাঠানো যায়নি'));
+            }
+          } catch (err) {
+            showToast('⚠️ সংযোগে সমস্যা হয়েছে');
+          }
+        }
+
+        async function sendFollowupDirect(id) {
+          if (!confirm('কাস্টমারকে গোস্টিং রিকভারি ফলো-আপ মেসেজ পাঠাতে চান?')) return;
+          try {
+            const res = await fetch('/api/orders/' + id + '/send-followup', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.success) {
+              showToast('📩 রিকভারি ফলো-আপ মেসেজ সফলভাবে পাঠানো হয়েছে!');
+            } else {
+              showToast('⚠️ এরর: ' + (data.error || 'পাঠানো যায়নি'));
+            }
+          } catch (err) {
+            showToast('⚠️ সংযোগে সমস্যা হয়েছে');
+          }
         }
 
         // Live Polling Engine (Every 6s)
