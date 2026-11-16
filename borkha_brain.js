@@ -301,13 +301,13 @@ function isPureQuestion(text) {
 function isAskingForAllCatalog(text, conversationHistory = []) {
   const t = (text || '').toLowerCase().trim();
   if (isPureQuestion(text)) return false;
-  if (/সব\s*(?:মডেল|ডিজাইন|কালেকশন|ছবি|পিক|পিকচার|বোরকা|আবায়া)|সবগুলো|সবগুলা|sob\s*(?:mode|model|collection|chobi|pic|design)|sobgulo|সব\s*(?:দেখাও|দেখান|দেখব|দেখতে\s*চাই)|সব\s*কয়টি/i.test(t)) {
+  if (/সব\s*(?:মডেল|ডিজাইন|কালেকশন|ছবি|পিক|পিকচার|বোরকা|আবায়া)?\s*(?:দেখাও|দেখান|দেখব|দেখতে\s*চাই|পাঠান|দিন)|সবগুলো|সবগুলা|sob\s*(?:mode|model|collection|chobi|pic|design|dekhte|dekhaw|dekhan|dekhi)|sobgulo|সব\s*কয়টি/i.test(t)) {
     return true;
   }
-  if (/^(?:হ্যাঁ|হাঁ|জি|ji|ha|yes|dekhan|দেখান|পাঠান|pathan|দিন|din|সবগুলো\s*দেখান)$/i.test(t)) {
+  if (/^(?:হ্যাঁ|হাঁ|জি|ji|ha|yes|ok|আচ্ছা|হুম)(?:\s*(?:দেখান|পাঠান|দেখব|চাই|দিন|dekhan))?$|^(?:দেখান|পাঠান|দেখব|দিন|dekhan|pathan|show|send)$/i.test(t)) {
     if (conversationHistory && conversationHistory.length > 0) {
       const lastBotMsg = conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
-      if (lastBotMsg.includes('সব কয়টি মডেলের ছবি') || lastBotMsg.includes('সবগুলোর ছবি') || lastBotMsg.includes('সব কয়টি')) {
+      if (lastBotMsg.includes('সব কয়টি') || lastBotMsg.includes('সবগুলোর') || lastBotMsg.includes('সব ডিজাইন')) {
         return true;
       }
     }
@@ -1022,7 +1022,7 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
 
   // 9a. Customer wants to see ALL in-stock models in catalog ("সব দেখতে চাইলে"):
   if (isAskingForAllCatalog(t, conversationHistory)) {
-    return `${greeting}আমাদের স্টকে থাকা রানিং কালেকশনের সবগুলোর মূল ছবি নিচে দেওয়া হলো [SEND_CATALOG_OVERVIEW]। আপনার যে মডেলটি পছন্দ হয়, সেটির নাম বা নম্বর লিখে জানালে সেটির বাকি সব ছবি ও বিস্তারিত দিয়ে দেব।`;
+    return `${greeting}আমাদের স্টকে থাকা রানিং কালেকশনের সবগুলোর মূল ছবি নিচে দেওয়া হলো [SEND_CATALOG_OVERVIEW]। আপনার যে মডেলটি পছন্দ হয়, সেটির নাম বা নম্বর জানালেই সেটির বাকি সব ছবি ও বিস্তারিত দিয়ে দেব।`;
   }
 
   // 9b. General photo / collection inquiry when no specific model is selected (Stage 1 of the Funnel: dynamic single showcase photo)
@@ -1030,7 +1030,7 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     const allProds = getAllCachedProducts();
     const topProd = (allProds && allProds.length > 0) ? allProds[0] : null;
     const topCode = topProd ? topProd.model_code : 'DF-101';
-    return `${greeting}আমাদের রানিং কালেকশনের মূল ডিজাইনটি উপরে দেওয়া হলো [SEND_IMAGE:${topCode}]। আপনি কি আমাদের স্টকে থাকা সব কয়টি মডেলের ছবি দেখতে চান? "সবগুলো দেখান" লিখে জানালেই সব পাঠিয়ে দেব। আর আপনার নির্দিষ্ট কোনো ডিজাইন পছন্দ থাকলে বলুন তো?`;
+    return `${greeting}আমাদের রানিং কালেকশনের মূল ডিজাইনটি উপরে দেওয়া হলো [SEND_IMAGE:${topCode}]। আপনি কি স্টকের সব কয়টি ডিজাইন দেখতে চাচ্ছেন, নাকি আপনার নির্দিষ্ট কোনো পছন্দ আছে বলুন তো?`;
   }
 
   // 9b. Customer asking about checking in front of delivery man / Opening parcel / Return policy
@@ -1389,7 +1389,7 @@ async function handleIncomingMessage(senderId, userText) {
   if (isPureQuestion(userText)) {
     // Pure Q&A (pricing, size, fabric, delivery, etc.) -> Strictly strip ANY image tags!
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-  } else if (isAskingForAllCatalog(userText)) {
+  } else if (isAskingForAllCatalog(userText, history)) {
     // Customer explicitly wants to see ALL in-stock models in catalog
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
     aiReply += ' [SEND_CATALOG_OVERVIEW]';
