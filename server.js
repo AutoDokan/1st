@@ -484,28 +484,54 @@ app.post('/api/test-bot', requireAuth, async (req, res) => {
 
     // Detect any photo tags sent by bot
     const photoCards = [];
+
+    // 1. Catalog overview tag: add main image of all 5 products
+    if (/\[\s*SEND_CATALOG_OVERVIEW\s*\]/i.test(reply)) {
+      const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
+      for (const prod of allProds) {
+        if (prod.image_url) {
+          photoCards.push({
+            type: 'SEND_IMAGE',
+            modelCode: prod.model_code,
+            url: prod.image_url,
+            label: `${prod.model_code} - ৳${prod.price}`,
+            name: prod.name
+          });
+        }
+      }
+    }
+
+    // 2. Specific tag matches
     const tagMatches = [...reply.matchAll(/\[(SEND_[A-Z_]+):([A-Z0-9-]+)\]/g)];
     for (const match of tagMatches) {
       const tagType = match[1];
       const modelCode = match[2];
       const prod = getProductByCode(modelCode);
       if (prod) {
-        let photoUrl = null;
-        let label = 'ফটো';
-        if (tagType === 'SEND_MAIN_IMAGE') { photoUrl = prod.image_url; label = '১. মেইন ফ্রন্ট ভিউ'; }
-        else if (tagType === 'SEND_DETAIL_IMAGE') { photoUrl = prod.detail_image_url; label = '২. কারচুপি ক্লোজ-আপ'; }
-        else if (tagType === 'SEND_HIJAB_IMAGE') { photoUrl = prod.hijab_image_url; label = '৩. ম্যাচিং হিজাব'; }
-        else if (tagType === 'SEND_FLARE_IMAGE') { photoUrl = prod.flare_image_url; label = '৪. ঘের ও সাইড অ্যাঙ্গেল'; }
-        else if (tagType === 'SEND_REAL_IMAGE') { photoUrl = prod.real_image_url; label = '৫. আনফিল্টার্ড রিয়েল ছবি'; }
-        else if (tagType === 'SEND_IMAGE') { photoUrl = prod.image_url; label = 'প্রোডাক্ট ছবি'; }
+        if (tagType === 'SEND_ALL_IMAGES') {
+          if (prod.image_url) photoCards.push({ type: 'SEND_MAIN_IMAGE', modelCode, url: prod.image_url, label: '১. মেইন ফ্রন্ট ভিউ', name: prod.name });
+          if (prod.detail_image_url) photoCards.push({ type: 'SEND_DETAIL_IMAGE', modelCode, url: prod.detail_image_url, label: '২. কারচুপি ক্লোজ-আপ', name: prod.name });
+          if (prod.hijab_image_url) photoCards.push({ type: 'SEND_HIJAB_IMAGE', modelCode, url: prod.hijab_image_url, label: '৩. ম্যাচিং হিজাব', name: prod.name });
+          if (prod.flare_image_url) photoCards.push({ type: 'SEND_FLARE_IMAGE', modelCode, url: prod.flare_image_url, label: '৪. ঘের ও সাইড অ্যাঙ্গেল', name: prod.name });
+          if (prod.real_image_url) photoCards.push({ type: 'SEND_REAL_IMAGE', modelCode, url: prod.real_image_url, label: '৫. আনফিল্টার্ড রিয়েল ছবি', name: prod.name });
+        } else {
+          let photoUrl = null;
+          let label = 'ফটো';
+          if (tagType === 'SEND_MAIN_IMAGE') { photoUrl = prod.image_url; label = '১. মেইন ফ্রন্ট ভিউ'; }
+          else if (tagType === 'SEND_DETAIL_IMAGE') { photoUrl = prod.detail_image_url; label = '২. কারচুপি ক্লোজ-আপ'; }
+          else if (tagType === 'SEND_HIJAB_IMAGE') { photoUrl = prod.hijab_image_url; label = '৩. ম্যাচিং হিজাব'; }
+          else if (tagType === 'SEND_FLARE_IMAGE') { photoUrl = prod.flare_image_url; label = '৪. ঘের ও সাইড অ্যাঙ্গেল'; }
+          else if (tagType === 'SEND_REAL_IMAGE') { photoUrl = prod.real_image_url; label = '৫. আনফিল্টার্ড রিয়েল ছবি'; }
+          else if (tagType === 'SEND_IMAGE') { photoUrl = prod.image_url; label = 'প্রোডাক্ট ছবি'; }
 
-        if (photoUrl) {
-          photoCards.push({ type: tagType, modelCode, url: photoUrl, label, name: prod.name });
+          if (photoUrl) {
+            photoCards.push({ type: tagType, modelCode, url: photoUrl, label, name: prod.name });
+          }
         }
       }
     }
 
-    const cleanReply = reply.replace(/\[SEND_[A-Z_]+:[A-Z0-9-]+\]/g, '').trim();
+    const cleanReply = reply.replace(/\[\s*SEND_[A-Za-z0-9_:\s-]+\s*\]/gi, '').trim();
 
     return res.json({
       success: true,

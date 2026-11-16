@@ -119,51 +119,47 @@ function detectModelFromText(text) {
   const t = (text || '').toLowerCase().trim();
   if (!t) return null;
 
-  // 1. Dynamic Check against all loaded products in cachedProductList
+  // 1. Direct Model Code Matching (e.g. "DF-101", "DF 101", "DF101", "df-102")
+  const directMatch = t.match(/\bdf[ -]?(\d{3})\b/i);
+  if (directMatch) {
+    return `DF-${directMatch[1]}`;
+  }
+
+  // 2. 3-digit number match (e.g. "101", "102", "১০১", "১০২")
+  if (/\b101\b|১০১/.test(t)) return 'DF-101';
+  if (/\b102\b|১০২/.test(t)) return 'DF-102';
+  if (/\b103\b|১০৩/.test(t)) return 'DF-103';
+  if (/\b104\b|১০৪/.test(t)) return 'DF-104';
+  if (/\b105\b|১০৫/.test(t)) return 'DF-105';
+  if (/\b106\b|১০৬/.test(t)) return 'DF-106';
+
+  // 3. Ordinals and Serial Numbers (e.g. "১ নম্বর", "১ম টা", "প্রথমটা", "১ নং", "১টা", "1st")
+  if (/(?:^|\s|[^\w])(?:১|1|১ম|1st|প্রথম|প্রথমটা|prothom)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-101';
+  if (/(?:^|\s|[^\w])(?:২|2|২য়|2nd|দ্বিতীয়|দ্বিতীয়টা|ditio)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-102';
+  if (/(?:^|\s|[^\w])(?:৩|3|৩য়|3rd|তৃতীয়|তৃতীয়টা|tritio)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-103';
+  if (/(?:^|\s|[^\w])(?:৪|4|৪র্থ|4th|চতুর্থ|চতুর্থটা|choturtho)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-104';
+  if (/(?:^|\s|[^\w])(?:৫|5|৫ম|5th|পঞ্চম|পঞ্চমটা|ponchom)(?:\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা))?(?:$|\s|[^\w])/i.test(t)) return 'DF-105';
+
+  // 4. Characteristic Features & Color aliases
+  // DF-101: 3-piece exclusive karchupi koti set (black)
+  if (/কারচুপি|karchupi|কোটি|koti|৩\s*পিস|3\s*piece|কালো\s*বোরকা|কালো\s*আবায়া|jet\s*black|জেট\s*ব্ল্যাক/i.test(t)) return 'DF-101';
+  // DF-102: Dubai Cherry Rani Abaya (Maroon)
+  if (/রানি|রানী|rani|মেরুন|maroon|merun|চেরি\s*মেরুন/i.test(t)) return 'DF-102';
+  // DF-103: Korean Cherry Casual Kaftan Abaya (Navy Blue)
+  if (/কাফতান|kaftan|কোরিয়ান|korian|korean|নেভি|navy|নেভি\s*ব্লু/i.test(t)) return 'DF-103';
+  // DF-104: Luxury Karchupi Kaftan Set (Sea Green)
+  if (/সি\s*গ্রিন|sea\s*green|সিগ্রিন|পেস্টেল|লাক্সারি\s*কাফতান/i.test(t)) return 'DF-104';
+  // DF-105: Gorgeous Dubai Front Open Abaya (Front open / Butterfly)
+  if (/বাটারফ্লাই|butterfly|ফ্রন্ট\s*ওপেন|front\s*open|ওপেন\s*আবায়া/i.test(t)) return 'DF-105';
+
+  // 5. Dynamic Check against loaded products
   if (Array.isArray(cachedProductList)) {
     for (const p of cachedProductList) {
-      if (p.model_code) {
-        const codeClean = p.model_code.toLowerCase().trim(); // e.g. "df-101"
-        const numPart = codeClean.replace(/[^0-9]/g, ''); // e.g. "101"
-        
-        // Match code with space or hyphen (e.g. "df-101", "df 101", "df101")
-        const codeRegex = new RegExp(`(?:^|\\s|[^\w])${codeClean.replace('-', '[ -]?')}(?:$|\\s|[^\w])`, 'i');
-        if (codeRegex.test(t)) return p.model_code.toUpperCase().trim();
-
-        // Match number if at least 3 digits (e.g. \b101\b)
-        if (numPart && numPart.length >= 3) {
-          const numRegex = new RegExp(`(?:^|\\s|[^\w])${numPart}(?:$|\\s|[^\w])`, 'i');
-          if (numRegex.test(t)) return p.model_code.toUpperCase().trim();
-        }
-
-        // Match distinct product name keywords (e.g. "রানি" for Rani Abaya)
-        if (p.name) {
-          const nameTokens = p.name.split(/\s+/).filter(w => w.length > 2 && !['বোরকা', 'আবায়া', 'সেট', 'প্রিমিয়াম', 'এক্সক্লুসিভ', 'কাপড়', 'কালেকশন'].includes(w));
-          for (const token of nameTokens) {
-            if (t.includes(token.toLowerCase())) {
-              return p.model_code.toUpperCase().trim();
-            }
-          }
-        }
+      if (p.model_code && t.includes(p.model_code.toLowerCase())) {
+        return p.model_code.toUpperCase().trim();
       }
     }
   }
-
-  // 2. Specific Fallbacks for historical keywords & aliases:
-  if (/df-?101|\b101\b|কারচুপি|karchupi|কোটি|koti/i.test(t)) return 'DF-101';
-  if (/df-?102|\b102\b|রানি|rani/i.test(t)) return 'DF-102';
-  if (/df-?103|\b103\b|কাফতান|kaftan|কোরিয়ান|korian|korean|ceri/i.test(t)) return 'DF-103';
-  if (/df-?104|\b104\b|এ-লাইন|a-line|aline|ক্যাজুয়াল/i.test(t)) return 'DF-104';
-  if (/df-?105|\b105\b|বাটারফ্লাই|butterfly/i.test(t)) return 'DF-105';
-  if (/df-?106|\b106\b|ডাবল লেয়ার|double layer/i.test(t)) return 'DF-106';
-
-  // 3. Ordinal numbering from catalog lists
-  if (/(?:^|\s|[^\w])(?:১|1)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-101';
-  if (/(?:^|\s|[^\w])(?:২|2)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-102';
-  if (/(?:^|\s|[^\w])(?:৩|3)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-103';
-  if (/(?:^|\s|[^\w])(?:৪|4)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-104';
-  if (/(?:^|\s|[^\w])(?:৫|5)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-105';
-  if (/(?:^|\s|[^\w])(?:৬|6)\s*(?:নং|নম্বর|নাম্বার|number|no|er|এর|ta|টা)/i.test(t)) return 'DF-106';
 
   return null;
 }
@@ -220,17 +216,23 @@ function isPureQuestion(text) {
 }
 
 function isAskingForCatalogOverview(text) {
-  const t = (text || '').toLowerCase();
+  const t = (text || '').toLowerCase().trim();
   if (isPureQuestion(text)) return false;
-  // If a specific model is named, it is not a general catalog overview
+  // If asking for specific views of a selected model (all pics, real pic, hijab, etc.) -> NOT catalog overview!
+  if (isAskingForAllImages(text) || isAskingForReal(text) || isAskingForHijab(text) || isAskingForDetail(text) || isAskingForFlare(text)) {
+    return false;
+  }
+  // If a specific model is named or inferred, it is not a general catalog overview
   if (detectModelFromText(t)) return false;
-  return /কি কি\s*(বোরকা|ডিজাইন|মডেল|কালেকশন)|সব\s*(বোরকা|ডিজাইন|মডেল|কালেকশন|পোশাক)|ক্যাটালগ|catalog|কালেকশনগুলো|বোরকাগুলো|ডিজাইনগুলো|ki ki ache|ki ki design|sob design|মডেলগুলো\s*দেখান|ডিজাইন\s*দেখান/i.test(t);
+
+  // Broad recognition of customer asking to see pictures / collection / designs without picking a model
+  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|ক্যাটালগ|catalog|কালেকশন|collection|ডিজাইন|design|বোরকাগুলো|আবায়াগুলো|সবগুলো|কি কি\s*(বোরকা|ডিজাইন|মডেল|কালেকশন|পোশাক|আছে)|দেখান|পাঠান|দেখব|দেখতে\s*চাই/i.test(t);
 }
 
 function isAskingForImage(text) {
   const t = (text || '').toLowerCase();
   if (isPureQuestion(text)) return false;
-  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|দেখান|দেখাও|দেখব|দেখি|দেখতে\s*চাই/i.test(t);
+  return /ছবি|পিক|পিকচার|pic|photo|image|chobi|দেখান|দেখাও|দেখব|দেখি|দেখতে\s*চাই|পাঠান|পাঠাও/i.test(t);
 }
 
 function isAskingForHijab(text) {
@@ -255,7 +257,7 @@ function isAskingForReal(text) {
 
 function isAskingForAllImages(text) {
   const t = (text || '').toLowerCase();
-  return /সবগুলো\s*(ছবি|পিক|ভিউ|view)|সব\s*(ছবি|পিক)|বাকি\s*(ছবি|সব)|সব\s*কয়টা|সব\s*কয়টা|সব\s*অ্যাঙ্গেল|all\s*images|all\s*pics|all\s*photos/i.test(t);
+  return /সবগুলো\s*(ছবি|পিক|ভিউ|view)|সব\s*(ছবি|পিক)|বাকি\s*(ছবি|সব|পিক)|আরও\s*(ছবি|পিক)|আর\s*(ছবি|পিক)|aro\s*pic|aro\s*chobi|সব\s*কয়টা|সব\s*কয়টা|সব\s*অ্যাঙ্গেল|all\s*images|all\s*pics|all\s*photos/i.test(t);
 }
 
 function buildSystemPrompt(isFirstMessage) {
@@ -614,13 +616,6 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     }
   }
 
-  // 4b. Asking for catalog overview / all models
-  if (isAskingForCatalogOverview(t)) {
-    return `${greeting}আমাদের জনপ্রিয় ৫টি বোরকার মেইন ছবি নিচে পাঠিয়ে দিয়েছি। প্রতিটির ছবির ওপর মডেল কোড ও প্রাইজ দেওয়া আছে।
-
-✨ আপনার যে মডেলটি পছন্দ হয়, সেটির *মডেল কোড* (যেমন: *DF-101* বা *১ নম্বর*) লিখে জানালে আমরা সেটির সম্পূর্ণ ৫টি ভিউ (কাজের ক্লোজ-আপ, হিজাব, ঘের ও রিয়েল লুক) ও সকল বিস্তারিত জানিয়ে দেব। 🌸 [SEND_CATALOG_OVERVIEW]`;
-  }
-
   // 4c. Pure Pricing & "Pp" rapid handling
   if (/(?:\bpp\b|\bprice\b|দাম কত|koto dam|dam koto|price please|প্রাইজ কত|মূল্য কত)/i.test(t)) {
     const code = detectModelFromText(t);
@@ -796,53 +791,83 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     return `${greeting}অবশ্যই! ${code} মডেলের সবগুলো অ্যাঙ্গেলের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:${code}]`;
   }
 
-  // 6. Asking for hijab photo
-  if (isAskingForHijab(t)) {
-    const code = detectModelFromText(t) || 'DF-101';
-    return `${greeting}আমাদের প্রতিটি আবায়ার সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি! ${code} এর হিজাবের ছবি নিচে দেওয়া হলো [SEND_HIJAB_IMAGE:${code}]`;
+  // 5. Asking for all pictures or multiple photos of a model
+  if (isAskingForAllImages(t)) {
+    const code = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : 'DF-101');
+    const prod = getProductByCode(code);
+    const name = prod ? prod.name : code;
+    const price = prod ? prod.price : 2200;
+    const fabric = prod ? prod.fabric : '১০০% অরিজিনাল প্রিমিয়াম দুবাই চেরি';
+    return `${greeting}অবশ্যই! ${name} (${code}) এর ৫টি অ্যাঙ্গেলের সব ছবি (কাজের ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের ও স্বাভাবিক আলোর রিয়েল ছবি) নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:${code}]
+
+💰 প্রাইজ: ৳${price} টাকা (ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি)
+✨ ফেব্রিক: ${fabric}
+📏 সাইজ (ঝুল): ৫০, ৫২, ৫৪, ৫৬ (বডি ফ্রি সাইজ ৩৮-৪৬)
+🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee} (পার্সেল খুলে দেখে নেওয়ার ১০০% সুযোগ)।
+
+🛍️ অর্ডার কনফার্ম করতে চাইলে আপনার নাম, মোবাইল, সম্পূর্ণ ঠিকানা ও উচ্চতা জানিয়ে দিন! 🌸`;
   }
 
-  // 7. Asking for detail photo
-  if (isAskingForDetail(t)) {
-    const code = detectModelFromText(t) || 'DF-101';
-    return `${greeting}নিশ্চয়ই! ${code} এর নিখুঁত কারচুপি কাজ ও ফেব্রিকের ক্লোজ-আপ ছবি নিচে দেওয়া হলো [SEND_DETAIL_IMAGE:${code}]`;
-  }
-
-  // 7b. Asking for flare / side photo
-  if (isAskingForFlare(t)) {
-    const code = detectModelFromText(t) || 'DF-101';
-    return `${greeting}${code} এর ঘের ও সাইড অ্যাঙ্গেল ভিউয়ের ছবি নিচে দেওয়া হলো [SEND_FLARE_IMAGE:${code}]`;
-  }
-
-  // 7c. Asking for real daylight photo
+  // 6. Asking for real unedited daylight photo
   if (isAskingForReal(t)) {
-    const code = detectModelFromText(t) || 'DF-101';
-    return `${greeting}${code} এর স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল ছবি নিচে দেওয়া হলো [SEND_REAL_IMAGE:${code}]`;
+    const code = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : 'DF-101');
+    const prod = getProductByCode(code);
+    const name = prod ? prod.name : code;
+    return `${greeting}${name} (${code}) এর স্বাভাবিক দিনের আলোর সম্পূর্ণ আনফিল্টার্ড রিয়েল ছবি নিচে দেওয়া হলো [SEND_REAL_IMAGE:${code}]
+ক্যামেরা বা ছবিতে যেমন কালার ও নিখুঁত ফিনিশিং দেখছেন, বাস্তবে পার্সেল হাতে পেয়ে হুবহু তাই পাবেন! এছাড়া ডেলিভারি ম্যানের সামনে খুলে দেখে চেক করে নেওয়ার ১০০% সুবিধা রয়েছে। 🌸`;
   }
 
-  // 8. Asking for general photo / picture of a model
-  if (isAskingForImage(t) || /ar pic nai|আর ছবি নাই|pic|ছবি/i.test(t)) {
-    const code = detectModelFromText(t);
-    if (code) {
-      const prod = getProductByCode(code);
-      const name = prod ? prod.name : code;
-      if (isAskingForAllImages(t)) {
-        return `${greeting}${name} এর সবগুলো অ্যাঙ্গেলের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:${code}]`;
-      }
-      return `${greeting}${name} এর ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_IMAGE:${code}]`;
+  // 7. Asking for hijab photo
+  if (isAskingForHijab(t)) {
+    const code = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : 'DF-101');
+    const prod = getProductByCode(code);
+    const name = prod ? prod.name : code;
+    return `${greeting}আমাদের প্রতিটি আবায়ার সাথেই আকর্ষণীয় ম্যাচিং প্রিমিয়াম হিজাব সম্পূর্ণ ফ্রি! ${name} (${code}) এর হিজাবের ছবি নিচে দেওয়া হলো [SEND_HIJAB_IMAGE:${code}]`;
+  }
+
+  // 7b. Asking for detail / close-up embroidery photo
+  if (isAskingForDetail(t)) {
+    const code = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : 'DF-101');
+    const prod = getProductByCode(code);
+    const name = prod ? prod.name : code;
+    return `${greeting}নিশ্চয়ই! ${name} (${code}) এর নিখুঁত কারচুপি কাজ, হাতা ও ফেব্রিকের ক্লোজ-আপ ছবি নিচে দেওয়া হলো [SEND_DETAIL_IMAGE:${code}]`;
+  }
+
+  // 7c. Asking for flare / side angle photo
+  if (isAskingForFlare(t)) {
+    const code = detectModelFromText(t) || (conversationHistory && conversationHistory.length ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : 'DF-101');
+    const prod = getProductByCode(code);
+    const name = prod ? prod.name : code;
+    return `${greeting}${name} (${code}) এর চমৎকার ঘের ও সাইড অ্যাঙ্গেলের ছবি নিচে দেওয়া হলো [SEND_FLARE_IMAGE:${code}]`;
+  }
+
+  // 8. Specific model selected or requested (by code, number, ordinal, color, or keyword)
+  const selectedCode = detectModelFromText(t);
+  if (selectedCode) {
+    const prod = getProductByCode(selectedCode);
+    if (prod) {
+      return `${greeting}অবশ্যই! আপনি ${prod.name} (${prod.model_code}) পছন্দ করেছেন। নিচে এর মূল ছবি পাঠিয়ে দেওয়া হলো। [SEND_IMAGE:${prod.model_code}]
+
+💰 প্রাইজ: ৳${prod.price} টাকা (ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি)
+✨ ফেব্রিক: ${prod.fabric || '১০০% অরিজিনাল প্রিমিয়াম দুবাই চেরি'}
+📏 সাইজ (ঝুল): ৫০, ৫২, ৫৪, ৫৬ (বডি ফ্রি সাইজ ৩৮-৪৬)
+🚚 ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee} (পার্সেল হাতে পেয়ে খুলে দেখে নেওয়ার ১০০% সুযোগ)।
+
+👉 এই মডেলটির কাজের নিখুঁত ক্লোজ-আপ, ম্যাচিং হিজাব, ঘের বা স্বাভাবিক আলোর আনফিল্টার্ড রিয়েল ছবি দেখতে চাইলে "সব ছবি দিন" বা "রিয়েল ছবি দিন" লিখে জানান। আর অর্ডার করতে চাইলে আপনার উচ্চতা জানালে পারফেক্ট সাইজ বুক করে দেব। 🌸`;
     }
-    return `${greeting}আমাদের সেরা মডেল ৩-পিস কারচুপি কোটি সেটের ছবি নিচে পাঠিয়ে দিচ্ছি [SEND_IMAGE:DF-101]`;
   }
 
-  // 9. Asking for models or collection
-  if (t.includes('model') || t.includes('মডেল') || t.includes('কি কি') || t.includes('design') || t.includes('ডিজাইন') || t.includes('কালেকশন') || t.includes('total') || t.includes('কয়টা') || t.includes('কয়টা')) {
-    return `${greeting}আমাদের কালেকশনে বর্তমানে সেরা এই মডেলগুলো রয়েছে:
-১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি সেট (৳২,৪৫০)
-২. DF-102: প্রিমিয়াম দুবাই চেরি রানি আবায়া (৳২,২০০)
-৩. DF-103: কোরিয়ান চেরি ফ্রন্ট-ওপেন কাফতান (৳১,৯৫০)
-৪. DF-104: সিম্পল এ-লাইন ক্যাজুয়াল বোরকা (৳১,৬৫০)
-৫. DF-105: বাটারফ্লাই পার্টি বোরকা (৳২,৩০০)
-সবগুলোর সাথেই ম্যাচিং হিজাব একদম ফ্রি! আপনি কোন মডেলটির ছবি দেখতে চাচ্ছেন?`;
+  // 9. General photo / collection inquiry when no specific model is selected -> SEND MAIN PIC OF ALL RUNNING MODELS!
+  if (isAskingForCatalogOverview(t) || isAskingForImage(t)) {
+    return `${greeting}আমাদের রানিং ৫টি প্রিমিয়াম হট-সেলিং আবায়া ও বোরকার মূল ছবি নিচে পাঠিয়ে দেওয়া হলো (প্রতিটির সাথেই ম্যাচিং প্রিমিয়াম হিজাব একদম ফ্রি):
+
+১. DF-101: ৩-পিস এক্সক্লুসিভ কারচুপি কোটি আবায়া সেট (৳২,৪৫০)
+২. DF-102: দুবাই চেরি রানি আবায়া (৳২,২০০)
+৩. DF-103: কোরিয়ান চেরি ক্যাজুয়াল কাফতান আবায়া (৳১,৯৫০)
+৪. DF-104: লাক্সারি কারচুপি কাফতান সেট (৳১,৯৫০)
+৫. DF-105: গর্জিয়াস দুবাই ফ্রন্ট ওপেন আবায়া (৳২,২০০)
+
+✨ আপনার যে মডেলটি পছন্দ হয়, সেটির নাম বা নম্বর লিখে জানালে (যেমন: "DF-101", "১ নম্বর" বা "মেরুন রানি আবায়া") সেটির সব অ্যাঙ্গেলের ছবি (কাজের ক্লোজ-আপ, হিজাব, ঘের ও স্বাভাবিক আলোর রিয়েল ছবি) এবং সাইজ বিস্তারিত পাঠিয়ে দেব। 🌸 [SEND_CATALOG_OVERVIEW]`;
   }
 
   // 9b. Customer asking about checking in front of delivery man / return policy / trust
