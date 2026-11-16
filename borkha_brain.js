@@ -298,6 +298,23 @@ function isPureQuestion(text) {
   return /(?:দাম|প্রাইজ|মূল্য|price|dam|cost|rate)|(?:সাইজ|size|ঝুল|লম্বা)|(?:ফেব্রিক|কাপড়|কাপড়|fabric)|(?:ডেলিভারি|delivery|কুরিয়ার|চার্জ)|(?:ক্যাশ অন|cash on|কড|cod)|(?:অর্ডার|order|কনফার্ম|confirm|নিতে চাই|nite chai|কিনতে চাই|kinte chai)|(?:বিকাশ|bkash|নগদ|nogod|পেমেন্ট|payment|advance|অগ্রিম)|(?:চেক করে|খুলে দেখে|ডেলিভারি ম্যান)|(?:রিটার্ন|ফেরত|এক্সচেঞ্জ|exchange|বদল)|(?:কয়দিন|কতদিন|koydin|kotodin|জরুরি|urgent|আগামীকাল)|(?:শোরুম|দোকান|মিরপুর|ঠিকানা|address)|(?:হিজাব|নিকাব|ঘের|ইলাস্টিক|ওজু)|(?:কম্বো|ডিসকাউন্ট|ছাড়|অফার|২টা|৩টা)|(?:পাতলা|ইনার|ছেঁড়া|ডিফেক্ট)/i.test(t);
 }
 
+function isAskingForAllCatalog(text, conversationHistory = []) {
+  const t = (text || '').toLowerCase().trim();
+  if (isPureQuestion(text)) return false;
+  if (/সব\s*(?:মডেল|ডিজাইন|কালেকশন|ছবি|পিক|পিকচার|বোরকা|আবায়া)|সবগুলো|সবগুলা|sob\s*(?:mode|model|collection|chobi|pic|design)|sobgulo|সব\s*(?:দেখাও|দেখান|দেখব|দেখতে\s*চাই)|সব\s*কয়টি/i.test(t)) {
+    return true;
+  }
+  if (/^(?:হ্যাঁ|হাঁ|জি|ji|ha|yes|dekhan|দেখান|পাঠান|pathan|দিন|din|সবগুলো\s*দেখান)$/i.test(t)) {
+    if (conversationHistory && conversationHistory.length > 0) {
+      const lastBotMsg = conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
+      if (lastBotMsg.includes('সব কয়টি মডেলের ছবি') || lastBotMsg.includes('সবগুলোর ছবি') || lastBotMsg.includes('সব কয়টি')) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function isAskingForCatalogOverview(text) {
   const t = (text || '').toLowerCase().trim();
   if (isPureQuestion(text)) return false;
@@ -1003,9 +1020,17 @@ function getFastPathReply(userText, isFirstMessage, conversationHistory = []) {
     }
   }
 
-  // 9. General photo / collection inquiry when no specific model is selected (Stage 1 of the Funnel: send ONLY 1 main image, no details)
+  // 9a. Customer wants to see ALL in-stock models in catalog ("সব দেখতে চাইলে"):
+  if (isAskingForAllCatalog(t, conversationHistory)) {
+    return `${greeting}আমাদের স্টকে থাকা রানিং কালেকশনের সবগুলোর মূল ছবি নিচে দেওয়া হলো [SEND_CATALOG_OVERVIEW]। আপনার যে মডেলটি পছন্দ হয়, সেটির নাম বা নম্বর লিখে জানালে সেটির বাকি সব ছবি ও বিস্তারিত দিয়ে দেব।`;
+  }
+
+  // 9b. General photo / collection inquiry when no specific model is selected (Stage 1 of the Funnel: dynamic single showcase photo)
   if (isAskingForCatalogOverview(t) || isAskingForImage(t)) {
-    return `${greeting}আমাদের রানিং কালেকশনের মূল ডিজাইনটি উপরে দেওয়া হলো [SEND_IMAGE:DF-101]। আপনার কোন ডিজাইন বা কালারটি পছন্দ বলুন তো?`;
+    const allProds = getAllCachedProducts();
+    const topProd = (allProds && allProds.length > 0) ? allProds[0] : null;
+    const topCode = topProd ? topProd.model_code : 'DF-101';
+    return `${greeting}আমাদের রানিং কালেকশনের মূল ডিজাইনটি উপরে দেওয়া হলো [SEND_IMAGE:${topCode}]। আপনি কি আমাদের স্টকে থাকা সব কয়টি মডেলের ছবি দেখতে চান? "সবগুলো দেখান" লিখে জানালেই সব পাঠিয়ে দেব। আর আপনার নির্দিষ্ট কোনো কালার পছন্দ থাকলে বলুন তো?`;
   }
 
   // 9b. Customer asking about checking in front of delivery man / Opening parcel / Return policy
@@ -1364,10 +1389,17 @@ async function handleIncomingMessage(senderId, userText) {
   if (isPureQuestion(userText)) {
     // Pure Q&A (pricing, size, fabric, delivery, etc.) -> Strictly strip ANY image tags!
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-  } else if (isAskingForCatalogOverview(userText)) {
-    // Customer wants catalog / all designs -> Send ONLY 1 main overview image!
+  } else if (isAskingForAllCatalog(userText)) {
+    // Customer explicitly wants to see ALL in-stock models in catalog
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-    aiReply += ' [SEND_IMAGE:DF-101]';
+    aiReply += ' [SEND_CATALOG_OVERVIEW]';
+  } else if (isAskingForCatalogOverview(userText)) {
+    // Customer wants initial browse -> Send dynamic single top in-stock image
+    const prods = getAllCachedProducts();
+    const topProd = (prods && prods.length > 0) ? prods[0] : null;
+    const topCode = topProd ? topProd.model_code : 'DF-101';
+    aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
+    aiReply += ` [SEND_IMAGE:${topCode}]`;
   } else {
     // If specific model is requested with image intent
     const hasImageTag = /\[\s*SEND_[A-Z_]+[^\]]*\]/i.test(aiReply);

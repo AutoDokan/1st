@@ -486,18 +486,19 @@ app.post('/api/test-bot', requireAuth, async (req, res) => {
     // Detect any photo tags sent by bot
     const photoCards = [];
 
-    // 1. Catalog overview tag: send only 1 main overview image of our top signature model
+    // 1. Catalog overview tag: add main image of each in-stock product in the catalog
     if (/\[\s*SEND_CATALOG_OVERVIEW\s*\]/i.test(reply)) {
       const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
-      const prod = allProds[0];
-      if (prod && prod.image_url) {
-        photoCards.push({
-          type: 'SEND_IMAGE',
-          modelCode: prod.model_code,
-          url: prod.image_url,
-          label: `${prod.model_code} - ৳${prod.price}`,
-          name: prod.name
-        });
+      for (const prod of allProds) {
+        if (prod.image_url) {
+          photoCards.push({
+            type: 'SEND_IMAGE',
+            modelCode: prod.model_code,
+            url: prod.image_url,
+            label: prod.model_code,
+            name: prod.name
+          });
+        }
       }
     }
 
@@ -3139,28 +3140,36 @@ async function processBufferedUserMessages(remoteJid) {
       }
     }
 
-    // Helper to send Catalog Overview (Sends only 1 main overview photo with title only)
+    // Helper to send Catalog Overview (Sends 1 main front photo for each in-stock product dynamically)
     async function sendCatalogOverview() {
       if (!sock) return false;
       try {
         const allProds = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
-        const p = allProds[0];
-        if (!p || !p.image_url) return false;
+        if (allProds.length === 0) return false;
 
-        let imagePayload;
-        const urlPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '');
-        const localFile = path.join(__dirname, 'public', urlPath);
-        if (fs.existsSync(localFile)) {
-          imagePayload = fs.readFileSync(localFile);
-        } else {
-          imagePayload = { url: p.image_url };
+        for (let i = 0; i < allProds.length; i++) {
+          const p = allProds[i];
+          if (!p || !p.image_url) continue;
+
+          let imagePayload;
+          const urlPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '');
+          const localFile = path.join(__dirname, 'public', urlPath);
+          if (fs.existsSync(localFile)) {
+            imagePayload = fs.readFileSync(localFile);
+          } else {
+            imagePayload = { url: p.image_url };
+          }
+
+          await sock.sendMessage(remoteJid, {
+            image: imagePayload,
+            caption: buildSingleProductCaption(p)
+          });
+          incrementStats('messages_out');
+
+          if (i < allProds.length - 1) {
+            await new Promise(r => setTimeout(r, 280));
+          }
         }
-
-        await sock.sendMessage(remoteJid, {
-          image: imagePayload,
-          caption: buildSingleProductCaption(p)
-        });
-        incrementStats('messages_out');
         await sock.sendPresenceUpdate('available', remoteJid);
         return true;
       } catch (err) {
