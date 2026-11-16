@@ -183,7 +183,9 @@ function isCustomerConfusedOrUndecided(text) {
 
 function isBargainingPrice(text) {
   const t = (text || '').toLowerCase();
-  return /দাম কম|কম রাখা|kom rakha|dam kom|kom koren|kom kora|kom hobe|discount|ডিসকাউন্ট|ছাড়|kom e sell|kome sell|sobai to kom/i.test(t);
+  // "ছাড়া" (without) is NOT a bargaining word for discount!
+  const cleaned = t.replace(/ডেলিভারি\s*চার্জ\s*ছাড়া|চার্জ\s*ছাড়া|টাকা\s*ছাড়া|ছাড়া/g, '');
+  return /দাম কম|কম রাখা|kom rakha|dam kom|kom koren|kom kora|kom hobe|discount|ডিসকাউন্ট|মূল্যছাড়|কিছু\s*ছাড়|ছাড়\s*(?:হবে|পাব|দেন|দিন|আছে)|kom e sell|kome sell|sobai to kom/i.test(cleaned);
 }
 
 function calculateSizeFromHeight(text) {
