@@ -660,7 +660,7 @@ function generateDigitalCashMemo(order) {
 ✨ *১০০% কাস্টমার ট্রাস্ট গ্যারান্টি:*
 পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে প্রোডাক্ট দেখে ও চেক করে নেওয়ার শতভাগ সুবিধা রয়েছে। পছন্দ হলে মূল্য পরিশোধ করবেন।
 
-দাওয়া ফ্যাশনের সাথে থাকার জন্য আন্তরিক ধন্যবাদ! 🌸`;
+দাওয়া ফ্যাশনের সাথে থাকার জন্য আন্তরিক ধন্যবাদ! 😊`;
 }
 
 // Helper: Generate Polite Bengali Follow-up for Abandoned / Ghosted Leads (100% Gender-Neutral & Respectful)
@@ -671,9 +671,9 @@ function generateFollowupMessage(order) {
     : '';
 
   if (model) {
-    return `আসসালামু আলাইকুম${nameStr} 🌸\n\nআপনি কি আমাদের *${model}* আবায়াটি নিয়ে আর কিছু জানতে চেয়েছিলেন? আমাদের প্রতিটি মডেলের স্টক কিন্তু খুব দ্রুত শেষ হয়ে যাচ্ছে। আপনার জন্য কি সাইজটি বুক করে রাখব?\n\nসাইজ বা ফেব্রিক নিয়ে কোনো কিছু জানার থাকলে নিঃসংকোচে বলুন, আমরা সুন্দর একটি বোরকা বেছে নিতে সাহায্য করব। 🌸`;
+    return `আসসালামু আলাইকুম${nameStr} 😊\n\nআপনি কি আমাদের *${model}* আবায়াটি নিয়ে আর কিছু জানতে চেয়েছিলেন? আমাদের প্রতিটি মডেলের স্টক কিন্তু খুব দ্রুত শেষ হয়ে যাচ্ছে। আপনার জন্য কি সাইজটি বুক করে রাখব?\n\nসাইজ বা ফেব্রিক নিয়ে কোনো কিছু জানার থাকলে নিঃসংকোচে বলুন, আমরা সুন্দর একটি বোরকা বেছে নিতে সাহায্য করব। 😊`;
   } else {
-    return `আসসালামু আলাইকুম${nameStr} 🌸\n\nআপনি কি আমাদের বোরকা বা আবায়া কালেকশন নিয়ে আর কিছু জানতে চেয়েছিলেন? আপনার কোনো প্রশ্ন বা সাইজ নিয়ে দ্বিধা থাকলে নিঃসংকোচে জানান, আমরা সুন্দর একটি ডিজাইন বেছে দিতে সাহায্য করব। 🌸`;
+    return `আসসালামু আলাইকুম${nameStr} 😊\n\nআপনি কি আমাদের বোরকা বা আবায়া কালেকশন নিয়ে আর কিছু জানতে চেয়েছিলেন? আপনার কোনো প্রশ্ন বা সাইজ নিয়ে দ্বিধা থাকলে নিঃসংকোচে জানান, আমরা সুন্দর একটি ডিজাইন বেছে দিতে সাহায্য করব। 😊`;
   }
 }
 
@@ -1227,10 +1227,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       <!-- Card Action Buttons -->
       <div class="pt-2 flex items-center justify-between gap-2 border-t border-stone-100 flex-wrap">
         <div class="flex items-center gap-1.5">
-          <button type="button" onclick="copyPromoText('${promoText}')" class="text-xs bg-[#fcfaf7] hover:bg-amber-50 text-stone-800 hover:text-amber-950 font-bold px-2.5 py-1.5 rounded-xl border border-stone-300 hover:border-amber-300 inline-flex items-center gap-1 shadow-2xs transition cursor-pointer">
+          <button type="button" onclick="copyPromoTextById(${p.id})" class="text-xs bg-[#fcfaf7] hover:bg-amber-50 text-stone-800 hover:text-amber-950 font-bold px-2.5 py-1.5 rounded-xl border border-stone-300 hover:border-amber-300 inline-flex items-center gap-1 shadow-2xs transition cursor-pointer">
             <span>📋 প্রমো</span>
           </button>
-          <button type="button" onclick="openEditProductModal(${p.id}, '${p.model_code}', '${safeName}', ${p.price}, '${safeFabric}', '${safeSizes}', ${p.hijab_included}, ${p.in_stock}, '${p.image_url || ''}', '${p.detail_image_url || ''}', '${p.hijab_image_url || ''}', '${p.flare_image_url || ''}', '${p.real_image_url || ''}')" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-950 font-black px-3 py-1.5 rounded-xl border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition cursor-pointer">
+          <button type="button" onclick="openEditProductModalById(${p.id})" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-950 font-black px-3 py-1.5 rounded-xl border border-amber-300 inline-flex items-center gap-1 shadow-2xs transition cursor-pointer">
             <span>✏️ এডিট</span>
           </button>
         </div>
@@ -1497,7 +1497,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                   <!-- Initial Intro Bubble -->
                   <div class="flex justify-start">
                     <div class="max-w-[85%] bg-white p-3.5 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-800 text-xs leading-relaxed">
-                      🌸 আসসালামু আলাইকুম! এটি দাওয়াহ ফ্যাশন এআই সেলস টেস্ট বেঞ্চ। নিচে যেকোনো প্রশ্ন লিখুন বা বাঁ পাশের প্রিসেট থেকে ক্লিক করে টেস্ট করুন।
+                      😊 আসসালামু আলাইকুম! এটি দাওয়াহ ফ্যাশন এআই সেলস টেস্ট বেঞ্চ। নিচে যেকোনো প্রশ্ন লিখুন বা বাঁ পাশের প্রিসেট থেকে ক্লিক করে টেস্ট করুন।
                     </div>
                   </div>
                 </div>
@@ -1537,6 +1537,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-bold no-scrollbar">
               <button onclick="setFilter('ALL')" id="tab-ALL" class="filter-tab px-3.5 py-1.5 rounded-xl bg-stone-900 text-white whitespace-nowrap cursor-pointer transition">
                 সবগুলো (<span id="count-tab-all">${totalOrders}</span>)
+              </button>
+              <button onclick="setFilter('Pending Verification')" id="tab-Pending-Verification" class="filter-tab px-3.5 py-1.5 rounded-xl bg-[#fcfaf7] border border-violet-300 text-violet-800 whitespace-nowrap cursor-pointer transition">
+                📸 স্ক্রিনশট (<span id="count-tab-verification">${pendingVerificationOrders}</span>)
               </button>
               <button onclick="setFilter('Pending')" id="tab-Pending" class="filter-tab px-3.5 py-1.5 rounded-xl bg-[#fcfaf7] border border-stone-300 text-amber-800 whitespace-nowrap cursor-pointer transition">
                 ⏳ পেন্ডিং (<span id="count-tab-pending">${pendingOrders}</span>)
@@ -1605,7 +1608,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       <!-- ============================================== -->
       <!-- SLIDE-OVER DRAWER 1: Settings & Delivery Rules -->
       <!-- ============================================== -->
-      <div id="settingsDrawer" class="fixed inset-0 z-50 pointer-events-none opacity-0 transition-opacity duration-300">
+      <div id="settingsDrawer" style="display: none;" class="fixed inset-0 z-50 pointer-events-none opacity-0 transition-opacity duration-300">
         <div onclick="closeDrawer('settingsDrawer')" class="absolute inset-0 bg-stone-900/50 backdrop-blur-xs"></div>
         <div class="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl p-6 flex flex-col justify-between overflow-y-auto transform translate-x-full transition-transform duration-300">
           <div class="space-y-5">
@@ -2007,6 +2010,61 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       </div>
 
       <script>
+        window.__PRODUCTS__ = ${JSON.stringify(products || [])};
+        const curStoreSettings = {
+          inside_dhaka_fee: ${curSettings.inside_dhaka_fee},
+          outside_dhaka_fee: ${curSettings.outside_dhaka_fee}
+        };
+
+        function openEditProductModalById(id) {
+          const p = (window.__PRODUCTS__ || []).find(x => x.id == id);
+          if (!p) return;
+          document.getElementById('edit_product_id').value = p.id;
+          document.getElementById('edit_modal_title_code').innerText = p.model_code || '';
+          document.getElementById('edit_model_code').value = p.model_code || '';
+          document.getElementById('edit_name').value = p.name || '';
+          document.getElementById('edit_price').value = p.price || '';
+          document.getElementById('edit_fabric').value = p.fabric || 'দুবাই চেরি';
+          document.getElementById('edit_sizes').value = p.sizes || '৫০, ৫২, ৫৪, ৫৬';
+          document.getElementById('edit_hijab_included').checked = (p.hijab_included === true || p.hijab_included === 'true');
+          document.getElementById('edit_in_stock').checked = (p.in_stock === true || p.in_stock === 'true');
+
+          document.getElementById('edit_img_main_url').value = p.image_url || '';
+          document.getElementById('edit_img_main_preview').src = p.image_url || 'https://placehold.co/100x120?text=1.+Main';
+
+          document.getElementById('edit_img_detail_url').value = p.detail_image_url || '';
+          document.getElementById('edit_img_detail_preview').src = p.detail_image_url || 'https://placehold.co/100x120?text=2.+Work';
+
+          document.getElementById('edit_img_hijab_url').value = p.hijab_image_url || '';
+          document.getElementById('edit_img_hijab_preview').src = p.hijab_image_url || 'https://placehold.co/100x120?text=3.+Hijab';
+
+          document.getElementById('edit_img_flare_url').value = p.flare_image_url || '';
+          document.getElementById('edit_img_flare_preview').src = p.flare_image_url || 'https://placehold.co/100x120?text=4.+Flare';
+
+          document.getElementById('edit_img_real_url').value = p.real_image_url || '';
+          document.getElementById('edit_img_real_preview').src = p.real_image_url || 'https://placehold.co/100x120?text=5.+Real';
+
+          const m = document.getElementById('editProductModal');
+          if (m) {
+            m.style.display = 'flex';
+            m.classList.remove('hidden');
+          }
+        }
+
+        function copyPromoTextById(id) {
+          const p = (window.__PRODUCTS__ || []).find(x => x.id == id);
+          if (!p) return;
+          const promo = '👗 *' + p.name + '* (' + (p.model_code || '') + ')\n' +
+            '💰 মূল্য: *৳' + p.price + '* টাকা (ম্যাচিং হিজাব একদম ফ্রি)\n' +
+            '✨ ফেব্রিক: ' + (p.fabric || 'প্রিমিয়াম চেরি') + '\n' +
+            '📏 সাইজ: ' + (p.sizes || '৫০, ৫২, ৫৪, ৫৬') + '\n' +
+            '🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳' + curStoreSettings.inside_dhaka_fee + ', বাইরে ৳' + curStoreSettings.outside_dhaka_fee + '\n' +
+            '📦 ক্যাশ অন ডেলিভারি (পার্সেল দেখে নেওয়ার সুবিধা)।\n' +
+            'অর্ডার করতে সাইজ, নাম, ঠিকানা ও ফোন নাম্বার লিখে মেসেজ দিন!';
+          navigator.clipboard.writeText(promo);
+          showToast('📋 মডেল প্রমোশন টেক্সট কপি হয়েছে!');
+        }
+
         // Smooth scroll helper
         function scrollToSection(id) {
           const el = document.getElementById(id);
@@ -2320,7 +2378,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           const body = document.getElementById('simulatorChatBody');
           body.innerHTML = '<div class="flex justify-start">' +
             '<div class="max-w-[85%] bg-white p-3.5 rounded-2xl rounded-tl-none shadow-xs border border-stone-200 text-stone-800 text-xs leading-relaxed">' +
-            '🌸 আসসালামু আলাইকুম! এটি দাওয়াহ ফ্যাশন এআই সেলস টেস্ট বেঞ্চ। নিচে যেকোনো প্রশ্ন লিখুন বা বাঁ পাশের প্রিসেট থেকে সিলেক্ট করে টেস্ট করুন।' +
+            '😊 আসসালামু আলাইকুম! এটি দাওয়াহ ফ্যাশন এআই সেলস টেস্ট বেঞ্চ। নিচে যেকোনো প্রশ্ন লিখুন বা বাঁ পাশের প্রিসেট থেকে সিলেক্ট করে টেস্ট করুন।' +
             '</div></div>';
           document.getElementById('simulatorLatencyBadge').classList.add('hidden');
         }
@@ -2461,6 +2519,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         // Drawer Management
         function openDrawer(id) {
           const drawer = document.getElementById(id);
+          if (!drawer) return;
+          drawer.style.display = 'block';
           drawer.classList.remove('pointer-events-none', 'opacity-0');
           drawer.classList.add('pointer-events-auto', 'opacity-100');
           const panel = drawer.querySelector('.w-full.max-w-md, .w-full.max-w-2xl');
@@ -2471,6 +2531,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         }
         function closeDrawer(id) {
           const drawer = document.getElementById(id);
+          if (!drawer) return;
           drawer.classList.remove('pointer-events-auto', 'opacity-100');
           drawer.classList.add('pointer-events-none', 'opacity-0');
           const panel = drawer.querySelector('.w-full.max-w-md, .w-full.max-w-2xl');
@@ -2478,6 +2539,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             panel.classList.remove('translate-x-0');
             panel.classList.add('translate-x-full');
           }
+          setTimeout(() => {
+            drawer.style.display = 'none';
+          }, 300);
         }
 
         function togglePaymentDrawer(id) {
@@ -3107,7 +3171,7 @@ async function processBufferedUserMessages(remoteJid) {
         const insideFee = store.inside_dhaka_fee || 80;
         const outsideFee = store.outside_dhaka_fee || 150;
 
-        const masterCaption = `🌸 *দাওয়া ফ্যাশন — এক্সক্লুসিভ কালেকশন ওভারভিউ* 🌸
+        const masterCaption = `😊 *দাওয়া ফ্যাশন — এক্সক্লুসিভ কালেকশন ওভারভিউ* 😊
 ────────────────────
 আমাদের ৫টি রানিং হট-সেলিং আবায়া ও বোরকার ছবি নিচে দেওয়া হলো। প্রতিটির ছবির ওপর মডেল কোড ও মূল্য উল্লেখ আছে।
 
@@ -3358,11 +3422,11 @@ async function connectToWhatsApp() {
           try {
             let mediaReply = '';
             if (isImage) {
-              mediaReply = 'জি, আপনার পাঠানো ছবিটি পেয়েছি! 🌸 আপনি কি এই ডিজাইনটির সাইজ, ফেব্রিক ও মূল্য জানতে চাচ্ছেন? আপনার উচ্চতা কত (যেমন: ৫ ফুট ২ বা ৫ ফুট ৪) একটু লিখে জানালে পারফেক্ট ঝুল সাইজ সহ সকল বিস্তারিত জানিয়ে দিচ্ছি।';
+              mediaReply = 'জি, আপনার পাঠানো ছবিটি পেয়েছি! 😊 আপনি কি এই ডিজাইনটির সাইজ, ফেব্রিক ও মূল্য জানতে চাচ্ছেন? আপনার উচ্চতা কত (যেমন: ৫ ফুট ২ বা ৫ ফুট ৪) একটু লিখে জানালে পারফেক্ট ঝুল সাইজ সহ সকল বিস্তারিত জানিয়ে দিচ্ছি।';
             } else if (isAudio) {
-              mediaReply = 'জি, আপনার ভয়েস মেসেজটি পেয়েছি 🌸 আমাদের টিম দ্রুত চেক করে জানাচ্ছে। আপনি কি নির্দিষ্ট কোনো মডেল বা সাইজ অর্ডার করতে চাচ্ছেন? একটু লিখে জানালে এখনই পার্সেল রেডি করে দিতে পারব।';
+              mediaReply = 'জি, আপনার ভয়েস মেসেজটি পেয়েছি 😊 আমাদের টিম দ্রুত চেক করে জানাচ্ছে। আপনি কি নির্দিষ্ট কোনো মডেল বা সাইজ অর্ডার করতে চাচ্ছেন? একটু লিখে জানালে এখনই পার্সেল রেডি করে দিতে পারব।';
             } else {
-              mediaReply = 'জি, আপনার মেসেজটি পেয়েছি 🌸 আপনি কোন মডেলটি অর্ডার করতে চাচ্ছেন বা আপনার উচ্চতা কত লিখে জানালে সঠিক সাইজ সহ বিস্তারিত জানিয়ে দিচ্ছি।';
+              mediaReply = 'জি, আপনার মেসেজটি পেয়েছি 😊 আপনি কোন মডেলটি অর্ডার করতে চাচ্ছেন বা আপনার উচ্চতা কত লিখে জানালে সঠিক সাইজ সহ বিস্তারিত জানিয়ে দিচ্ছি।';
             }
             await sock.sendMessage(remoteJid, { text: mediaReply });
             incrementStats('messages_out');
