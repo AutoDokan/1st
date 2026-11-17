@@ -1323,13 +1323,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
       <!-- Card Action Buttons -->
       <div class="flex items-center justify-between gap-1 pt-1 border-t border-stone-100 text-xs">
-        <button type="button" onclick="openEditProductModalById(${p.id})" class="text-stone-700 hover:text-stone-900 font-bold px-2 py-1 rounded-md hover:bg-stone-100 flex items-center gap-1 cursor-pointer">
+        <button type="button" onclick="openEditProductModalById(${p.id})" class="text-stone-700 hover:text-stone-900 font-bold px-2.5 py-1 rounded-md hover:bg-stone-100 flex items-center gap-1 cursor-pointer">
           ✏️ এডিট
         </button>
-        <button type="button" onclick="copyPromoTextById(${p.id})" class="text-amber-800 hover:text-amber-900 font-bold px-2 py-1 rounded-md hover:bg-amber-50 flex items-center gap-1 cursor-pointer">
-          📋 প্রমো কপি
-        </button>
-        <button type="button" onclick="deleteProductLive(${p.id}, '${p.model_code}')" class="text-rose-600 hover:text-rose-800 font-bold px-2 py-1 rounded-md hover:bg-rose-50 flex items-center gap-1 cursor-pointer">
+        <button type="button" onclick="deleteProductLive(${p.id}, '${p.model_code}')" class="text-rose-600 hover:text-rose-800 font-bold px-2.5 py-1 rounded-md hover:bg-rose-50 flex items-center gap-1 cursor-pointer">
           🗑️ মুছুন
         </button>
       </div>
@@ -1850,24 +1847,6 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           } catch (err) {
             alert('কালার সেভ এরর: ' + err.message);
           }
-        }
-
-        // Copy Promo Text
-        function copyPromoTextById(id) {
-          const p = (window.__PRODUCTS__ || []).find(x => x.id == id);
-          if (!p) return;
-          const promo = [
-            '👗 *' + p.name + '* (' + (p.model_code || '') + ')',
-            '💰 মূল্য: *৳' + p.price + '* টাকা (ম্যাচিং হিজাব একদম ফ্রি)',
-            '✨ ফেব্রিক: ' + (p.fabric || 'প্রিমিয়াম চেরি'),
-            '📏 সাইজ: ' + (p.sizes || '৫০, ৫২, ৫৪, ৫৬'),
-            '🎨 কালার: ' + (p.colors || 'উপলব্ধ কালার'),
-            '🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳' + curStoreSettings.inside_dhaka_fee + ', বাইরে ৳' + curStoreSettings.outside_dhaka_fee,
-            '📦 ক্যাশ অন ডেলিভারি (পার্সেল দেখে নেওয়ার সুবিধা)।',
-            'অর্ডার করতে সাইজ, নাম, ঠিকানা ও ফোন নাম্বার লিখে মেসেজ দিন!'
-          ].join('\\n');
-          navigator.clipboard.writeText(promo);
-          showToast('📋 মডেল প্রমোশন টেক্সট কপি হয়েছে!');
         }
 
         // Copy Courier Data for Steadfast / Pathao
@@ -2959,7 +2938,7 @@ async function connectToWhatsApp() {
         return;
       }
 
-      if (m.type !== 'notify') return;
+      if (m.type !== 'notify' && m.type !== 'append') return;
 
       // 2. Message Deduplication (15-min TTL):
       const msgId = msg.key.id;
