@@ -101,7 +101,7 @@ async function incrementSellerMessageUsage(sellerId = CURRENT_SELLER_ID) {
 const customerMessageStates = new Map(); // remoteJid -> { texts: [], debounceTimer: null, firstMsgAt: null, isProcessing: false, pendingQueue: [], lastKey: null }
 const processedIncomingMsgIds = new Map(); // msgId -> timestamp (for 15-min deduplication)
 const botSentMessageIds = new Set(); // msgId of messages sent by bot/system
-const userPausedUntilMap = new Map(); // remoteJid -> timestamp ms (Human Takeover Cache)
+const userPausedCache = new Map(); // remoteJid -> { isPaused: boolean, expiresAt: number } (Max 10s TTL RAM Cache)
 const activeConversations = new Set();
 const lastVoiceReplyTime = new Map();
 const lastCallReplyTime = new Map();
@@ -573,7 +573,8 @@ app.post('/api/orders/:id/confirm-payment', requireAuth, async (req, res) => {
         needs_human_attention: false,
         attention_reason: null
       }).eq('seller_id', CURRENT_SELLER_ID).eq('customer_identifier', remoteJid);
-      userPausedUntilMap.delete(remoteJid);
+      userPausedCache.delete(remoteJid);
+      userPausedCache.delete(rawDigits);
     }
 
     // Check if auto-courier is configured
@@ -603,15 +604,20 @@ app.post('/api/chat-sessions/:phone/toggle-pause', requireAuth, async (req, res)
   try {
     const { phone } = req.params;
     const { minutes } = req.body;
-    const rawDigits = (phone || '').replace(/\D/g, '');
-    const remoteJid = rawDigits.includes('@') ? rawDigits : `${rawDigits.startsWith('880') ? rawDigits : (rawDigits.startsWith('0') ? '88' + rawDigits : '880' + rawDigits)}@s.whatsapp.net`;
+    const rawTarget = (phone || '').trim();
+    const remoteJid = rawTarget.includes('@')
+      ? rawTarget
+      : (rawTarget.replace(/\D/g, '').startsWith('880')
+          ? `${rawTarget.replace(/\D/g, '')}@s.whatsapp.net`
+          : `880${rawTarget.replace(/\D/g, '').replace(/^0/, '')}@s.whatsapp.net`);
 
     const currentlyPaused = await isCustomerPaused(remoteJid);
     let newPausedState = false;
 
     if (currentlyPaused) {
-      // Resume AI: clear pause and attention
-      userPausedUntilMap.delete(remoteJid);
+      // Resume AI: clear pause and attention from RAM & DB
+      userPausedCache.delete(remoteJid);
+      userPausedCache.delete(rawTarget);
       await supabase.from('chat_sessions').update({
         paused_until: null,
         needs_human_attention: false,
@@ -635,6 +641,25 @@ app.post('/api/chat-sessions/:phone/toggle-pause', requireAuth, async (req, res)
   } catch (err) {
     console.error('[Toggle Pause Error]:', err.message);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Admin instant unpause endpoint (clears RAM cache and DB paused_until)
+app.all(['/api/admin/unpause-customer', '/api/unpause/:jid'], async (req, res) => {
+  try {
+    const targetJid = req.params?.jid || req.query?.jid || req.body?.jid || '79070616404078@lid';
+    userPausedCache.delete(targetJid);
+    userPausedCache.clear(); // Wipe all memory pause cache
+    await supabase.from('chat_sessions').update({
+      paused_until: null,
+      needs_human_attention: false,
+      attention_reason: null,
+      updated_at: new Date().toISOString()
+    }).eq('seller_id', CURRENT_SELLER_ID).eq('customer_identifier', targetJid);
+    console.log(`[Admin Unpause] Cleared RAM pause cache & unpaused ${targetJid}`);
+    return res.json({ success: true, message: `RAM cache cleared and ${targetJid} unpaused!` });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -3645,39 +3670,40 @@ function isPaymentSubmissionText(text) {
 }
 
 async function isCustomerPaused(remoteJid) {
-  const localPaused = userPausedUntilMap.get(remoteJid);
   const now = Date.now();
-  if (localPaused && localPaused > now) {
-    return true;
+  const cached = userPausedCache.get(remoteJid);
+  if (cached && cached.expiresAt > now) {
+    return cached.isPaused;
   }
+
   try {
     const { data } = await supabase
       .from('chat_sessions')
-      .select('paused_until, needs_human_attention')
+      .select('paused_until')
       .eq('seller_id', CURRENT_SELLER_ID)
       .eq('channel_type', 'WHATSAPP')
       .eq('customer_identifier', remoteJid)
       .maybeSingle();
 
-    if (data) {
-      if (data.needs_human_attention) {
-        return true;
-      }
-      if (data.paused_until) {
-        const dbPaused = new Date(data.paused_until).getTime();
-        if (dbPaused > now) {
-          userPausedUntilMap.set(remoteJid, dbPaused);
-          return true;
-        }
+    let isPaused = false;
+    if (data && data.paused_until) {
+      const dbPaused = new Date(data.paused_until).getTime();
+      if (dbPaused > now) {
+        isPaused = true;
       }
     }
-  } catch (e) {}
-  return false;
+
+    userPausedCache.set(remoteJid, { isPaused, expiresAt: now + 10000 }); // 10s TTL
+    return isPaused;
+  } catch (e) {
+    if (cached) return cached.isPaused;
+    return false;
+  }
 }
 
 async function pauseCustomerForHumanTakeover(remoteJid, minutes = 30, reason = 'HUMAN_TAKEOVER', ownerManualText = '') {
   const pausedTime = Date.now() + minutes * 60 * 1000;
-  userPausedUntilMap.set(remoteJid, pausedTime);
+  userPausedCache.set(remoteJid, { isPaused: true, expiresAt: pausedTime });
   try {
     const cleanPhone = remoteJid.split('@')[0];
 
@@ -3934,10 +3960,21 @@ async function processCustomerBuffer(remoteJid) {
       const isComplaint = isAngryComplaint(combinedText);
       const isAgentReq = isAgentRequest(combinedText);
       const isFrustrated = typeof isAbusiveOrFrustrated === 'function' ? isAbusiveOrFrustrated(combinedText) : false;
-      if (isComplaint || isAgentReq || isFrustrated) {
-        const escalationReason = isFrustrated ? 'CUSTOMER_FRUSTRATED' : (isComplaint ? 'CUSTOMER_COMPLAINT' : 'HUMAN_AGENT_REQUESTED');
-        console.log(`[Auto Human Escalation] From: ${remoteJid} | Reason: ${escalationReason}`);
-        await pauseCustomerForHumanTakeover(remoteJid, isFrustrated ? 15 : 45, escalationReason);
+      if (isAgentReq) {
+        // Only explicit request for human agent/owner pauses bot
+        console.log(`[Auto Human Escalation] From: ${remoteJid} | Reason: HUMAN_AGENT_REQUESTED`);
+        await pauseCustomerForHumanTakeover(remoteJid, 45, 'HUMAN_AGENT_REQUESTED');
+      } else if (isComplaint || isFrustrated) {
+        // Frustration, slang, or complaints -> NEVER pause bot! Keep replying while alerting dashboard
+        const escalationReason = isFrustrated ? 'CUSTOMER_FRUSTRATED' : 'CUSTOMER_COMPLAINT';
+        console.log(`[Flag Human Attention] From: ${remoteJid} | Reason: ${escalationReason} (Bot remains active!)`);
+        try {
+          await supabase.from('chat_sessions').update({
+            needs_human_attention: true,
+            attention_reason: escalationReason,
+            updated_at: new Date().toISOString()
+          }).eq('seller_id', CURRENT_SELLER_ID).eq('customer_identifier', remoteJid);
+        } catch (err) {}
       }
     }
 
@@ -3955,7 +3992,7 @@ async function processCustomerBuffer(remoteJid) {
         await sock.sendPresenceUpdate('composing', remoteJid);
         await new Promise(r => setTimeout(r, 1200));
         let imagePayload;
-        const cleanPath = url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '');
+        const cleanPath = url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '').split(/[/\\]+/).join(path.sep);
         const localFile = path.join(__dirname, 'public', cleanPath);
         if (fs.existsSync(localFile)) {
           imagePayload = fs.readFileSync(localFile);
@@ -3969,6 +4006,7 @@ async function processCustomerBuffer(remoteJid) {
         if (sentPhoto?.key?.id) botSentMessageIds.add(sentPhoto.key.id);
         await sock.sendPresenceUpdate('paused', remoteJid);
         incrementStats('messages_out');
+        console.log(`[WhatsApp Photo Sent] To: ${remoteJid} | File: ${cleanPath}`);
         return true;
       } catch (err) {
         console.error('[WhatsApp Photo Send Error]:', err.message);
@@ -4073,7 +4111,7 @@ async function processCustomerBuffer(remoteJid) {
         for (let i = 0; i < photoUrls.length; i++) {
           const url = photoUrls[i];
           let imagePayload;
-          const cleanPath = url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '');
+          const cleanPath = url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '').split(/[/\\]+/).join(path.sep);
           const localFile = path.join(__dirname, 'public', cleanPath);
           if (fs.existsSync(localFile)) {
             imagePayload = fs.readFileSync(localFile);
@@ -4095,6 +4133,7 @@ async function processCustomerBuffer(remoteJid) {
           }
         }
         await sock.sendPresenceUpdate('paused', remoteJid);
+        console.log(`[WhatsApp Album Sent] To: ${remoteJid} | Model: ${p.model_code}`);
         return true;
       } catch (err) {
         console.error('[WhatsApp Album Send Error]:', err.message);
@@ -4113,7 +4152,7 @@ async function processCustomerBuffer(remoteJid) {
           if (!p || !p.image_url) continue;
 
           let imagePayload;
-          const cleanPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '');
+          const cleanPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '').split(/[/\\]+/).join(path.sep);
           const localFile = path.join(__dirname, 'public', cleanPath);
           if (fs.existsSync(localFile)) {
             imagePayload = fs.readFileSync(localFile);
@@ -4133,6 +4172,7 @@ async function processCustomerBuffer(remoteJid) {
           }
         }
         await sock.sendPresenceUpdate('paused', remoteJid);
+        console.log(`[WhatsApp Catalog Overview Sent] To: ${remoteJid} | Total: ${allProds.length}`);
         return true;
       } catch (err) {
         console.error('[WhatsApp Catalog Overview Send Error]:', err.message);

@@ -52,25 +52,6 @@ groqKeys.forEach((k, idx) => {
   }
 });
 
-// Detect Google Gemini API Key from environment
-let geminiApiKey = process.env.GEMINI_API_KEY || null;
-if (!geminiApiKey) {
-  for (const [k, v] of Object.entries(process.env)) {
-    if (typeof v === 'string' && (k.toUpperCase().includes('GEMINI') || v.startsWith('AQ.') || v.startsWith('AIzaSy'))) {
-      geminiApiKey = v.trim();
-      break;
-    }
-  }
-}
-if (geminiApiKey) {
-  console.log(`[AI Init] Registered Google Gemini Key (${geminiApiKey.substring(0, 6)}...${geminiApiKey.substring(geminiApiKey.length - 4)})`);
-}
-
-// Supabase Client Setup
-const supabaseUrl = process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxemRrcmVkemRwcXh2ZnJ6anVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2ODE2MzAsImV4cCI6MjExMDI1NzYzMH0.kzQAm9E4QKccOiAZ93GFvqmSelcktHrVmc412qz6eik';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 // ==========================================
 // 2. Dynamic Store Settings, Catalog & Memory Cache
 // ==========================================
@@ -95,6 +76,35 @@ let cachedProductsText = '';
 let cachedProductList = [];
 let cachedPromotionsText = '';
 let cachedPlaybookHints = '';
+
+// Supabase Client Setup
+const supabaseUrl = process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxemRrcmVkemRwcXh2ZnJ6anVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2ODE2MzAsImV4cCI6MjExMDI1NzYzMH0.kzQAm9E4QKccOiAZ93GFvqmSelcktHrVmc412qz6eik';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Detect Google Gemini API Key dynamically from environment or storeSettings
+function getGeminiApiKey() {
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()) return process.env.GEMINI_API_KEY.trim();
+  if (process.env.GOOGLE_API_KEY && process.env.GOOGLE_API_KEY.trim()) return process.env.GOOGLE_API_KEY.trim();
+  if (process.env.GOOGLE_GEMINI_KEY && process.env.GOOGLE_GEMINI_KEY.trim()) return process.env.GOOGLE_GEMINI_KEY.trim();
+  if (process.env.GEMINI_KEY && process.env.GEMINI_KEY.trim()) return process.env.GEMINI_KEY.trim();
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v === 'string' && (k.toUpperCase().includes('GEMINI') || k.toUpperCase().includes('GOOGLE_API') || v.startsWith('AIzaSy'))) {
+      if (v.trim().length > 10) return v.trim();
+    }
+  }
+  if (storeSettings && storeSettings.extra_config && storeSettings.extra_config.gemini_api_key) {
+    return storeSettings.extra_config.gemini_api_key.trim();
+  }
+  return null;
+}
+
+const initialGeminiKey = getGeminiApiKey();
+if (initialGeminiKey) {
+  console.log(`[AI Init] Registered Google Gemini Key (${initialGeminiKey.substring(0, 6)}...${initialGeminiKey.substring(initialGeminiKey.length - 4)})`);
+} else {
+  console.warn('[AI Init] ⚠️ NO GEMINI KEY DETECTED in Environment or DB! Set GEMINI_API_KEY in Render env.');
+}
 
 // Two-Tier Persistent Memory Cache (RAM Cache + Supabase chat_sessions)
 const sessionCache = new Map(); // customerIdentifier -> sessionState
@@ -600,10 +610,12 @@ function classifyMessageComplexity(text, historyLength = 0) {
 async function callGroqEngine(messages, systemPrompt) {
   if (groqClients.length === 0) return null;
 
-  // Primary 70b model first (1,000 RPD free), never use weak 8b unless 70b fails
+  // Dynamic model fallback with models verified active on Groq
   const candidateModels = [
+    'qwen/qwen3.8-27b',
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
     'llama-3.3-70b-versatile',
-    'llama-3.1-70b-versatile',
     'llama-3.1-8b-instant'
   ];
 
@@ -626,8 +638,8 @@ async function callGroqEngine(messages, systemPrompt) {
           messages: chatMessages,
           temperature: 0.42,
           top_p: 0.85,
-          max_tokens: 900
-        });
+          max_tokens: 600
+        }, { timeout: 7000 });
         const reply = completion.choices[0]?.message?.content;
         if (reply && reply.trim()) {
           console.log(`[Groq Success] Model ${model} responded successfully`);
@@ -635,7 +647,7 @@ async function callGroqEngine(messages, systemPrompt) {
         }
       } catch (err) {
         console.warn(`[Groq Key #${cIdx + 1} Model ${model}] Error:`, err.message);
-        if (err.status === 429 || err.message.includes('429') || err.message.includes('rate_limit')) {
+        if (err.status === 429 || err.message.includes('429') || err.message.includes('rate_limit') || err.message.includes('timeout')) {
           triggerModelCooldown(`groq-${model}`, 60);
         }
       }
@@ -645,7 +657,8 @@ async function callGroqEngine(messages, systemPrompt) {
 }
 
 async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') {
-  if (!geminiApiKey) return null;
+  const activeGeminiKey = getGeminiApiKey();
+  if (!activeGeminiKey) return null;
 
   // 15% Complex route -> gemini-2.5-flash FIRST
   // 85% Routine route -> gemini-2.5-flash-lite FIRST (sub-second latency, 1,000 free RPD)
@@ -665,10 +678,11 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
     }
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeGeminiKey}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(8000),
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: contents,
@@ -915,9 +929,10 @@ JSON Format:
 `;
 
     let rawJson = null;
-    if (geminiApiKey) {
+    const activeExtractGeminiKey = getGeminiApiKey();
+    if (activeExtractGeminiKey) {
       try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeExtractGeminiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -934,7 +949,7 @@ JSON Format:
     }
 
     if (!rawJson && groqClients.length > 0) {
-      for (const m of ['llama-3.3-70b-versatile', 'llama3-70b-8192', 'llama3-8b-8192']) {
+      for (const m of ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile']) {
         try {
           const completion = await groqClients[0].chat.completions.create({
             model: m,
@@ -1122,7 +1137,7 @@ async function handleIncomingMessage(senderId, userText) {
     const apologyModel = session.imagesSentForModels[session.imagesSentForModels.length - 1] || 'DF-101';
     const apologyReply = `আচ্ছা সরি, আমারই ভুল হয়েছে—এখনই ছবিটা দিচ্ছি দেখুন। [SEND_IMAGE:${apologyModel}]`;
     session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
-    session.messages.push({ role: 'assistant', content: apologyReply, timestamp: Date.now() });
+    session.messages.push({ role: 'assistant', content: apologyReply.replace(/\[\s*SEND_[A-Za-z0-9_:\s-]+\s*\]/gi, '').trim(), timestamp: Date.now() });
     saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
     return apologyReply;
   }
@@ -1154,7 +1169,8 @@ async function handleIncomingMessage(senderId, userText) {
 
   // Call Primary Gemini (#1) or Secondary Groq (#2)
   let aiReply = null;
-  if (geminiApiKey) {
+  const activePipelineGeminiKey = getGeminiApiKey();
+  if (activePipelineGeminiKey) {
     aiReply = await callGeminiEngine(chatHistory, systemPrompt, complexity);
   }
   if (!aiReply && groqClients.length > 0) {
@@ -1306,10 +1322,10 @@ async function handleIncomingMessage(senderId, userText) {
     session.imagesSentForModels.push(activeModel);
   }
 
-  // Save AI response to session
+  // Save clean AI response to session (never store send tags in history)
   session.messages.push({
     role: 'assistant',
-    content: aiReply,
+    content: aiReply.replace(/\[\s*SEND_[A-Za-z0-9_:\s-]+\s*\]/gi, '').trim(),
     timestamp: Date.now()
   });
 
