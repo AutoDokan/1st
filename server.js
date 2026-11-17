@@ -4232,7 +4232,6 @@ async function processCustomerBuffer(remoteJid) {
           await sendWaPhoto(p.image_url, buildSingleProductCaption(p));
         }
       }
-    }
   } catch (err) {
     console.error('[WhatsApp Send Error]:', err.message);
   } finally {
