@@ -1856,14 +1856,16 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         function copyPromoTextById(id) {
           const p = (window.__PRODUCTS__ || []).find(x => x.id == id);
           if (!p) return;
-          const promo = '👗 *' + p.name + '* (' + (p.model_code || '') + ')\n' +
-            '💰 মূল্য: *৳' + p.price + '* টাকা (ম্যাচিং হিজাব একদম ফ্রি)\n' +
-            '✨ ফেব্রিক: ' + (p.fabric || 'প্রিমিয়াম চেরি') + '\n' +
-            '📏 সাইজ: ' + (p.sizes || '৫০, ৫২, ৫৪, ৫৬') + '\n' +
-            '🎨 কালার: ' + (p.colors || 'উপলব্ধ কালার') + '\n' +
-            '🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳' + curStoreSettings.inside_dhaka_fee + ', বাইরে ৳' + curStoreSettings.outside_dhaka_fee + '\n' +
-            '📦 ক্যাশ অন ডেলিভারি (পার্সেল দেখে নেওয়ার সুবিধা)।\n' +
-            'অর্ডার করতে সাইজ, নাম, ঠিকানা ও ফোন নাম্বার লিখে মেসেজ দিন!';
+          const promo = [
+            '👗 *' + p.name + '* (' + (p.model_code || '') + ')',
+            '💰 মূল্য: *৳' + p.price + '* টাকা (ম্যাচিং হিজাব একদম ফ্রি)',
+            '✨ ফেব্রিক: ' + (p.fabric || 'প্রিমিয়াম চেরি'),
+            '📏 সাইজ: ' + (p.sizes || '৫০, ৫২, ৫৪, ৫৬'),
+            '🎨 কালার: ' + (p.colors || 'উপলব্ধ কালার'),
+            '🚚 ডেলিভারি চার্জ: ঢাকার ভেতর ৳' + curStoreSettings.inside_dhaka_fee + ', বাইরে ৳' + curStoreSettings.outside_dhaka_fee,
+            '📦 ক্যাশ অন ডেলিভারি (পার্সেল দেখে নেওয়ার সুবিধা)।',
+            'অর্ডার করতে সাইজ, নাম, ঠিকানা ও ফোন নাম্বার লিখে মেসেজ দিন!'
+          ].join('\\n');
           navigator.clipboard.writeText(promo);
           showToast('📋 মডেল প্রমোশন টেক্সট কপি হয়েছে!');
         }
@@ -1872,11 +1874,13 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         function copyCourierDataById(id) {
           const o = (window.__ORDERS__ || []).find(x => x.id == id);
           if (!o) return;
-          const text = 'কাস্টমার: ' + (o.customer_name || 'কাস্টমার') + '\n' +
-            'মোবাইল: ' + (o.customer_phone || '') + '\n' +
-            'ঠিকানা: ' + (o.address || '') + '\n' +
-            'প্রোডাক্ট: [' + (o.model_code || 'DF') + '] ' + (o.product_details || '') + ' (সাইজ: ' + (o.length_size || 'স্ট্যান্ডার্ড') + ')\n' +
-            'ক্যাশ কালেকশন (Due COD): ৳' + (o.due_cod || o.total_bdt || 2200);
+          const text = [
+            'কাস্টমার: ' + (o.customer_name || 'কাস্টমার'),
+            'মোবাইল: ' + (o.customer_phone || ''),
+            'ঠিকানা: ' + (o.address || ''),
+            'প্রোডাক্ট: [' + (o.model_code || 'DF') + '] ' + (o.product_details || '') + ' (সাইজ: ' + (o.length_size || 'স্ট্যান্ডার্ড') + ')',
+            'ক্যাশ কালেকশন (Due COD): ৳' + (o.due_cod || o.total_bdt || 2200)
+          ].join('\\n');
           navigator.clipboard.writeText(text);
           showToast('📋 কুরিয়ার ফরম্যাট কপি হয়েছে!');
         }
