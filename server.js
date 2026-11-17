@@ -31,6 +31,12 @@ let sock = null;
 // ==========================================
 const CURRENT_SELLER_ID = process.env.DEFAULT_SELLER_ID || 'autodokan_seller_1';
 
+// Multi-Seller Session Registry
+const sellerSockets = new Map(); // sellerId -> socket
+const sellerQRs = new Map(); // sellerId -> qrString
+const sellerStatuses = new Map(); // sellerId -> status
+const sellerNumbers = new Map(); // sellerId -> phoneNumber
+
 async function checkSellerQuota(sellerId = CURRENT_SELLER_ID) {
   try {
     const { data: seller } = await supabase
@@ -106,7 +112,7 @@ const userPausedCache = new Map(); // remoteJid -> { isPaused: boolean, expiresA
 const activeConversations = new Set();
 const lastVoiceReplyTime = new Map();
 const lastCallReplyTime = new Map();
-const DEBOUNCE_DELAY_MS = 3500; // 3.5s natural human typing window
+const DEBOUNCE_DELAY_MS = 1500; // 1.5s natural human typing window
 const MAX_WAIT_MS = 8000; // 8.0s hard cap for fast successive texts
 
 // Memory Cleanup Sweeper: Every 10 mins clean idle states, expired msgIds, and bound botSentIds
@@ -1476,8 +1482,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           </div>
         </div>
 
-        <!-- Clean 3 Main Navigation Tabs -->
-        <div class="flex items-center gap-2 border-b border-stone-200 pb-2">
+        <!-- Clean 4 Main Navigation Tabs -->
+        <div class="flex items-center gap-2 border-b border-stone-200 pb-2 flex-wrap">
           <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer bg-stone-900 text-white shadow-xs">
             <span>📦 প্রোডাক্টস ও কালার</span>
             <span class="bg-stone-800 text-stone-200 text-[10px] px-2 py-0.5 rounded-full font-bold">${totalProducts}</span>
@@ -1488,6 +1494,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           </button>
           <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer bg-white border border-stone-300 text-stone-700 hover:text-stone-900 shadow-xs">
             <span>⚙️ শপ সেটিংস</span>
+          </button>
+          <button type="button" onclick="switchTab('sellers')" id="tab-btn-sellers" class="tab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer bg-white border border-stone-300 text-stone-700 hover:text-stone-900 shadow-xs">
+            <span>👥 মাল্টি-সেলার টেস্ট</span>
+            <span class="bg-indigo-100 text-indigo-900 text-[10px] px-2 py-0.5 rounded-full font-bold">নতুন</span>
           </button>
         </div>
 
@@ -1636,6 +1646,82 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           </div>
         </section>
 
+        <!-- ============================================== -->
+        <!-- TAB 4: MULTI-SELLER BETA TESTING               -->
+        <!-- ============================================== -->
+        <section id="tab-sellers" class="space-y-4 hidden">
+          <div class="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs space-y-5">
+            <div class="border-b border-stone-100 pb-4">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h2 class="font-black text-lg text-stone-900 flex items-center gap-2">
+                    <span>👥 মাল্টি-সেলার বেটা টেস্টিং ও ইনভাইটেশন</span>
+                  </h2>
+                  <p class="text-xs text-stone-500 font-medium mt-1">
+                    আপনার পরিচিত ২-৩ জন সেলারকে ইনভাইট লিংক পাঠিয়ে যুক্ত করুন। তারা নিজেদের হোয়াটসঅ্যাপ কিউআর স্ক্যান করে সম্পূর্ণ আলাদা স্টোর হিসেবে টেস্ট করতে পারবে।
+                  </p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>মাস্টার ওনার: Dawah Fashion (+8801968718838)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Create New Invite Form -->
+            <div class="bg-[#fcfaf7] border border-amber-200/80 rounded-2xl p-4 space-y-3">
+              <h3 class="font-extrabold text-sm text-stone-900 flex items-center gap-2">
+                <span>➕ নতুন সেলার ইনভাইট লিংক তৈরি করুন</span>
+              </h3>
+              <form id="inviteSellerForm" onsubmit="createSellerInvite(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold text-stone-600 mb-1">দোকানের নাম *</label>
+                  <input type="text" id="inv_shop_name" required placeholder="যেমন: Noor Fashion" class="w-full bg-white border border-stone-300 text-xs px-3 py-2 rounded-xl focus:border-amber-500 outline-none font-medium">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-stone-600 mb-1">ওনারের নাম</label>
+                  <input type="text" id="inv_owner_name" placeholder="যেমন: তানভীর আহমেদ" class="w-full bg-white border border-stone-300 text-xs px-3 py-2 rounded-xl focus:border-amber-500 outline-none font-medium">
+                </div>
+                <div class="flex items-end">
+                  <button type="submit" id="invSubmitBtn" class="w-full bg-stone-900 hover:bg-black text-white text-xs font-black py-2.5 px-4 rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <span>🚀 ইনভাইট লিংক তৈরি করুন</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Newly Created Invite Alert (Hidden by default) -->
+            <div id="newInviteBox" class="hidden bg-emerald-50 border border-emerald-300 rounded-2xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-black text-emerald-900 flex items-center gap-1.5">
+                  <span>🎉 ইনভাইট লিংক সফলভাবে তৈরি হয়েছে!</span>
+                </span>
+                <button type="button" onclick="document.getElementById('newInviteBox').classList.add('hidden')" class="text-stone-400 hover:text-stone-600 text-xs">✕</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="text" id="newInviteUrl" readonly class="flex-1 bg-white border border-emerald-200 text-xs px-3 py-2 rounded-xl font-mono text-stone-800">
+                <button type="button" onclick="copyNewInviteUrl()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer">
+                  কপি
+                </button>
+                <a id="newInviteWaBtn" href="#" target="_blank" class="bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1">
+                  <span>হোয়াটসঅ্যাপ</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Invited Sellers List -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="font-extrabold text-sm text-stone-900">আমন্ত্রিত টেস্ট সেলারদের তালিকা</h3>
+                <button type="button" onclick="loadSellerInvites()" class="text-xs text-amber-700 hover:underline font-bold">রিফ্রেশ ↻</button>
+              </div>
+              <div id="sellersListContainer" class="space-y-2">
+                <div class="text-xs text-stone-400 py-4 text-center">ইনভাইটেশন তালিকা লোড হচ্ছে...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       <!-- Add Product Modal -->
@@ -1762,7 +1848,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
         // Tab Switcher
         function switchTab(tabId) {
-          const tabs = ['products', 'orders', 'settings'];
+          if (tabId === 'sellers') loadSellerInvites();
+          const tabs = ['products', 'orders', 'settings', 'sellers'];
           tabs.forEach(t => {
             const sec = document.getElementById('tab-' + t);
             const btn = document.getElementById('tab-btn-' + t);
@@ -1789,7 +1876,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         // On Page Load: Hash router
         window.addEventListener('DOMContentLoaded', () => {
           const hash = window.location.hash.replace('#', '');
-          if (hash === 'orders' || hash === 'settings') {
+          if (hash === 'orders' || hash === 'settings' || hash === 'sellers') {
             switchTab(hash);
           } else {
             switchTab('products');
@@ -2067,6 +2154,91 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           }
         }
 
+        // Multi-Seller Invite Handlers
+        async function createSellerInvite(e) {
+          e.preventDefault();
+          const btn = document.getElementById('invSubmitBtn');
+          if (btn) { btn.innerText = 'তৈরি হচ্ছে...'; btn.disabled = true; }
+          const shop_name = document.getElementById('inv_shop_name').value.trim();
+          const owner_name = document.getElementById('inv_owner_name').value.trim();
+
+          try {
+            const res = await fetch('/api/sellers/invite', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ shop_name, owner_name })
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('🎉 নতুন সেলার ইনভাইট লিংক তৈরি হয়েছে!');
+              document.getElementById('newInviteUrl').value = data.invite_url;
+              document.getElementById('newInviteWaBtn').href = 'https://wa.me/?text=' + encodeURIComponent('আসসালামু আলাইকুম! AutoDokan AI সেলার টেস্টে আপনাকে স্বাগতম। আপনার হোয়াটসঅ্যাপ কানেক্ট করতে নিচের লিংকে ক্লিক করে QR কোড স্ক্যান করুন:\n' + data.invite_url);
+              document.getElementById('newInviteBox').classList.remove('hidden');
+              document.getElementById('inv_shop_name').value = '';
+              document.getElementById('inv_owner_name').value = '';
+              loadSellerInvites();
+            } else {
+              alert('এরর: ' + (data.error || 'তৈরি করা যায়নি'));
+            }
+          } catch (err) {
+            alert('কানেকশন এরর: ' + err.message);
+          } finally {
+            if (btn) { btn.innerText = '🚀 ইনভাইট লিংক তৈরি করুন'; btn.disabled = false; }
+          }
+        }
+
+        function copyNewInviteUrl() {
+          const input = document.getElementById('newInviteUrl');
+          navigator.clipboard.writeText(input.value);
+          showToast('📋 ইনভাইট লিংক কপি হয়েছে!');
+        }
+
+        async function loadSellerInvites() {
+          const cont = document.getElementById('sellersListContainer');
+          if (!cont) return;
+          try {
+            const res = await fetch('/api/sellers/invites');
+            const data = await res.json();
+            if (!data.success || !data.invites || data.invites.length === 0) {
+              cont.innerHTML = '<div class="text-xs text-stone-400 py-3 text-center border border-dashed border-stone-200 rounded-xl">এখনও কোনো সেলারকে ইনভাইট করা হয়নি। ওপরের ফর্ম দিয়ে নতুন ইনভাইট তৈরি করুন।</div>';
+              return;
+            }
+
+            cont.innerHTML = data.invites.map(inv => {
+              const isConnected = inv.live_status === 'connected' || inv.status === 'CONNECTED';
+              const statusBadge = isConnected
+                ? '<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">● কানেক্টেড (' + (inv.live_number || inv.phone || 'WhatsApp') + ')</span>'
+                : '<span class="bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">⏳ QR স্ক্যান বাকি</span>';
+
+              const invUrl = window.location.origin + '/connect?token=' + inv.invite_token;
+
+              return '<div class="bg-[#fcfaf7] border border-stone-200 rounded-xl p-3.5 flex items-center justify-between flex-wrap gap-2">' +
+                '<div>' +
+                  '<div class="flex items-center gap-2">' +
+                    '<h4 class="font-black text-sm text-stone-900">' + inv.shop_name + '</h4>' +
+                    statusBadge +
+                  '</div>' +
+                  '<p class="text-xs text-stone-500 mt-0.5 font-medium">' +
+                    (inv.owner_name ? 'ওনার: ' + inv.owner_name + ' • ' : '') +
+                    'আইডি: <span class="font-mono text-[11px] text-stone-700">' + inv.seller_id + '</span> • ' +
+                    'তারিখ: ' + (inv.created_at ? new Date(inv.created_at).toLocaleDateString('bn-BD') : 'আজ') +
+                  '</p>' +
+                '</div>' +
+                '<div class="flex items-center gap-2">' +
+                  '<button type="button" onclick="navigator.clipboard.writeText(\'' + invUrl + '\'); showToast(\'📋 লিংক কপি হয়েছে!\')" class="bg-white border border-stone-300 hover:border-stone-400 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">' +
+                    'কপি লিংক' +
+                  '</button>' +
+                  '<a href="/connect?token=' + inv.invite_token + '" target="_blank" class="bg-stone-900 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">' +
+                    'QR পেজ খুলুন ↗' +
+                  '</a>' +
+                '</div>' +
+              '</div>';
+            }).join('');
+          } catch (e) {
+            cont.innerHTML = '<div class="text-xs text-rose-500 py-2">ইনভাইট তালিকা লোড ব্যর্থ: ' + e.message + '</div>';
+          }
+        }
+
         // Edit Product Modal Handlers
         function openEditProductModalById(id) {
           const p = (window.__PRODUCTS__ || []).find(x => x.id == id);
@@ -2251,6 +2423,363 @@ app.get('/status', (req, res) => {
     number: connectedNumber,
     has_qr: !!currentQR,
     supabase: !!SUPABASE_URL
+  });
+});
+
+
+// ==========================================
+// Multi-Seller Session Controller & Invite Engine
+// ==========================================
+
+async function startSellerSession(sellerId) {
+  if (sellerSockets.has(sellerId) && sellerStatuses.get(sellerId) === 'connected') {
+    return sellerSockets.get(sellerId);
+  }
+  if (sellerStatuses.get(sellerId) === 'connecting' || sellerStatuses.get(sellerId) === 'waiting_for_qr_scan') {
+    return sellerSockets.get(sellerId);
+  }
+
+  try {
+    console.log(`[Multi-Seller] Initializing WhatsApp session for ${sellerId}...`);
+    sellerStatuses.set(sellerId, 'connecting');
+
+    const { state, saveCreds } = await useSupabaseAuthState(
+      SUPABASE_URL,
+      SUPABASE_KEY,
+      sellerId
+    );
+
+    const sSock = makeWASocket({
+      auth: state,
+      printQRInTerminal: false,
+      logger: pino({ level: 'silent' }),
+      browser: Browsers.ubuntu('Chrome'),
+      syncFullHistory: false,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 30000
+    });
+
+    sellerSockets.set(sellerId, sSock);
+    sSock.ev.on('creds.update', saveCreds);
+
+    sSock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+      if (qr) {
+        sellerQRs.set(sellerId, qr);
+        sellerStatuses.set(sellerId, 'waiting_for_qr_scan');
+        console.log(`[Multi-Seller] New QR code generated for ${sellerId}`);
+      }
+      if (connection === 'close') {
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        sellerStatuses.set(sellerId, 'disconnected');
+        sellerQRs.delete(sellerId);
+        console.log(`[Multi-Seller] ${sellerId} connection closed (${statusCode}). Reconnecting: ${shouldReconnect}`);
+        if (shouldReconnect) {
+          setTimeout(() => startSellerSession(sellerId), 5000);
+        }
+      } else if (connection === 'open') {
+        sellerStatuses.set(sellerId, 'connected');
+        sellerQRs.delete(sellerId);
+        const id = sSock.user?.id || '';
+        const num = id.split(':')[0] || id.split('@')[0];
+        sellerNumbers.set(sellerId, num);
+        console.log(`[Multi-Seller] ${sellerId} connected successfully as +${num}`);
+
+        try {
+          await supabase.from('seller_invites').update({
+            status: 'CONNECTED',
+            phone: `+${num}`,
+            connected_at: new Date().toISOString()
+          }).eq('seller_id', sellerId);
+        } catch (dbErr) {
+          console.warn('[Multi-Seller DB Update Error]:', dbErr.message);
+        }
+      }
+    });
+
+    // Inbound Message Listener for this specific seller
+    sSock.ev.on('messages.upsert', async (m) => {
+      const msg = m.messages[0];
+      if (!msg) return;
+      const remoteJid = msg.key.remoteJid;
+      if (!remoteJid || remoteJid.includes('@g.us') || remoteJid === 'status@broadcast') return;
+      if (msg.key.fromMe) return;
+      if (m.type !== 'notify' && m.type !== 'append') return;
+
+      const messageContent = msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text ||
+        msg.message?.imageMessage?.caption ||
+        '';
+
+      if (!messageContent.trim()) return;
+
+      // Immediate Blue Tick & Composing Presence
+      try {
+        await sSock.readMessages([msg.key]);
+        await sSock.sendPresenceUpdate('composing', remoteJid);
+      } catch (e) {}
+
+      const bufferKey = `${sellerId}:${remoteJid}`;
+      let bState = customerMessageStates.get(bufferKey);
+      if (!bState) {
+        bState = { texts: [], debounceTimer: null, isProcessing: false, lastKey: msg.key };
+        customerMessageStates.set(bufferKey, bState);
+      }
+      bState.texts.push(messageContent);
+      bState.lastKey = msg.key;
+
+      if (bState.debounceTimer) clearTimeout(bState.debounceTimer);
+      bState.debounceTimer = setTimeout(async () => {
+        if (bState.isProcessing) return;
+        bState.isProcessing = true;
+        const combined = bState.texts.join(' \n ');
+        bState.texts = [];
+
+        try {
+          await sSock.sendPresenceUpdate('composing', remoteJid);
+          const replyText = await handleIncomingMessage(remoteJid, combined, sellerId);
+          const cleanReply = typeof cleanHumanFormatting === 'function' ? cleanHumanFormatting(replyText) : replyText;
+
+          // Strictly 5-second human typing simulation
+          await sSock.sendPresenceUpdate('composing', remoteJid);
+          await new Promise(r => setTimeout(r, 5000));
+          await sSock.sendMessage(remoteJid, { text: cleanReply });
+          await sSock.sendPresenceUpdate('paused', remoteJid);
+        } catch (err) {
+          console.error(`[Multi-Seller ${sellerId} Outbound Error]:`, err.message);
+        } finally {
+          bState.isProcessing = false;
+        }
+      }, 1500);
+    });
+
+    return sSock;
+  } catch (err) {
+    console.error(`[Multi-Seller ${sellerId} Init Error]:`, err.message);
+    sellerStatuses.set(sellerId, 'error');
+  }
+}
+
+// Multi-Seller Routes
+app.post('/api/sellers/invite', async (req, res) => {
+  try {
+    const { shop_name, owner_name, phone } = req.body;
+    if (!shop_name || !shop_name.trim()) {
+      return res.status(400).json({ error: 'দোকানের নাম আবশ্যক' });
+    }
+    const crypto = require('crypto');
+    const token = 'inv_' + crypto.randomBytes(6).toString('hex');
+    const seller_id = 'seller_' + crypto.randomBytes(4).toString('hex');
+    const cleanShop = shop_name.trim();
+    const cleanOwner = (owner_name || '').trim();
+    const cleanPhone = (phone || '').trim();
+
+    const { data, error } = await supabase.from('seller_invites').insert({
+      invite_token: token,
+      seller_id: seller_id,
+      shop_name: cleanShop,
+      owner_name: cleanOwner,
+      phone: cleanPhone,
+      status: 'PENDING'
+    }).select().single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    try {
+      await supabase.from('store_settings').insert({
+        seller_id: seller_id,
+        shop_name: cleanShop,
+        inside_dhaka_fee: 80,
+        outside_dhaka_fee: 120,
+        auto_reply_enabled: true
+      });
+    } catch (e) {}
+
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const inviteUrl = `${protocol}://${host}/connect?token=${token}`;
+
+    res.json({
+      success: true,
+      invite: data,
+      invite_url: inviteUrl
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/sellers/invites', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('seller_invites')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const augmented = (data || []).map(inv => ({
+      ...inv,
+      live_status: sellerStatuses.get(inv.seller_id) || inv.status,
+      live_number: sellerNumbers.get(inv.seller_id) || inv.phone || null
+    }));
+
+    res.json({ success: true, invites: augmented });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/connect', async (req, res) => {
+  const token = req.query.token;
+  if (!token) {
+    return res.status(400).send('<h3>ইনভাইট টোকেন পাওয়া যায়নি। দয়া করে সঠিক লিংক ব্যবহার করুন।</h3>');
+  }
+
+  const { data: inv, error } = await supabase
+    .from('seller_invites')
+    .select('*')
+    .eq('invite_token', token)
+    .maybeSingle();
+
+  if (error || !inv) {
+    return res.status(404).send('<h3>ইনভাইটেশন লিংকটি সঠিক নয় বা মেয়াদোত্তীর্ণ হয়েছে।</h3>');
+  }
+
+  // Auto-start session if not active
+  if (!sellerSockets.has(inv.seller_id)) {
+    startSellerSession(inv.seller_id);
+  }
+
+  res.send(`<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoDokan AI - ${inv.shop_name} কানেকশন</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif; }</style>
+</head>
+<body class="bg-[#f8f6f0] text-stone-900 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-white rounded-3xl border border-stone-200 shadow-xl p-6 sm:p-8 space-y-6 text-center">
+    
+    <div>
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-amber-100 border border-amber-200 rounded-2xl text-2xl mb-3 shadow-xs">
+        🏪
+      </div>
+      <h1 class="text-xl sm:text-2xl font-black text-stone-900">${inv.shop_name}</h1>
+      <p class="text-xs text-stone-500 font-semibold mt-1">AutoDokan AI WhatsApp ইন্টিগ্রেশন</p>
+    </div>
+
+    <!-- Status Banner -->
+    <div id="statusBanner" class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+      <span id="statusText">QR কোড প্রস্তুত হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...</span>
+    </div>
+
+    <!-- QR Code Display Box -->
+    <div class="relative bg-stone-50 border-2 border-dashed border-stone-300 rounded-3xl p-5 flex items-center justify-center min-h-[280px]">
+      <img id="qrImage" src="/api/connect/qr?token=${token}&t=${Date.now()}" alt="WhatsApp QR Code" class="hidden w-64 h-64 rounded-xl shadow-xs">
+      <div id="qrPlaceholder" class="text-stone-400 text-xs font-bold flex flex-col items-center gap-2">
+        <svg class="animate-spin h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>কিউআর লোড হচ্ছে...</span>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="bg-stone-50 rounded-2xl p-4 text-left border border-stone-200 text-xs text-stone-600 space-y-1.5 font-medium">
+      <div class="font-extrabold text-stone-800 mb-1">কীভাবে কানেক্ট করবেন:</div>
+      <div>১. আপনার ফোনের WhatsApp ওপেন করুন</div>
+      <div>২. Settings বা থ্রি-ডট থেকে <b>Linked Devices</b> এ যান</div>
+      <div>৩. <b>Link a Device</b> চাপ দিয়ে উপরের কিউআর কোডটি স্ক্যান করুন</div>
+      <div>৪. কানেক্ট হওয়ামাত্রই AI স্বয়ংক্রিয়ভাবে মেসেজের রিপ্লাই দেওয়া শুরু করবে!</div>
+    </div>
+
+    <div class="text-[11px] text-stone-400 font-semibold">
+      AutoDokan Engine v2.0 • Powered by Google DeepMind
+    </div>
+
+  </div>
+
+  <script>
+    const token = '${token}';
+    let pollInterval = null;
+
+    async function checkStatus() {
+      try {
+        const res = await fetch('/api/connect/status?token=' + token);
+        const data = await res.json();
+        
+        const banner = document.getElementById('statusBanner');
+        const statusText = document.getElementById('statusText');
+        const qrImg = document.getElementById('qrImage');
+        const placeholder = document.getElementById('qrPlaceholder');
+
+        if (data.status === 'connected') {
+          banner.className = 'bg-emerald-50 border border-emerald-300 text-emerald-900 p-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2';
+          statusText.innerText = '🎉 হোয়াটসঅ্যাপ সফলভাবে কানেক্ট হয়েছে! নম্বর: ' + (data.number || '');
+          qrImg.classList.add('hidden');
+          placeholder.classList.remove('hidden');
+          placeholder.innerHTML = '<span class="text-4xl">✅</span><span class="text-emerald-800 font-black text-sm mt-1">কানেকশন সক্রিয় আছে</span>';
+          if (pollInterval) clearInterval(pollInterval);
+        } else if (data.has_qr) {
+          statusText.innerText = '📱 আপনার ফোন দিয়ে নিচের QR কোডটি স্ক্যান করুন';
+          qrImg.src = '/api/connect/qr?token=' + token + '&t=' + Date.now();
+          qrImg.classList.remove('hidden');
+          placeholder.classList.add('hidden');
+        }
+      } catch (e) {}
+    }
+
+    checkStatus();
+    pollInterval = setInterval(checkStatus, 3000);
+  </script>
+</body>
+</html>`);
+});
+
+app.get('/api/connect/qr', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).send('Token required');
+  const { data: inv } = await supabase.from('seller_invites').select('seller_id').eq('invite_token', token).maybeSingle();
+  if (!inv) return res.status(404).send('Invalid token');
+
+  const qr = sellerQRs.get(inv.seller_id);
+  if (!qr) return res.status(404).send('QR not ready');
+
+  try {
+    const qrBuf = await qrcode.toBuffer(qr, { width: 300, margin: 2 });
+    res.setHeader('Content-Type', 'image/png');
+    res.send(qrBuf);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+app.get('/api/connect/status', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Token required' });
+  const { data: inv } = await supabase.from('seller_invites').select('*').eq('invite_token', token).maybeSingle();
+  if (!inv) return res.status(404).json({ error: 'Invalid token' });
+
+  const liveStatus = sellerStatuses.get(inv.seller_id) || inv.status;
+  const liveNum = sellerNumbers.get(inv.seller_id) || inv.phone;
+  const hasQR = !!sellerQRs.get(inv.seller_id);
+
+  res.json({
+    shop_name: inv.shop_name,
+    owner_name: inv.owner_name,
+    status: liveStatus,
+    number: liveNum,
+    has_qr: hasQR
   });
 });
 
@@ -2609,22 +3138,20 @@ async function processCustomerBuffer(remoteJid) {
       ? cleanHumanFormatting(rawCleanReply)
       : rawCleanReply;
 
-    // Multi-Bubble & Dynamic Typing Simulation
+    // Multi-Bubble & 5-Second Typing Simulation (Strictly Human Balanced Speed)
     if (sock && cleanReplyText) {
       const rawParagraphs = cleanReplyText.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
       if (rawParagraphs.length >= 2 && cleanReplyText.length > 120) {
-        // Split into 2 natural bubbles
+        // Split into 2 natural bubbles: 3000ms + 2000ms = 5000ms (5 seconds) total typing
         const firstBubble = rawParagraphs[0];
         const secondBubble = rawParagraphs.slice(1).join('\n\n');
 
-        const firstTyping = Math.min(Math.max(firstBubble.length * 30, 1500), 3000);
         await sock.sendPresenceUpdate('composing', remoteJid);
-        await new Promise(r => setTimeout(r, firstTyping));
+        await new Promise(r => setTimeout(r, 3000));
         const sent1 = await sock.sendMessage(remoteJid, { text: firstBubble });
         if (sent1?.key?.id) botSentMessageIds.add(sent1.key.id);
         incrementStats('messages_out');
 
-        // 2-second pause with typing simulation before second bubble
         await sock.sendPresenceUpdate('composing', remoteJid);
         await new Promise(r => setTimeout(r, 2000));
         const sent2 = await sock.sendMessage(remoteJid, { text: secondBubble });
@@ -2632,7 +3159,7 @@ async function processCustomerBuffer(remoteJid) {
         await sock.sendPresenceUpdate('paused', remoteJid);
         incrementStats('messages_out');
       } else {
-        const typingDuration = Math.min(Math.max(cleanReplyText.length * 35, 1800), 4500);
+        const typingDuration = 5000; // Exactly 5 seconds
         await sock.sendPresenceUpdate('composing', remoteJid);
         await new Promise(r => setTimeout(r, typingDuration));
         const sentMsg = await sock.sendMessage(remoteJid, { text: cleanReplyText });
@@ -2947,6 +3474,14 @@ async function connectToWhatsApp() {
           return; // Duplicate upsert event ignored
         }
         processedIncomingMsgIds.set(msgId, Date.now());
+      }
+
+      // Immediate Read Receipt (Blue Tick) & Immediate Composing Presence
+      if (sock) {
+        try {
+          await sock.readMessages([msg.key]);
+          await sock.sendPresenceUpdate('composing', remoteJid);
+        } catch (e) {}
       }
 
       // 3. WhatsApp Voice Note & Push-To-Talk (PTT) Deep Unwrapping

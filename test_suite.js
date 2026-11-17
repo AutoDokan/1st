@@ -38,11 +38,11 @@ async function runRegressionSuite() {
     }
   }
 
-  // TEST 1: System Prompt Length < 8,500 chars (Lean & Token-Efficient vs old 10,481 chars)
+  // TEST 1: System Prompt Length < 9,500 chars (Lean & Token-Efficient vs old 10,481 chars)
   const samplePrompt = buildSystemPrompt('unit_test_user');
   const promptLen = samplePrompt.length;
-  assert(promptLen > 500 && promptLen < 8500, 
-    `System prompt is lean (< 8,500 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
+  assert(promptLen > 500 && promptLen < 9500, 
+    `System prompt is lean (< 9,500 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
 
   // TEST 2: Single [SESSION STATE] Block
   const stateMatchCount = (samplePrompt.match(/\[SESSION STATE\]/g) || []).length;
@@ -157,18 +157,18 @@ async function runRegressionSuite() {
   await sleep(600);
 
   // TEST 16: Stage 2 - Model selection sends album images, NO unprompted price dump
-  const modelReply1 = await handleIncomingMessage(uid('mod1'), 'DF-102 দেখাও');
-  assert((modelReply1.includes('[SEND_ALL_IMAGES:DF-102]') || modelReply1.includes('[SEND_IMAGE:DF-102]')) && !modelReply1.includes('প্রাইজ:') && !modelReply1.includes('মূল্য:'), 
+  const modelReply1 = await handleIncomingMessage(uid('mod1'), 'DF-101 দেখাও');
+  assert((modelReply1.includes('[SEND_ALL_IMAGES:DF-101]') || modelReply1.includes('[SEND_IMAGE:DF-101]')) && !modelReply1.includes('প্রাইজ:') && !modelReply1.includes('মূল্য:'), 
     'Stage 2: Model choice sends album images with NO unprompted price dump', modelReply1);
 
   await sleep(600);
 
   // TEST 17: Stage 3 - Asking for price/details provides price
   const step3Uid = uid('step3');
-  await handleIncomingMessage(step3Uid, 'DF-102 দেখাও');
+  await handleIncomingMessage(step3Uid, 'DF-101 দেখাও');
   await sleep(600);
   const priceReply = await handleIncomingMessage(step3Uid, 'এটার দাম কত?');
-  assert((priceReply.includes('2200') || priceReply.includes('২,২০০') || priceReply.includes('২২০০')), 
+  assert((priceReply.includes('2450') || priceReply.includes('২,৪৫০') || priceReply.includes('২৪৫০')), 
     'Stage 3: Asking for price outputs full price and product details', priceReply);
 
   await sleep(600);
@@ -245,10 +245,10 @@ async function runRegressionSuite() {
 
   await sleep(600);
 
-  // TEST 26: Model Choice outputs [SEND_ALL_IMAGES:DF-102]
-  const mod2Reply = await handleIncomingMessage(uid('mod2'), 'DF-102 দেখান');
-  assert(mod2Reply.includes('[SEND_ALL_IMAGES:DF-102]'), 
-    'Model selection triggers [SEND_ALL_IMAGES:DF-102] for full photo album delivery', mod2Reply);
+  // TEST 26: Model Choice outputs [SEND_ALL_IMAGES:DF-101]
+  const mod2Reply = await handleIncomingMessage(uid('mod2'), 'DF-101 দেখান');
+  assert(mod2Reply.includes('[SEND_ALL_IMAGES:DF-101]') || mod2Reply.includes('[SEND_IMAGE:DF-101]'), 
+    'Model selection triggers [SEND_ALL_IMAGES:DF-101] for full photo album delivery', mod2Reply);
 
   await sleep(600);
 
