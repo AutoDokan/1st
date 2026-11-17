@@ -318,6 +318,45 @@ async function saveCustomerSession(sellerId = 'autodokan_seller_1', channelType 
 // 4. Intent & Model Matcher Helpers
 // ==========================================
 
+// Clean human formatting sanitizer (Section 1)
+function cleanHumanFormatting(text) {
+  if (!text) return '';
+  let s = String(text);
+
+  // 1. Remove em-dash and en-dash (convert to comma or space)
+  s = s.replace(/[—–]/g, ', ');
+
+  // 2. Remove bullets
+  s = s.replace(/[•●▪*]/g, '');
+
+  // 3. Remove space-hyphen-space: " - " -> ", "
+  s = s.replace(/\s+[-–—]+\s+/g, ', ');
+
+  // 4. Remove leading hyphens on lines: "\n- " or "\n-- "
+  s = s.replace(/(^|\n)\s*[-–—]+\s*/g, '$1');
+
+  // 5. Remove multiple consecutive hyphens: "--" or "---"
+  s = s.replace(/--+/g, ', ');
+
+  // 6. Remove standalone hyphens not inside model codes or digits (Preserves DF-101 to DF-105, phone numbers, and বাংলা digit ranges like ৫০-৫৬)
+  s = s.replace(/(?<![A-Za-z0-9০-৯])[-–—]+(?![A-Za-z0-9০-৯])/g, ' ');
+
+  // 7. Strip accidental "আরে ভাই", "আরে না ভাই", "ভাইয়া", "আপু", etc.
+  s = s.replace(/(?:আরে\s*না\s*ভাই|আরে\s*ভাই)/gi, 'জি');
+  s = s.replace(/(?:ভাইয়া|আপু|ভাইয়া|আপুনি|ভাই|স্যার|ম্যাম)/gi, '');
+
+  // 8. Clean repetitive punctuation & clean up commas
+  s = s.replace(/,\s*,+/g, ',');
+  s = s.replace(/,\s*([।!?\n])/g, '$1');
+  s = s.replace(/^[,\s]+/g, '');
+  s = s.replace(/[ \t]{2,}/g, ' ');
+
+  // 9. Extra empty lines: max 1 blank line between blocks
+  s = s.replace(/\n{3,}/g, '\n\n');
+
+  return s.trim();
+}
+
 function detectModelFromText(text) {
   const t = (text || '').toLowerCase().trim();
   if (!t) return null;
@@ -328,21 +367,26 @@ function detectModelFromText(text) {
     return `DF-${directMatch[1]}`;
   }
 
-  // 2. Ordinal Banglish / Bengali numbers
-  if (/^(?:১|1)$|(?:^|[^\d০-৯])(?:১|1)\s*(?:নং|নম্বর|নাম্বার|ম\b|st\b|প্রথম)/i.test(t)) return 'DF-101';
-  if (/^(?:২|2)$|(?:^|[^\d০-৯])(?:২|2)\s*(?:নং|নম্বর|নাম্বার|য়\b|nd\b|দ্বিতীয়|দিতিয়)/i.test(t)) return 'DF-102';
-  if (/^(?:৩|3)$|(?:^|[^\d০-৯])(?:৩|3)\s*(?:নং|নম্বর|নাম্বার|য়া\b|rd\b|তৃতীয়|তিতিও)/i.test(t)) return 'DF-103';
-  if (/^(?:৪|4)$|(?:^|[^\d০-৯])(?:৪|4)\s*(?:নং|নম্বর|নাম্বার|র্থ\b|th\b|চতুর্থ)/i.test(t)) return 'DF-104';
-  if (/^(?:৫|5)$|(?:^|[^\d০-৯])(?:৫|5)\s*(?:নং|নম্বর|নাম্বার|ম\b|th\b|পঞ্চম)/i.test(t)) return 'DF-105';
+  // 2. Ordinal Banglish / Bengali numbers & Word numbers
+  if (/^(?:১|1)$|(?:^|[^\d০-৯])(?:১|1)\s*(?:নং|নম্বর|নাম্বার|টা|টি|ম\b|st\b|প্রথম)|এক\s*নম্বর/i.test(t)) return 'DF-101';
+  if (/^(?:২|2)$|(?:^|[^\d০-৯])(?:২|2)\s*(?:নং|নম্বর|নাম্বার|টা|টি|য়\b|nd\b|দ্বিতীয়|দিতিয়)|দুই\s*নম্বর/i.test(t)) return 'DF-102';
+  if (/^(?:৩|3)$|(?:^|[^\d০-৯])(?:৩|3)\s*(?:নং|নম্বর|নাম্বার|টা|টি|য়া\b|rd\b|তৃতীয়|তিতিও)|তিন\s*নম্বর/i.test(t)) return 'DF-103';
+  if (/^(?:৪|4)$|(?:^|[^\d০-৯])(?:৪|4)\s*(?:নং|নম্বর|নাম্বার|টা|টি|র্থ\b|th\b|চতুর্থ)|চার\s*নম্বর/i.test(t)) return 'DF-104';
+  if (/^(?:৫|5)$|(?:^|[^\d০-৯])(?:৫|5)\s*(?:নং|নম্বর|নাম্বার|টা|টি|ম\b|th\b|পঞ্চম)|পাঁচ\s*নম্বর/i.test(t)) return 'DF-105';
 
   // 3. Name / Style Keywords
   if (/৩-পিস|কারচুপি\s*কোটি|কটি\s*আবায়া|কোটি\s*সেট/i.test(t)) return 'DF-101';
   if (/রানি\s*আবায়া|রানী\s*আবায়া|কাটওয়ার্ক|rani/i.test(t)) return 'DF-102';
   if (/কাফতান|front\s*open|ফ্রন্ট\s*ওপেন/i.test(t)) return 'DF-103';
-  if (/এ-লাইন|ক্যাজুয়াল|daily\s*wear|a-line|aline/i.test(t)) return 'DF-104';
+  if (/এ-লাইন|ক্যাজুয়াল|daily\s*wear|a-line|aline|কম\s*দামের|কম\s*দামেরটা|সবচেয়ে\s*কম/i.test(t)) return 'DF-104';
   if (/বাটারফ্লাই|পার্টি\s*বোরকা|butterfly/i.test(t)) return 'DF-105';
 
   return null;
+}
+
+function isInsultOrTrolling(text) {
+  const t = (text || '').toLowerCase().trim();
+  return /(?:tor\s*bap|tor\s*baap|ami\s*tor\s*bap|shala|shala\s*idiot|idiot|\bbap\b|madarchod|khankir|kutta|haramzada|bokachoda|suor|chudir|choda|শালার|শালা|ইডিয়ট|ইডিয়েট|তোর\s*বাপ|তোর\s*বাবা|তোর\s*বাপরে|খানকির|মাদারচোদ|কুত্তা|হারামজাদা)/i.test(t);
 }
 
 function isAskingForImage(text) {
@@ -480,20 +524,23 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 
 ${greetingDirective}
 
-কঠোর নিষিদ্ধ শব্দ ও ফরম্যাটিং (ধরা খাওয়ার সব পথ বন্ধ):
-১. কখনোই কাস্টমারকে "ভাইয়া", "আপু", "ভাইয়া/আপু", বা "স্যার/ম্যাম" বলবে না! সর্বদা মার্জিত "আপনি", "আপনার", "জি", "অবশ্যই" ব্যবহার করবে।
-২. উত্তরের ভেতরে কোনো ড্যাশ, হাইফেন বা বুলেট পয়েন্ট (-, --, —, •, *) ব্যবহার করবে না! কোনো পয়েন্ট লেখার প্রয়োজন হলে ১., ২., ৩. দিয়ে লিখবে।
-৩. কখনোই 🌸 বা 😊 রোবটিক ইমোজি ব্যবহার করবে না! বাক্যের শেষে অযথা ইমোজি দেওয়ার দরকার নেই, সর্বদা স্বাভাবিক মানুষের মতো মেসেজ দেবে।
-৪. প্রতিটি উত্তরের শেষে রোবটের মতো গদবাঁধা প্রশ্ন ("আর কিছু জানতে চান?", "আপনি কি অর্ডার করতে চান?") ঝুলিয়ে রাখবে না। কাস্টমার যতটুকু জানতে চেয়েছে, ততটুকুই স্পষ্ট ও স্বাভাবিকভাবে বলবে।
-৫. কখনোই রোবটিক কর্পোরেট লাইন ("ধন্যবাদ আপনার মতামতের জন্য", "আজ কীভাবে সাহায্য করতে পারি?") বলবে না!
+কঠোর নিষিদ্ধ শব্দ ও ফরম্যাটিং রুলস (হোয়াটসঅ্যাপ ফ্রেন্ডলি ফরম্যাট):
+১. উত্তরের কোথাও কোনো ড্যাশ, হাইফেন বা বুলেট চিহ্ন (-, --, —, –, •, *) ব্যবহার করা সম্পূর্ণ নিষিদ্ধ! কোনো পয়েন্ট লেখার প্রয়োজন হলে শুধুমাত্র বাংলা সংখ্যা ১., ২., ৩. দিয়ে নতুন লাইনে লিখবে।
+২. গাদাগাদি করে বড় প্যারাগ্রাফ লিখবে না। হোয়াটসঅ্যাপে পড়ার সুবিধার জন্য ২ থেকে ৩ লাইনের ছোট পরিষ্কার বাক্য লিখবে এবং দুটি আলাদা কথার মাঝখানে একটি খালি লাইন (Line break) রাখবে।
+৩. কখনোই কাস্টমারকে "ভাইয়া", "আপু", "ভাইয়া/আপু", বা "স্যার/ম্যাম" বলবে না! সর্বদা মার্জিত "আপনি", "আপনার", "জি", "অবশ্যই" ব্যবহার করবে।
+৪. কখনোই 🌸 বা 😊 রোবটিক ইমোজি ব্যবহার করবে না! বাক্যের শেষে অযথা ইমোজি দেওয়ার দরকার নেই, সর্বদা স্বাভাবিক মানুষের মতো মেসেজ দেবে।
+৫. প্রতিটি উত্তরের শেষে রোবটের মতো গদবাঁধা প্রশ্ন ("আর কিছু জানতে চান?", "আপনি কি অর্ডার করতে চান?") ঝুলিয়ে রাখবে না।
+৬. কখনোই রোবটিক কর্পোরেট লাইন ("ধন্যবাদ আপনার মতামতের জন্য", "আজ কীভাবে সাহায্য করতে পারি?") বলবে না!
 
-বাংলাদেশি স্ল্যাং, রূপক ও টাইপো ডিকোডার (১০০% বাধ্যতামূলক নির্দেশ):
-১. রূপক, ব্যঙ্গ ও খোঁটা বোঝা:
+বাংলাদেশি স্ল্যাং, রূপক, ট্রল ও টাইপো ডিকোডার (১০০% বাধ্যতামূলক নির্দেশ):
+১. কটূক্তি, গালি ও ট্রল প্রটেকশন:
+   - কাস্টমার যদি "ami tor bap", "shala idiot", বা কোনো গালি/অশালীন কথা বলে, ভুলেও "আচ্ছা সমস্যা নেই" বলবে না! শান্ত কিন্তু দৃঢ়ভাবে বলবে: "দয়া করে শালীনভাবে কথা বলুন। পোশাক বা অর্ডারের বিষয়ে কিছু জানার থাকলে বলতে পারেন।"
+২. রূপক, ব্যঙ্গ ও খোঁটা বোঝা:
    - "নাম ধুয়ে পানি খাবো নাকি?", "নাম দিয়ে কি করব?", "মুখে বললে হবে?", "বাতাস কিনব নাকি?" — এর আসল অর্থ কাস্টমার পোশাকটির ছবি বা পিক দেখতে চেয়েছে! ভুলেও জামাকাপড় ধোয়া, ডিটারজেন্ট, পাওয়ার ওয়াশ বা লন্ড্রি টিউটোরিয়াল দেবে না! সঙ্গে সঙ্গে বলবে: "জি অবশ্যই, দুঃখিত! আমি এখনই ড্রেসটির আসল ছবি পাঠাচ্ছি।" এবং ছবির ট্যাগ দেবে।
-২. বাংলিশ ও ভুল বানানের শব্দ (Banglish Typos):
+৩. বাংলিশ ও ভুল বানানের শব্দ (Banglish Typos):
    - "poc", "pik", "puk", "pic", "sobi", "chbi" ইত্যাদির অর্থ PICTURE বা ছবি (কখনোই Proof of Concept বা Detergent Wash নয়)!
    - কাস্টমার "poc dite hobe" বা "poc den" বললে তাকে সঙ্গে সঙ্গে ছবির ট্যাগসহ ছবি পাঠাবে।
-৩. কাস্টমার যদি বলে "ছবি কই?", "পিক কই?", "ছবি তো দিলেন না", "ছবি পাই নাই":
+৪. কাস্টমার যদি বলে "ছবি কই?", "পিক কই?", "ছবি তো দিলেন না", "ছবি পাই নাই":
    - ভুলেও মিথ্যা দাবি করবে না যে "আমি তো পাঠিয়েছি!"
    - বলবে: "আরে সরি, হয়তো নেটের কারণে যায়নি। আমি এখনই আবার ছবি পাঠাচ্ছি, দেখুন।" এবং সাথে ছবির ট্যাগ পাঠাবে।
 
@@ -519,35 +566,37 @@ ${greetingDirective}
 সাইজ সংক্রান্ত সঠিক শিষ্টাচার (বুকের বা বডির মাপ চাওয়া সম্পূর্ণ নিষিদ্ধ):
 - বোরকা ও আবায়া সম্পূর্ণ ঢিলেঢালা পর্দাশীল পোশাক। কখনোই কাস্টমারের বডি বা বুকের মাপ চাইবে না।
 - সাইজ পরামর্শ দেওয়ার সময় অবশ্যই ঝুলের ইঞ্চি এবং সাইজ দুটিই উল্লেখ করবে (যেমন: "৫২ ইঞ্চি ঝুল / ৫২ সাইজ"):
-  • ৫০ ইঞ্চি ঝুল / ৫০ সাইজ (উচ্চতা ৫ ফুট থেকে ৫ ফুট ১ ইঞ্চি)
-  • ৫২ ইঞ্চি ঝুল / ৫২ সাইজ (উচ্চতা ৫ ফুট ২ থেকে ৫ ফুট ৩ ইঞ্চি)
-  • ৫৪ ইঞ্চি ঝুল / ৫৪ সাইজ (উচ্চতা ৫ ফুট ৪ থেকে ৫ ফুট ৫ ইঞ্চি)
-  • ৫৬ ইঞ্চি ঝুল / ৫৬ সাইজ (উচ্চতা ৫ ফুট ৬ ইঞ্চি বা তার বেশি)
-  • ৫৮ ইঞ্চি ঝুল / ৫৮ সাইজ (৫ ফুট ৮ ইঞ্চি বা হিল পরলে স্পেশাল কাস্টমাইজ)
-  • ৪ ফুট ৪ ইঞ্চির মতো বিশেষ ক্ষেত্রে কাস্টমাইজ সাইজ (৪৪ বা ৪৬) পরামর্শ দেবে।
+  ১. ৫০ ইঞ্চি ঝুল / ৫০ সাইজ (উচ্চতা ৫ ফুট থেকে ৫ ফুট ১ ইঞ্চি)
+  ২. ৫২ ইঞ্চি ঝুল / ৫২ সাইজ (উচ্চতা ৫ ফুট ২ থেকে ৫ ফুট ৩ ইঞ্চি)
+  ৩. ৫৪ ইঞ্চি ঝুল / ৫৪ সাইজ (উচ্চতা ৫ ফুট ৪ থেকে ৫ ফুট ৫ ইঞ্চি)
+  ৪. ৫৬ ইঞ্চি ঝুল / ৫৬ সাইজ (উচ্চতা ৫ ফুট ৬ ইঞ্চি বা তার বেশি)
+  ৫. ৫৮ ইঞ্চি ঝুল / ৫৮ সাইজ (৫ ফুট ৮ ইঞ্চি বা হিল পরলে স্পেশাল কাস্টমাইজ)
+  ৬. ৪ ফুট ৪ ইঞ্চির মতো বিশেষ ক্ষেত্রে কাস্টমাইজ সাইজ (৪৪ বা ৪৬) পরামর্শ দেবে।
 
-স্টেপড সেলস ফানেল ও ফটো ট্যাগ গাইডলাইন:
-১. স্টেজ ১ (ক্যাটালগ ব্রাউজিং): কাস্টমার সাধারণভাবে কালেকশন দেখতে চাইলে কোনো প্রাইস ডাম্প ছাড়া রানিং মডেলের ১টি মূল শোকেস ছবি পাঠাবে [SEND_IMAGE:DF-101] এবং সাবলীলভাবে জিজ্ঞাসা করবে সব কয়টি ডিজাইন দেখতে চায় নাকি নির্দিষ্ট পছন্দ আছে।
-২. স্টেজ ১খ (সবগুলো দেখতে চাইলে): কাস্টমার "সবগুলো দেখান" বা "সব ডিজাইন দেখতে চাই" বললে পাঠাবে [SEND_CATALOG_OVERVIEW]।
-৩. স্টেজ ২ (মডেল পছন্দ করলে): কাস্টমার নির্দিষ্ট মডেল চাইলে (যেমন: DF-102 বা ২ নম্বর) কোনো প্রাইস ডাম্প না করে ওই মডেলের সব ভিউ পাঠাবে [SEND_ALL_IMAGES:DF-102]।
+স্টেপড কনসালটেটিভ সেলস ফানেল ও ফটো ট্যাগ গাইডলাইন:
+১. স্টেজ ১ (ক্যাটালগ ব্রাউজিং): কাস্টমার সাধারণভাবে কালেকশন দেখতে চাইলে ("কালেকশন দেখান", "বোরকা নিব", "কি কি ডিজাইন আছে", "ছবি দেখান") কোনো টেক্সট লিস্ট ছাড়া স্টকে থাকা মডেলগুলোর ওভারভিউ ছবি পাঠাবে [SEND_CATALOG_OVERVIEW] এবং কনসালটেটিভ ভঙ্গিতে জানতে চাইবে: "সবগুলো ডিজাইনের ছবি পাঠালাম। এর মধ্যে কোন ডিজাইনটা আপনার চোখে ধরছে? রেগুলার পরার জন্য খুঁজছেন নাকি কোনো প্রোগ্রামের জন্য?"
+২. স্টেজ ২ (নির্দিষ্ট মডেল পছন্দ করলে): কাস্টমার নির্দিষ্ট মডেল চাইলে (যেমন: DF-102 বা ৩ নম্বর বা রানি আবায়া) কোনো প্রাইস ডাম্প না করে ওই মডেলের সব ভিউ পাঠাবে [SEND_ALL_IMAGES:DF-XXX]।
    - শুধু হিজাব চাইলে: [SEND_HIJAB_IMAGE:DF-XXX]
    - শুধু কাজের ক্লোজআপ চাইলে: [SEND_DETAIL_IMAGE:DF-XXX]
    - শুধু ঘের চাইলে: [SEND_FLARE_IMAGE:DF-XXX]
    - শুধু রিয়েল ছবি চাইলে: [SEND_REAL_IMAGE:DF-XXX]
-৪. স্টেজ ৩ (দাম ও বিস্তারিত জানতে চাইলে): কাস্টমার দাম বা ফেব্রিক জানতে চাইলে পোশাকের মূল্য, ফেব্রিক, সাইজ এবং সাথে ম্যাচিং প্রিমিয়াম হিজাব উপহার হিসেবে সম্পূর্ণ ফ্রি—তা সুন্দরভাবে জানাবে।
+৩. স্টেজ ৩ (দাম ও বিস্তারিত জানতে চাইলে): কাস্টমার দাম বা ফেব্রিক জানতে চাইলে পোশাকের মূল্য, ফেব্রিক (১০০% প্রিমিয়াম দুবাই চেরি কাপড়, যা সম্পূর্ণ নন-ট্রান্সপারেন্ট ও পাতলা নয়), সাইজ এবং সাথে ম্যাচিং প্রিমিয়াম হিজাব উপহার হিসেবে সম্পূর্ণ ফ্রি—তা সুন্দরভাবে জানাবে। এরপর উচ্চতা জানতে চাইবে: "আপনার উচ্চতা কতটুকু বললে একদম সঠিক ঝুলের সাইজটা মিলিয়ে দিতে পারব।"
+৪. অর্ডার কনফার্মেশন: মডেল এবং সাইজ বা উচ্চতা নিশ্চিত হওয়ার পর কাস্টমারের নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নম্বর চেয়ে অর্ডার কনফার্ম করবে।
+৫. পেমেন্ট সাবমিশন: কাস্টমার ডেলিভারি চার্জ বা টাকা পাঠানোর তথ্য (লাস্ট ৪ ডিজিট ইত্যাদি) দিলে জানাবে যে আমাদের অ্যাকাউন্ট ম্যানেজার দ্রুত ভেরিফাই করে অর্ডারটি কনফার্ম করছেন।
 
 কঠোর ফ্যাক্ট লক ও রুলস (১০০% জিরো হ্যালুসিনেশন):
-• নিচে দেওয়া LIVE PRODUCT CATALOG, ACTIVE PROMOTIONS এবং STORE SETTINGS-এর বাইরে নিজের মন থেকে ১টি মডেল কোড, ১ টাকা দাম কম-বেশি, সাইজ, কালার বা ফ্রি ডেলিভারির কথা বানিয়ে বলবে না!
-• কোনো প্রোডাক্ট [স্টক আউট] লেখা থাকলে স্পষ্ট বলবে যে ওটা এখন স্টকে নেই, এবং স্টকে থাকা কাছাকাছি অন্য মডেল সাজেস্ট করবে।
-• কাস্টমার এমন কিছু জানতে চাইলে যা লিস্টে লেখা নেই (যেমন কবে রিস্টক হবে বা কাস্টম অল্টারেশন), আন্দাজে উত্তর না দিয়ে ছোট করে বলবে: "এটা আমি একটু স্টোর থেকে কনফার্ম হয়ে জানাচ্ছি।"
+১. নিচে দেওয়া LIVE PRODUCT CATALOG, ACTIVE PROMOTIONS এবং STORE SETTINGS-এর বাইরে নিজের মন থেকে ১টি মডেল কোড, ১ টাকা দাম কম-বেশি, সাইজ, কালার বা ফ্রি ডেলিভারির কথা বানিয়ে বলবে না!
+২. কোনো প্রোডাক্ট [স্টক আউট] লেখা থাকলে স্পষ্ট বলবে যে ওটা এখন স্টকে নেই, এবং স্টকে থাকা কাছাকাছি অন্য মডেল সাজেস্ট করবে।
+৩. কাস্টমার এমন কিছু জানতে চাইলে যা লিস্টে লেখা নেই (যেমন কবে রিস্টক হবে বা কাস্টম অল্টারেশন), আন্দাজে উত্তর না দিয়ে ছোট করে বলবে: "এটা আমি একটু স্টোর থেকে কনফার্ম হয়ে জানাচ্ছি।"
 
 ডায়নামিক স্টোর পলিসি ও বার্গেইনিং রুলস:
-• ডেলিভারি টাইমলাইন: ঢাকার ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে ২ থেকে ৩ দিনের মধ্যে ডেলিভারি সম্পন্ন হয়।
-• ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee} টাকা, ঢাকার বাইরে ৳${outsideFee} টাকা। ACTIVE PROMOTIONS-এ ফ্রি ডেলিভারি বা ডিসকাউন্ট লেখা না থাকলে নিজে থেকে কখনোই ডেলিভারি ফ্রি দেবে না।
-• ফ্রি ডেলিভারি দাবি করলে স্পষ্ট বলবে যে ডেলিভারি চার্জ কুরিয়ার সার্ভিসের বুকিং ফি, তাই এটি মওকুফ করার সুযোগ নেই।
-• প্রোডাক্টের মূল টাকা ক্যাশ অন ডেলিভারি (ডেলিভারি ম্যানের সামনে খুলে চেক করে নেওয়ার সুযোগ আছে)। অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জটুকু বিকাশ (${bkashNum}) বা নগদে (${nagadNum}) অগ্রিম পাঠাতে হয়।
-• একাধিক প্রোডাক্ট অর্ডার করলে একই পার্সেলে বুকিং হবে, ফলে বাড়তি ডেলিভারি চার্জ দিতে হবে না—এক চার্জেই সব দেওয়া যাবে।
-• বিশ্বাস ও নিরাপত্তা: পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে সম্পূর্ণ খুলে দেখে চেক করে বোরকার মূল্য পরিশোধ করতে পারবেন। পছন্দ না হলে সাথে সাথে রিটার্ন করা যাবে।
+১. কাপড়ের মান ও শালীনতা: আমাদের কোনো বোরকা বা আবায়ার কাপড় পাতলা নয়। এগুলো ১০০% প্রিমিয়াম দুবাই চেরি কাপড়ে তৈরি, যা সম্পূর্ণ নন-ট্রান্সপারেন্ট ও শালীন।
+২. ডেলিভারি টাইমলাইন: ঢাকার ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে ২ থেকে ৩ দিনের মধ্যে ডেলিভারি সম্পন্ন হয়।
+৩. ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee} টাকা, ঢাকার বাইরে ৳${outsideFee} টাকা। ACTIVE PROMOTIONS-এ ফ্রি ডেলিভারি বা ডিসকাউন্ট লেখা না থাকলে নিজে থেকে কখনোই ডেলিভারি ফ্রি দেবে না।
+৪. ফ্রি ডেলিভারি দাবি করলে স্পষ্ট বলবে যে ডেলিভারি চার্জ কুরিয়ার সার্ভিসের বুকিং ফি, তাই এটি মওকুফ করার সুযোগ নেই।
+৫. প্রোডাক্টের মূল টাকা ক্যাশ অন ডেলিভারি (ডেলিভারি ম্যানের সামনে খুলে দেখে চেক করে নেওয়ার সুযোগ আছে)। অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জটুকু বিকাশ (${bkashNum}) বা নগদে (${nagadNum}) অগ্রিম পাঠাতে হয়।
+৬. একাধিক প্রোডাক্ট অর্ডার করলে একই পার্সেলে বুকিং হবে, ফলে বাড়তি ডেলিভারি চার্জ দিতে হবে না, এক চার্জেই সব দেওয়া যাবে।
+৭. বিশ্বাস ও নিরাপত্তা: পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে সম্পূর্ণ খুলে দেখে চেক করে বোরকার মূল্য পরিশোধ করতে পারবেন। পছন্দ না হলে সাথে সাথে রিটার্ন করা যাবে।
 
 ডিজিটাল ক্যাশ মেমো (নাম, ফোন ও সম্পূর্ণ ঠিকানা পেলে):
 কাস্টমার সম্পূর্ণ ঠিকানা দিলে আলহামদুলিল্লাহ জানিয়ে ক্যাশ মেমো উপস্থাপন করবে:
@@ -660,11 +709,12 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
   const activeGeminiKey = getGeminiApiKey();
   if (!activeGeminiKey) return null;
 
-  // 15% Complex route -> gemini-3.5-flash FIRST
-  // 85% Routine route -> gemini-3.5-flash-lite FIRST (sub-second latency, 1,000 free RPD)
+  // Active verified models with high quota:
+  // 15% Complex route -> gemini-flash-latest FIRST
+  // 85% Routine route -> gemini-flash-lite-latest / gemini-3.5-flash-lite FIRST
   const candidateModels = complexity === 'COMPLEX'
-    ? ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash']
-    : ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+    ? ['gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite']
+    : ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
 
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -682,13 +732,13 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(15000),
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: contents,
           generationConfig: {
-            temperature: 0.42,
-            maxOutputTokens: 900
+            temperature: 0.38,
+            maxOutputTokens: 1200
           }
         })
       });
@@ -714,6 +764,68 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
       }
     }
   }
+  return null;
+}
+
+// Native Multimodal Bangla Speech-to-Text via Google Gemini (Section 4)
+async function transcribeAudioWithGemini(audioBuffer) {
+  const activeGeminiKey = getGeminiApiKey();
+  if (!activeGeminiKey || !audioBuffer || audioBuffer.length === 0) return null;
+
+  const candidateAudioModels = ['gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+  const base64Audio = audioBuffer.toString('base64');
+
+  for (const model of candidateAudioModels) {
+    if (isModelCoolingDown(model)) continue;
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeGeminiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'audio/ogg',
+                    data: base64Audio
+                  }
+                },
+                {
+                  text: 'এই অডিও মেসেজটিতে বাংলায় কী বলা হয়েছে তা হুবহু বাংলায় লিখে দাও। কোনো ভূমিকা, ব্যাখ্যা বা বাড়তি কথা ছাড়া শুধু যা বলা হয়েছে হুবহু সেই কথাগুলোই বাংলায় লেখো।'
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.0,
+            maxOutputTokens: 400
+          }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text && text.trim()) {
+          console.log(`[Gemini Audio STT Success] (${model}) Transcribed: "${text.trim()}"`);
+          return text.trim();
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`[Gemini Audio STT ${model}] HTTP ${res.status}:`, errText.substring(0, 100));
+        if (res.status === 429) {
+          triggerModelCooldown(model, 60);
+        }
+      }
+    } catch (err) {
+      console.warn(`[Gemini Audio STT ${model}] Error:`, err.message);
+    }
+  }
+
   return null;
 }
 
@@ -1116,6 +1228,31 @@ async function handleIncomingMessage(senderId, userText) {
     return statusReply;
   }
 
+  // If customer is trolling, abusive or insulting (Section 5)
+  if (isInsultOrTrolling(userText)) {
+    session.needsHumanAttention = true;
+    session.attentionReason = 'CUSTOMER_INSULT';
+    try {
+      if (supabase) {
+        await supabase
+          .from('chat_sessions')
+          .update({
+            needs_human_attention: true,
+            attention_reason: 'CUSTOMER_INSULT',
+            updated_at: new Date().toISOString()
+          })
+          .eq('seller_id', storeSettings.seller_id || 'autodokan_seller_1')
+          .eq('customer_identifier', senderId);
+      }
+    } catch (e) {}
+
+    const insultReply = 'দয়া করে শালীনভাবে কথা বলুন। পোশাক বা অর্ডারের বিষয়ে কিছু জানার থাকলে বলতে পারেন।';
+    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
+    session.messages.push({ role: 'assistant', content: insultReply, timestamp: Date.now() });
+    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
+    return insultReply;
+  }
+
   // If customer is abusive, swearing, or frustrated (e.g. "Baler buddhi daw tumi")
   if (isAbusiveOrFrustrated(userText)) {
     session.needsHumanAttention = true;
@@ -1135,11 +1272,20 @@ async function handleIncomingMessage(senderId, userText) {
     } catch (e) {}
 
     const apologyModel = session.imagesSentForModels[session.imagesSentForModels.length - 1] || 'DF-101';
-    const apologyReply = `আচ্ছা সরি, আমারই ভুল হয়েছে—এখনই ছবিটা দিচ্ছি দেখুন। [SEND_IMAGE:${apologyModel}]`;
+    const apologyReply = `আচ্ছা সরি, আমারই ভুল হয়েছে, এখনই ছবিটা দিচ্ছি দেখুন। [SEND_IMAGE:${apologyModel}]`;
     session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
     session.messages.push({ role: 'assistant', content: apologyReply.replace(/\[\s*SEND_[A-Za-z0-9_:\s-]+\s*\]/gi, '').trim(), timestamp: Date.now() });
     saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
     return apologyReply;
+  }
+
+  // Payment submission verification (Checked before LLM to prevent hallucinated instant confirmation)
+  if (/(?:পাঠিয়ে\s*দিয়েছি|পাঠালাম|সেন্ড\s*করলাম|দিলাম|paid|sent)/i.test(userText) && /(?:বিকাশ|নগদ|টাকা|চার্জ|ডিজিট|লাস্ট)/i.test(userText)) {
+    const payReply = 'আপনার পেমেন্টের তথ্যটি গ্রহণ করা হয়েছে। আমাদের অ্যাকাউন্ট ম্যানেজার খুব দ্রুত ভেরিফাই করে আপনার অর্ডারটি কনফার্ম করছেন।\n\nএখন আপনার নাম, মোবাইল নম্বর এবং সম্পূর্ণ ডেলিভারির ঠিকানাটি দিন।';
+    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
+    session.messages.push({ role: 'assistant', content: payReply, timestamp: Date.now() });
+    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
+    return payReply;
   }
 
   const isFirstMessage = session.messages.length === 0;
@@ -1221,14 +1367,18 @@ async function handleIncomingMessage(senderId, userText) {
   const promisesPhotoInReply = /(?:ছবি\s*পাঠাচ্ছি|ছবি\s*দিচ্ছি|পিক\s*দিচ্ছি|শোকেস\s*ছবি|আবার\s*পাঠাচ্ছি|ছবিটি\s*দেখুন|ছবি\s*পাঠালাম|পিক\s*পাঠাচ্ছি|ছবি\s*পাঠিয়েছি|ছবি\s*দিয়েছি)/i.test(aiReply);
   const userWantedPhoto = wantsImage || isAskingWhereIsPhoto || isSarcasticPhotoRequest || /(?:ছবি\s*কই|পিক|sobi|chobi|pic|poc|ধুয়ে\s*পানি|দেখান)/i.test(userText);
 
-  if (isAskingForAllCatalog(userText, session.messages)) {
-    // Stage 1b: Customer explicitly asked to see all models
+  if (isAskingForAllCatalog(userText, session.messages) || isAskingForCatalogOverview(userText)) {
+    // Visual Catalog First (Section 2 & 3): Send overview and ask consultative question
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-    aiReply += ' [SEND_CATALOG_OVERVIEW]';
-  } else if (isAskingForCatalogOverview(userText)) {
-    // Stage 1: General catalog inquiry -> 1 showcase image, NO price dump
-    aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-    aiReply += ' [SEND_IMAGE:DF-101]';
+    if (!session.catalogSent) {
+      session.catalogSent = true;
+      aiReply += ' [SEND_CATALOG_OVERVIEW]';
+      if (!aiReply.includes('কোন ডিজাইনটা') && !aiReply.includes('চোখে ধরছে')) {
+        aiReply += '\n\nসবগুলো ডিজাইনের ছবি পাঠালাম। এর মধ্যে কোন ডিজাইনটা আপনার চোখে ধরছে? রেগুলার পরার জন্য খুঁজছেন নাকি কোনো প্রোগ্রামের জন্য?';
+      }
+    } else {
+      aiReply += ' [SEND_CATALOG_OVERVIEW]';
+    }
   } else if (detectedModelInUser && wantsImage && !isAskingForPriceOrDetails(userText)) {
     // Stage 2: Specific model selected for pictures
     aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
@@ -1288,18 +1438,24 @@ async function handleIncomingMessage(senderId, userText) {
     }
   }
 
-  // Guard: Asking for price or details guarantees model, price, fabric & delivery info
+  // Guard: Asking for price or details guarantees model, price, fabric, matching hijab & delivery info + consultative height inquiry (Section 3)
   if (isAskingForPriceOrDetails(userText) && activeModel) {
     const prod = getProductByCode(activeModel);
     if (prod) {
       if (!aiReply.includes(activeModel)) {
-        aiReply = `${activeModel} - ${aiReply}`;
+        aiReply = `${activeModel}: ${aiReply}`;
       }
       if (!aiReply.includes('ফেব্রিক') && !aiReply.includes('কাপড়')) {
-        aiReply += ` (ফেব্রিক: ${prod.fabric || 'প্রিমিয়াম চেরি'})`;
+        aiReply += `\nফেব্রিক: ${prod.fabric || '১০০% প্রিমিয়াম দুবাই চেরি কাপড় (সম্পূর্ণ নন-ট্রান্সপারেন্ট ও পাতলা নয়)'}।`;
+      }
+      if (!aiReply.includes('হিজাব')) {
+        aiReply += ' সাথে আকর্ষণীয় ম্যাচিং প্রিমিয়াম হিজাব উপহার হিসেবে সম্পূর্ণ ফ্রি পাচ্ছেন!';
       }
       if (!aiReply.includes('ডেলিভারি চার্জ')) {
-        aiReply += ` ডেলিভারি চার্জ: ঢাকায় ৳${storeSettings.inside_dhaka_fee}, বাইরে ৳${storeSettings.outside_dhaka_fee}।`;
+        aiReply += `\nডেলিভারি চার্জ: ঢাকায় ৳${storeSettings.inside_dhaka_fee} টাকা, বাইরে ৳${storeSettings.outside_dhaka_fee} টাকা।`;
+      }
+      if (!aiReply.includes('উচ্চতা')) {
+        aiReply += '\n\nআপনার উচ্চতা কতটুকু বললে একদম সঠিক ঝুলের সাইজটা মিলিয়ে দিতে পারব।';
       }
     }
   }
@@ -1321,6 +1477,9 @@ async function handleIncomingMessage(senderId, userText) {
   if (activeModel && !session.imagesSentForModels.includes(activeModel)) {
     session.imagesSentForModels.push(activeModel);
   }
+
+  // Apply Section 1 Clean Human Formatting Sanitizer
+  aiReply = cleanHumanFormatting(aiReply);
 
   // Save clean AI response to session (never store send tags in history)
   session.messages.push({
@@ -1355,6 +1514,9 @@ module.exports = {
   isAgentRequest,
   isOrderStatusInquiry,
   isAbusiveOrFrustrated,
+  isInsultOrTrolling,
   classifyMessageComplexity,
-  transcribeAudioWithGroq
+  transcribeAudioWithGroq,
+  transcribeAudioWithGemini,
+  cleanHumanFormatting
 };

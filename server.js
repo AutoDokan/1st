@@ -7,7 +7,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, isAbusiveOrFrustrated, transcribeAudioWithGroq } = require('./commerce_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, isAbusiveOrFrustrated, isInsultOrTrolling, transcribeAudioWithGroq, transcribeAudioWithGemini, cleanHumanFormatting } = require('./commerce_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -4031,14 +4031,17 @@ async function processCustomerBuffer(remoteJid) {
     const realMatches = [...replyText.matchAll(realRegex)];
     const mainMatches = [...replyText.matchAll(mainImageRegex)];
 
-    // Aggressively clean ALL send tags and leaked prompt codes
-    const cleanReplyText = replyText
+    // Aggressively clean ALL send tags, leaked prompt codes & apply Clean Human Formatting Sanitizer (Section 1)
+    let rawCleanReply = replyText
       .replace(/\[\s*SEND_[A-Za-z0-9_:\s-]+\s*\]/gi, '')
       .replace(/\(?(?:send|showing)\s*hi[zj]ab\s*(?:image|pic|photo)?\)?/gi, '')
       .replace(/\[?\s*(?:send|showing)\s*[a-z_]*hi[zj]ab[a-z_]*\s*[^\n\]]*\]?/gi, '')
       .replace(/\[\s*[A-Z_]+(?::[A-Za-z0-9_-]+)?\s*\]/g, '')
-      .replace(/\s{2,}/g, ' ')
       .trim();
+
+    const cleanReplyText = typeof cleanHumanFormatting === 'function'
+      ? cleanHumanFormatting(rawCleanReply)
+      : rawCleanReply;
 
     // Multi-Bubble & Dynamic Typing Simulation
     if (sock && cleanReplyText) {
@@ -4086,11 +4089,11 @@ async function processCustomerBuffer(remoteJid) {
     }
 
     function buildSingleProductCaption(p) {
-      return `👗 *${p.name}* (${p.model_code || 'DF-101'})`;
+      return `মডেল ${p.model_code || 'DF-101'}\n${p.name}\nমূল্য ${p.price || 2200} টাকা`;
     }
 
     function buildProductAlbumCaption(p) {
-      return `👗 *${p.name}* (${p.model_code || 'DF-101'})`;
+      return `মডেল ${p.model_code || 'DF-101'}\n${p.name}\nমূল্য ${p.price || 2200} টাকা`;
     }
 
     async function sendProductAlbum(p) {
@@ -4435,19 +4438,26 @@ async function connectToWhatsApp() {
         messageContent = quotedContextText + messageContent;
       }
 
-      // 1. Voice / Audio Note Processing with Free Groq Whisper (Bangla Speech-to-Text)
+      // 1. Voice / Audio Note Processing with Free Gemini Native Audio + Groq Whisper Fallback (Section 4)
       const isAudio = !!(unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage);
       if (isAudio && !messageContent.trim()) {
         const audioSeconds = unwrappedMsg?.audioMessage?.seconds || unwrappedMsg?.pttMessage?.seconds || 0;
         console.log(`[WhatsApp Voice Note] Received from ${remoteJid} (Duration: ${audioSeconds}s)`);
 
         let transcribed = null;
-        if (audioSeconds <= 90 && typeof transcribeAudioWithGroq === 'function') {
+        if (audioSeconds <= 90) {
           try {
             await sock.sendPresenceUpdate('recording', remoteJid);
             const audioBuffer = await downloadMediaMessage(msg, 'buffer', {});
             if (audioBuffer && audioBuffer.length > 0) {
-              transcribed = await transcribeAudioWithGroq(audioBuffer);
+              // 1. Try Google Gemini Native Multimodal STT first (#1 Primary)
+              if (typeof transcribeAudioWithGemini === 'function') {
+                transcribed = await transcribeAudioWithGemini(audioBuffer);
+              }
+              // 2. Fallback to Groq Whisper if Gemini fails or rate limits (#2 Failover)
+              if (!transcribed && typeof transcribeAudioWithGroq === 'function') {
+                transcribed = await transcribeAudioWithGroq(audioBuffer);
+              }
             }
           } catch (audioErr) {
             console.warn('[WhatsApp Audio Download/Transcribe Error]:', audioErr.message);
@@ -4458,7 +4468,7 @@ async function connectToWhatsApp() {
           console.log(`[WhatsApp Voice Transcribed -> Text Buffer] From: ${remoteJid} | "${transcribed.trim()}"`);
           messageContent = transcribed.trim();
         } else {
-          const fallbackExcuse = "একটু শোরগোলের মধ্যে আছি তো ভয়েসটা ক্লিয়ার বোঝা যাচ্ছে না, একটু লিখে দেন";
+          const fallbackExcuse = "একটু শোরগোলের কারণে ভয়েসটি স্পষ্ট বুঝতে পারিনি, একটু কষ্ট করে আবার বলবেন বা লিখে দেবেন প্লিজ?";
           try {
             await sock.sendPresenceUpdate('composing', remoteJid);
             await new Promise(r => setTimeout(r, 1500));
