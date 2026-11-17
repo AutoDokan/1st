@@ -7,7 +7,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, isAbusiveOrFrustrated } = require('./commerce_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, isAbusiveOrFrustrated, transcribeAudioWithGroq } = require('./commerce_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -4395,28 +4395,57 @@ async function connectToWhatsApp() {
         messageContent = quotedContextText + messageContent;
       }
 
-      // Negative Media Guardrails (Real-Human responses, ZERO EMOJI, ZERO "ভাইয়া/আপু")
-      const isImage = !!unwrappedMsg?.imageMessage;
+      // 1. Voice / Audio Note Processing with Free Groq Whisper (Bangla Speech-to-Text)
       const isAudio = !!(unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage);
+      if (isAudio && !messageContent.trim()) {
+        const audioSeconds = unwrappedMsg?.audioMessage?.seconds || unwrappedMsg?.pttMessage?.seconds || 0;
+        console.log(`[WhatsApp Voice Note] Received from ${remoteJid} (Duration: ${audioSeconds}s)`);
+
+        let transcribed = null;
+        if (audioSeconds <= 90 && typeof transcribeAudioWithGroq === 'function') {
+          try {
+            await sock.sendPresenceUpdate('recording', remoteJid);
+            const audioBuffer = await downloadMediaMessage(msg, 'buffer', {});
+            if (audioBuffer && audioBuffer.length > 0) {
+              transcribed = await transcribeAudioWithGroq(audioBuffer);
+            }
+          } catch (audioErr) {
+            console.warn('[WhatsApp Audio Download/Transcribe Error]:', audioErr.message);
+          }
+        }
+
+        if (transcribed && transcribed.trim()) {
+          console.log(`[WhatsApp Voice Transcribed -> Text Buffer] From: ${remoteJid} | "${transcribed.trim()}"`);
+          messageContent = transcribed.trim();
+        } else {
+          const fallbackExcuse = "একটু শোরগোলের মধ্যে আছি তো ভয়েসটা ক্লিয়ার বোঝা যাচ্ছে না, একটু লিখে দেন";
+          try {
+            await sock.sendPresenceUpdate('composing', remoteJid);
+            await new Promise(r => setTimeout(r, 1500));
+            const sentExcuse = await sock.sendMessage(remoteJid, { text: fallbackExcuse });
+            if (sentExcuse?.key?.id) botSentMessageIds.add(sentExcuse.key.id);
+            await sock.sendPresenceUpdate('paused', remoteJid);
+            incrementStats('messages_out');
+          } catch (e) {
+            console.error('[Voice Fallback Send Error]:', e.message);
+          }
+          return;
+        }
+      }
+
+      // 2. Negative Media Guardrails for Images, Videos and Documents
+      const isImage = !!unwrappedMsg?.imageMessage;
       const isVideo = !!unwrappedMsg?.videoMessage;
       const isDoc = !!unwrappedMsg?.documentMessage;
 
-      if ((isImage || isAudio || isVideo || isDoc) && !messageContent.trim()) {
-        console.log(`[WhatsApp Non-Text Media] Media received from ${remoteJid} (isImage: ${isImage}, isAudio: ${isAudio})`);
+      if ((isImage || isVideo || isDoc) && !messageContent.trim()) {
+        console.log(`[WhatsApp Non-Text Media] Media received from ${remoteJid} (isImage: ${isImage})`);
         const now = Date.now();
         const lastSent = lastVoiceReplyTime.get(remoteJid) || 0;
         if (now - lastSent > 45000 && sock) {
           lastVoiceReplyTime.set(remoteJid, now);
           let mediaReply = '';
-          if (isAudio) {
-            const audioReplies = [
-              "একটু বাইরে আছি তো ভয়েসটা এখন শুনতে পারছি না, কষ্ট করে একটু লিখে দেন",
-              "এখানে একটু শোরগোল হচ্ছে তাই ভয়েসটা প্লে করা যাচ্ছে না, টেক্সটে লিখে জানালে ভালো হয়",
-              "ভয়েস মেসেজটা এই মুহূর্তে শোনা যাচ্ছে না, কোন প্রোডাক্ট বা সাইজ লাগবে একটু লিখে দেন",
-              "হাতে একটু কাজ করছি তো অডিওটা শুনতে পারছি না, মেসেজে লিখে দিন প্লিজ"
-            ];
-            mediaReply = audioReplies[Math.floor(Math.random() * audioReplies.length)];
-          } else if (isImage) {
+          if (isImage) {
             const imageReplies = [
               "নেট স্লো থাকায় ছবিটা ক্লিয়ার ওপেন হচ্ছে না, ড্রেসের নাম বা মডেল কোডটা একটু লিখে বলেন",
               "ছবিটা এখান থেকে লোড হচ্ছে না ঠিকমতো, কোন ডিজাইন বা পেমেন্টের বিষয়ে বলছেন একটু লিখে দেন",

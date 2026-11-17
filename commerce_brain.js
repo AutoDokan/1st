@@ -553,17 +553,58 @@ ${recentOrderText ? `[LIVE CUSTOMER RECENT ORDER]:\n${recentOrderText}` : ''}
 }
 
 // ==========================================
-// 6. Fast Non-Reasoning LLM & Failover Calls
+// 6. Smart 85% / 15% Hybrid AI Router & Cooldown Engine
 // ==========================================
+
+const modelCooldownMap = new Map(); // modelName -> timestamp ms
+
+function isModelCoolingDown(modelName) {
+  const until = modelCooldownMap.get(modelName);
+  if (!until) return false;
+  if (Date.now() < until) return true;
+  modelCooldownMap.delete(modelName);
+  return false;
+}
+
+function triggerModelCooldown(modelName, seconds = 60) {
+  const until = Date.now() + (seconds * 1000);
+  modelCooldownMap.set(modelName, until);
+  console.warn(`[Model Cooldown] '${modelName}' hit 429 / Rate Limit. Cooldown active for ${seconds}s.`);
+}
+
+function classifyMessageComplexity(text, historyLength = 0) {
+  const t = (text || '').toLowerCase().trim();
+
+  // 1. Bargaining indicators
+  const isBargaining = /(?:কমান|কম\s*রাখা|কম\s*রাখবেন|ডিসকাউন্ট|বাজেট|একদাম|কম\s*দিবেন|ছাড়|কিছু\s*কম|koman|kom|discount|budget|ekdam)/i.test(t);
+
+  // 2. Anger / complaint / sarcasm / slang indicators
+  const isEmotionalOrSarcastic = /(?:মিথ্যা|ধুয়ে\s*পানি|ধুয়ে\s*পানি|বালের|বাল|ফালতু|ফেরত|ধরা|কই\s*ছবি|poc|baler|bal|faltu|dhuye\s*pani|pani\s*khabo|koi\s*chobi|চিটার|বাটপার|প্রতারক|ভুয়া)/i.test(t);
+
+  // 3. Multi-item / wholesale indicators
+  const isWholesaleOrBulk = /(?:পাইকারি|পাইকারী|কমিশন|ডজন|৫\s*পিস|১০\s*পিস|paikari|wholesale|dozon|5\s*piece|10\s*piece)/i.test(t);
+
+  // 4. Story / long chit-chat
+  const isStoryOrLong = t.length > 120 || /(?:আমার\s*আম্মা|আমার\s*বোন|আমার\s*বান্ধবী|উপহার\s*দিব|বিয়ে|অনুষ্ঠান)/i.test(t);
+
+  // 5. Extended conversation without order (> 8 turns)
+  const isExtendedDiscussion = Number(historyLength) > 8;
+
+  if (isBargaining || isEmotionalOrSarcastic || isWholesaleOrBulk || isStoryOrLong || isExtendedDiscussion) {
+    return 'COMPLEX';
+  }
+
+  return 'ROUTINE';
+}
 
 async function callGroqEngine(messages, systemPrompt) {
   if (groqClients.length === 0) return null;
 
+  // Primary 70b model first (1,000 RPD free), never use weak 8b unless 70b fails
   const candidateModels = [
     'llama-3.3-70b-versatile',
     'llama-3.1-70b-versatile',
-    'mixtral-8x7b-32768',
-    'gemma2-9b-it'
+    'llama-3.1-8b-instant'
   ];
 
   const chatMessages = [
@@ -574,6 +615,11 @@ async function callGroqEngine(messages, systemPrompt) {
   for (let cIdx = 0; cIdx < groqClients.length; cIdx++) {
     const client = groqClients[cIdx];
     for (const model of candidateModels) {
+      if (isModelCoolingDown(`groq-${model}`)) {
+        console.log(`[Groq Router] Model ${model} is in cooldown (429), checking next...`);
+        continue;
+      }
+
       try {
         const completion = await client.chat.completions.create({
           model: model,
@@ -584,24 +630,28 @@ async function callGroqEngine(messages, systemPrompt) {
         });
         const reply = completion.choices[0]?.message?.content;
         if (reply && reply.trim()) {
+          console.log(`[Groq Success] Model ${model} responded successfully`);
           return reply.trim();
         }
       } catch (err) {
         console.warn(`[Groq Key #${cIdx + 1} Model ${model}] Error:`, err.message);
+        if (err.status === 429 || err.message.includes('429') || err.message.includes('rate_limit')) {
+          triggerModelCooldown(`groq-${model}`, 60);
+        }
       }
     }
   }
   return null;
 }
 
-async function callGeminiEngine(messages, systemPrompt) {
+async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') {
   if (!geminiApiKey) return null;
 
-  const candidateModels = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
-  ];
+  // 15% Complex route -> gemini-2.5-flash FIRST
+  // 85% Routine route -> gemini-2.5-flash-lite FIRST (sub-second latency, 1,000 free RPD)
+  const candidateModels = complexity === 'COMPLEX'
+    ? ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    : ['gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
 
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -609,6 +659,11 @@ async function callGeminiEngine(messages, systemPrompt) {
   }));
 
   for (const model of candidateModels) {
+    if (isModelCoolingDown(model)) {
+      console.log(`[Gemini Router] Model ${model} is in cooldown (429), checking next...`);
+      continue;
+    }
+
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
       const res = await fetch(url, {
@@ -628,15 +683,48 @@ async function callGeminiEngine(messages, systemPrompt) {
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text && text.trim()) {
-          console.log(`[AI Fallback] Gemini (${model}) generated response successfully`);
+          console.log(`[Gemini Router Success] Model ${model} (Route: ${complexity}) responded`);
           return text.trim();
         }
       } else {
         const errText = await res.text();
         console.warn(`[Gemini Model ${model}] HTTP ${res.status}:`, errText.substring(0, 120));
+        if (res.status === 429 || res.status === 503 || errText.includes('RESOURCE_EXHAUSTED') || errText.includes('rate_limit')) {
+          triggerModelCooldown(model, 60);
+        }
       }
     } catch (e) {
       console.warn(`[Gemini Model ${model}] Exception:`, e.message);
+      if (e.message.includes('429') || e.message.includes('RESOURCE_EXHAUSTED')) {
+        triggerModelCooldown(model, 60);
+      }
+    }
+  }
+  return null;
+}
+
+// Free Bangla Voice-to-Text via Groq Whisper API (whisper-large-v3-turbo)
+async function transcribeAudioWithGroq(audioBuffer) {
+  if (!audioBuffer || groqClients.length === 0) return null;
+
+  for (let idx = 0; idx < groqClients.length; idx++) {
+    const client = groqClients[idx];
+    try {
+      const file = await Groq.toFile(audioBuffer, 'voice.ogg', { type: 'audio/ogg' });
+      const transcription = await client.audio.transcriptions.create({
+        file: file,
+        model: 'whisper-large-v3-turbo',
+        language: 'bn',
+        temperature: 0.0,
+        response_format: 'json'
+      });
+      const text = transcription?.text;
+      if (text && text.trim()) {
+        console.log(`[Groq Whisper Success] Transcribed: "${text.trim()}"`);
+        return text.trim();
+      }
+    } catch (err) {
+      console.warn(`[Groq Whisper Client #${idx + 1}] Error:`, err.message);
     }
   }
   return null;
@@ -790,8 +878,15 @@ function generateSmartFallback(userText, isFirstMessage, session = null, recentO
 
 async function extractAndSaveOrderLead(senderPhone, fullText, conversationHistory, session) {
   if (!supabase || !senderPhone || senderPhone.startsWith('unit_user_')) return;
-  const orderKeywords = /(01[3-9]\d{8}|অর্ডার|order|ঠিকানা|এড্রেস|address|ডেলিভারি|কুরিয়ার|সাইজ|size|নিব|নিতে চাই|বিকাশ|bkash|টাকা|bdt|রানি|কাফতান|লাইন)/i;
-  if (!orderKeywords.test(fullText)) return;
+
+  // Save 50% API Quota: ONLY call LLM extraction when strong lead indicators exist
+  const hasPhone = /(?:01[3-9]\d{8}|০১[৩-৯][০-৯]{8})/i.test(fullText);
+  const hasTrxOrPay = /(?:trx|trxid|transaction|ট্রানজেকশন|লাস্ট|ডিজিট|digit|বিকাশ|নগদ|paid|সেন্ড\s*মানি|পাঠিয়েছি|পাঠালাম)/i.test(fullText);
+  const hasAddressOrConfirm = /(?:বাসা|রোড|থানা|জেলা|গ্রাম|অর্ডার\s*কনফার্ম|order\s*confirm|ঠিকানা|address|road|house|thana|zila|gram)/i.test(fullText);
+
+  if (!hasPhone && !hasTrxOrPay && !hasAddressOrConfirm) {
+    return; // Routine browsing/queries skip AI extraction completely
+  }
 
   try {
     const recentMessages = conversationHistory.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
@@ -1025,7 +1120,7 @@ async function handleIncomingMessage(senderId, userText) {
     } catch (e) {}
 
     const apologyModel = session.imagesSentForModels[session.imagesSentForModels.length - 1] || 'DF-101';
-    const apologyReply = `আচ্ছা সরি, আমারই ভুল হয়ে গেছে। আমি এখনই ড্রেসটার আসল ছবি পাঠাচ্ছি দেখুন। [SEND_IMAGE:${apologyModel}]`;
+    const apologyReply = `আচ্ছা সরি, আমারই ভুল হয়েছে—এখনই ছবিটা দিচ্ছি দেখুন। [SEND_IMAGE:${apologyModel}]`;
     session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
     session.messages.push({ role: 'assistant', content: apologyReply, timestamp: Date.now() });
     saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
@@ -1053,17 +1148,21 @@ async function handleIncomingMessage(senderId, userText) {
     content: m.content
   }));
 
+  // 85% Routine / 15% Complex Hybrid Router
+  const complexity = classifyMessageComplexity(userText, session.messages.length);
+  console.log(`[AI Pipeline] Route: ${complexity} | Sender: ${senderId}`);
+
   // Call Primary Gemini (#1) or Secondary Groq (#2)
   let aiReply = null;
   if (geminiApiKey) {
-    aiReply = await callGeminiEngine(chatHistory, systemPrompt);
+    aiReply = await callGeminiEngine(chatHistory, systemPrompt, complexity);
   }
   if (!aiReply && groqClients.length > 0) {
     console.log('[AI Pipeline] Groq failover calling...');
     aiReply = await callGroqEngine(chatHistory, systemPrompt);
   }
   if (!aiReply) {
-    console.log('[AI Pipeline] LLM engines offline, generating smart fallback...');
+    console.log('[AI Pipeline] LLM engines offline or cooling down, generating smart fallback...');
     aiReply = generateSmartFallback(userText, isFirstMessage, session, latestOrder);
   }
 
@@ -1075,8 +1174,8 @@ async function handleIncomingMessage(senderId, userText) {
     .replace(/\b(ভাইয়া|আপু|ভাইয়া|আপুনি|স্যার|ম্যাম)\b/gi, '')
     .replace(/ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য[।.]?/gi, '')
     .replace(/আপনার\s*বার্তার\s*জন্য\s*ধন্যবাদ[।.]?/gi, '')
-    .replace(/আজ\s*কীভাবে\s*সাহায্য\s*করতে\s*পারি\??/gi, 'বোরকা বা আবায়ার কালেকশন দেখবেন?')
-    .replace(/কীভাবে\s*সাহায্য\s*করতে\s*পারি\??/gi, 'কোন ডিজাইন বা সাইজ দেখতে চান বলুন?')
+    .replace(/আজ\s*কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি\??/gi, 'বোরকা বা আবায়ার কালেকশন দেখবেন?')
+    .replace(/কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি\??/gi, 'কোন ডিজাইন বা সাইজ দেখতে চান বলুন?')
     .trim();
 
   // ==========================================
@@ -1104,7 +1203,7 @@ async function handleIncomingMessage(senderId, userText) {
   }
 
   const promisesPhotoInReply = /(?:ছবি\s*পাঠাচ্ছি|ছবি\s*দিচ্ছি|পিক\s*দিচ্ছি|শোকেস\s*ছবি|আবার\s*পাঠাচ্ছি|ছবিটি\s*দেখুন|ছবি\s*পাঠালাম|পিক\s*পাঠাচ্ছি|ছবি\s*পাঠিয়েছি|ছবি\s*দিয়েছি)/i.test(aiReply);
-  const userWantedPhoto = wantsImage || isAskingWhereIsPhoto || isSarcasticPhotoRequest;
+  const userWantedPhoto = wantsImage || isAskingWhereIsPhoto || isSarcasticPhotoRequest || /(?:ছবি\s*কই|পিক|sobi|chobi|pic|poc|ধুয়ে\s*পানি|দেখান)/i.test(userText);
 
   if (isAskingForAllCatalog(userText, session.messages)) {
     // Stage 1b: Customer explicitly asked to see all models
@@ -1239,5 +1338,7 @@ module.exports = {
   isAngryComplaint,
   isAgentRequest,
   isOrderStatusInquiry,
-  isAbusiveOrFrustrated
+  isAbusiveOrFrustrated,
+  classifyMessageComplexity,
+  transcribeAudioWithGroq
 };

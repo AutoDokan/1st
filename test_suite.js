@@ -1,4 +1,4 @@
-const { handleIncomingMessage, refreshProductsFromDB, getProductByCode } = require('./commerce_brain.js');
+const { handleIncomingMessage, refreshProductsFromDB, getProductByCode, classifyMessageComplexity } = require('./commerce_brain.js');
 
 async function runRegressionSuite() {
   console.log('========================================');
@@ -184,9 +184,27 @@ async function runRegressionSuite() {
   assert(missingPhotoReply.includes('[SEND_IMAGE:'), 
     'Missing photo inquiry immediately auto-dispatches image tag', missingPhotoReply);
 
+  // TEST 32: 85% / 15% Complexity Router Verification
+  const r1 = classifyMessageComplexity('DF-101 এর দাম কত?', 2);
+  const r2 = classifyMessageComplexity('আমার উচ্চতা ৫ ফুট ৩ ইঞ্চি', 3);
+  const r3 = classifyMessageComplexity('কালেকশন দেখান', 1);
+  const c1 = classifyMessageComplexity('একটু কম রাখা যাবে?', 2);
+  const c2 = classifyMessageComplexity('Nam ki dhuye pani khabo naki poc dite hobe', 3);
+  const c3 = classifyMessageComplexity('Baler buddhi daw tumi', 4);
+  const c4 = classifyMessageComplexity('ঠিক আছে', 9);
+  assert(r1 === 'ROUTINE' && r2 === 'ROUTINE' && r3 === 'ROUTINE' && c1 === 'COMPLEX' && c2 === 'COMPLEX' && c3 === 'COMPLEX' && c4 === 'COMPLEX', 
+    '85/15 Message Complexity Router accurately classifies routine vs complex queries', `r1=${r1}, r2=${r2}, r3=${r3}, c1=${c1}, c2=${c2}, c3=${c3}, c4=${c4}`);
+
+  // TEST 33: Hard Post-Processor Banned Corporate Robotic Phrases Verification
+  const combinedSuiteText = [
+    hiReply, sarcReply, angryReply, missingPhotoReply
+  ].join(' ');
+  const hasBannedRobotic = /আজ\s*কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি|কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি|ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য|আপনার\s*বার্তার\s*জন্য\s*ধন্যবাদ/i.test(combinedSuiteText);
+  assert(!hasBannedRobotic, 'Zero robotic corporate phrases across conversational outputs', combinedSuiteText);
+
   console.log('\n========================================');
   if (failedTests === 0) {
-    console.log('   ALL 31 RIGOROUS ENTERPRISE TESTS PASSED!  ');
+    console.log('   ALL 33 RIGOROUS ENTERPRISE TESTS PASSED!  ');
     console.log('========================================\n');
     process.exit(0);
   } else {
