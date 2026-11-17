@@ -19,8 +19,8 @@ async function runRegressionSuite() {
 
   // TEST 1: Simple Greetings ('Hi', 'Hello', 'hey') must NEVER say "আলহামদুলিল্লাহ আমরা ভালো আছি"
   const hiReply = await handleIncomingMessage('unit_user_hi', 'Hi');
-  assert(!hiReply.includes('আলহামদুলিল্লাহ') && !hiReply.includes('ভালো আছি') && hiReply.includes('স্বাগতম'), 
-    'Hi greeting gives welcoming response without fake wellbeing answer', hiReply);
+  assert(!hiReply.includes('আলহামদুলিল্লাহ') && !hiReply.includes('ভালো আছি') && (hiReply.includes('স্বাগতম') || hiReply.includes('Dawah Fashion') || hiReply.includes('কালেকশন')) && !hiReply.includes('আজ কীভাবে সাহায্য করতে পারি'), 
+    'Hi greeting gives welcoming response without fake wellbeing answer or robotic question', hiReply);
 
   // TEST 2: Wellbeing Query ('কেমন আছেন?') MUST politely answer wellbeing
   const wellbeingReply = await handleIncomingMessage('unit_user_wellbeing', 'কেমন আছেন?');
@@ -169,9 +169,24 @@ async function runRegressionSuite() {
   assert(liveOrderReply.includes('অর্ডার #2') && liveOrderReply.includes('Approved'), 
     'Live phone lookup returns authentic order status and tracking details from Supabase', liveOrderReply);
 
+  // TEST 29: Sarcastic Photo Inquiry / Banglish Typo ("Nam ki dhuye pani khabo naki poc dite hobe")
+  const sarcReply = await handleIncomingMessage('unit_user_sarc', 'Nam ki dhuye pani khabo naki poc dite hobe');
+  assert((sarcReply.includes('[SEND_IMAGE:') || sarcReply.includes('[SEND_ALL_IMAGES:')) && !/(ডিটারজেন্ট|পাওয়ার\s*ওয়াশ|লন্ড্রি|power\s*wash)/i.test(sarcReply), 
+    'Sarcastic / Banglish photo query provides image tag with ZERO laundry hallucination', sarcReply);
+
+  // TEST 30: Angry Slang / Swearing ("Baler buddhi daw tumi")
+  const angryReply = await handleIncomingMessage('unit_user_angry', 'Baler buddhi daw tumi');
+  assert(angryReply.includes('সরি') && angryReply.includes('[SEND_IMAGE:') && !angryReply.includes('ধন্যবাদ আপনার মতামতের জন্য') && !angryReply.includes('কীভাবে সাহায্য করতে পারি'), 
+    'Angry slang handled with humble apology, photo tag, and zero corporate robotic garbage', angryReply);
+
+  // TEST 31: Missing Photo Inquiry ("ছবি কই?") Auto-Dispatch
+  const missingPhotoReply = await handleIncomingMessage('unit_user_missing', 'ছবি কই?');
+  assert(missingPhotoReply.includes('[SEND_IMAGE:'), 
+    'Missing photo inquiry immediately auto-dispatches image tag', missingPhotoReply);
+
   console.log('\n========================================');
   if (failedTests === 0) {
-    console.log('   ALL 28 RIGOROUS ENTERPRISE TESTS PASSED!  ');
+    console.log('   ALL 31 RIGOROUS ENTERPRISE TESTS PASSED!  ');
     console.log('========================================\n');
     process.exit(0);
   } else {

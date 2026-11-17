@@ -337,7 +337,12 @@ function detectModelFromText(text) {
 
 function isAskingForImage(text) {
   const t = (text || '').toLowerCase();
-  return /(?:ছবি|পিক|পিকচার|ফটো|ইমেজ|pic|photo|image|chobi|chobi dekhan|pic dekhan|view|video|ভিডিও|দেখান|দেখাও|দেখি|দেখবো|দেখব|দেখাইতে|দেখা\s*যাবে|দেখতে\s*চাই|show|send|pathan|পাঠান|দিন|dekhaw)/i.test(t);
+  return /(?:ছবি|পিক|পিকচার|ফটো|ইমেজ|pic|photo|image|chobi|chobi dekhan|pic dekhan|view|video|ভিডিও|দেখান|দেখাও|দেখি|দেখবো|দেখব|দেখাইতে|দেখা\s*যাবে|দেখতে\s*চাই|show|send|pathan|পাঠান|দিন|dekhaw|poc|pik|puk|chbi|sobi|ছবি\s*কই|পিক\s*কই|sobi\s*koi|chobi\s*koi|pic\s*koi|poc\s*koi|pic\s*den|poc\s*den|ছবি\s*দিন|পিক\s*দিন|ছবি\s*দেন|পিক\s*নাই|ছবি\s*নাই|ছবি\s*তো\s*দিলেন\s*না|ছবি\s*আসেনি|ছবি\s*পাইনি|ধুয়ে\s*পানি|ধুয়ে\s*পানি|dhuye\s*pani|pani\s*khabo|নাম\s*দিয়ে\s*কি|নাম\s*ধুয়ে|মুখে\s*বললে\s*হবে|বাতাস\s*কিনবো)/i.test(t);
+}
+
+function isAbusiveOrFrustrated(text) {
+  const t = (text || '').toLowerCase().trim();
+  return /(?:বালের|বাল|ফালতু|ধুর|পাগল\s*নাকি|মিথ্যা\s*বলেন|মিথ্যা\s*দাবি|চিটার|বাটপার|প্রতারক|ভুয়া|বাজে\s*বট|আজব\s*বট|\bbal\b|\bbaler\b|\bbuddhi\b|\bfaltu\b|\bpagol\b|\bchiter\b|\bbatpar\b)/i.test(t);
 }
 
 function isAskingForHijab(text) {
@@ -400,8 +405,9 @@ function isGibberishOrAccidental(text) {
   const t = text.trim();
   if (t.length <= 1 && !/[০-৯0-9]/.test(t)) return true;
   if (/^[.\s,!?…\-_]+$/.test(t)) return true;
-  if (/^(?:asdf|qwerty|zxcv|123456|hjkl|aaaa|bbbb|cccc|dddd|ffff|gggg|hhhh|jjjj|kkkk|llll|mmmm|nnnn|oooo|pppp|qqqq|rrrr|ssss|tttt|uuuu|vvvv|wwww|xxxx|yyyy|zzzz)+$/i.test(t.replace(/\s+/g, ''))) return true;
-  if (/^(?:ভুল\s*করে\s*(?:মেসেজ|msg|সেন্ড|click)|vul\s*kore|vul\s*hoise|ভুল\s*হয়েছে|এমনি\s*টেস্ট|just\s*testing|এমনি\s*মেসেজ\s*দিয়েছি|ভুল\s*করে\s*দিয়েছি)$/i.test(t)) return true;
+  if (/(?:asdf|qwerty|zxcv|123456)/i.test(t)) return true;
+  if (/^(?:[a-z])\1{3,}$/i.test(t.replace(/\s+/g, ''))) return true;
+  if (/(?:ভুল\s*করে|vul\s*kore|vul\s*hoise|ভুল\s*হয়েছে|এমনি\s*টেস্ট|just\s*testing|এমনি\s*মেসেজ)/i.test(t)) return true;
   return false;
 }
 
@@ -449,9 +455,9 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 
   const greetingDirective = (isFirstMessage || !sessionState.hasGreeted)
     ? `১. প্রথম মেসেজের অভিবাদন:
-   - কাস্টমারকে প্রথমবারের মতো অভ্যর্থনা জানাও: "আসসালামু আলাইকুম! ${shopName}-এ স্বাগতম।"
+   - কাস্টমারকে প্রথমবারের মতো সম্ভাষণ জানাও: "আসসালামু আলাইকুম, ${shopName} থেকে বলছি। বোরকা বা আবায়ার কালেকশন দেখবেন?"
    - শুধুমাত্র কাস্টমার যদি নিজে থেকে কুশল জানতে চায় (যেমন: "কেমন আছেন?"): বলবে "আলহামদুলিল্লাহ, আমরা ভালো আছি। আপনি কেমন আছেন?"
-   - কাস্টমার যদি শুধু সালাম বা সাধারণ সম্ভাষণ জানায় (যেমন: "Hi", "Hello", "হাই"): ভুলেও আগ বাড়িয়ে "ভালো আছি" বলবে না! সরাসরি জিজ্ঞাসা করবে কীভাবে সাহায্য করতে পারো।`
+   - কাস্টমার যদি শুধু সালাম বা সাধারণ সম্ভাষণ জানায় (যেমন: "Hi", "Hello", "হাই"): ভুলেও আগ বাড়িয়ে "ভালো আছি" বলবে না এবং কখনোই "আজ কীভাবে সাহায্য করতে পারি?" বা "কীভাবে সাহায্য করতে পারি?" বলবে না! বলবে: "আসসালামু আলাইকুম, ${shopName} থেকে বলছি। বোরকা বা আবায়ার কালেকশন দেখবেন?"`
     : `১. স্ট্রিক্ট জিরো সালাম রুল (সালাম পুনরাবৃত্তি সম্পূর্ণ নিষিদ্ধ):
    - এই কাস্টমারের সাথে ইতিমধ্যে কথা হয়েছে (AlreadyGreeted = true)।
    - ভুলেও দ্বিতীয়বার "আসসালামু আলাইকুম", "ওয়া আলাইকুম আসসালাম" বা সালামের পুনরাবৃত্তি করবে না!
@@ -469,6 +475,17 @@ ${greetingDirective}
 ২. উত্তরের ভেতরে কোনো ড্যাশ, হাইফেন বা বুলেট পয়েন্ট (-, --, —, •, *) ব্যবহার করবে না! কোনো পয়েন্ট লেখার প্রয়োজন হলে ১., ২., ৩. দিয়ে লিখবে।
 ৩. কখনোই 🌸 বা 😊 রোবটিক ইমোজি ব্যবহার করবে না! বাক্যের শেষে অযথা ইমোজি দেওয়ার দরকার নেই, সর্বদা স্বাভাবিক মানুষের মতো মেসেজ দেবে।
 ৪. প্রতিটি উত্তরের শেষে রোবটের মতো গদবাঁধা প্রশ্ন ("আর কিছু জানতে চান?", "আপনি কি অর্ডার করতে চান?") ঝুলিয়ে রাখবে না। কাস্টমার যতটুকু জানতে চেয়েছে, ততটুকুই স্পষ্ট ও স্বাভাবিকভাবে বলবে।
+৫. কখনোই রোবটিক কর্পোরেট লাইন ("ধন্যবাদ আপনার মতামতের জন্য", "আজ কীভাবে সাহায্য করতে পারি?") বলবে না!
+
+বাংলাদেশি স্ল্যাং, রূপক ও টাইপো ডিকোডার (১০০% বাধ্যতামূলক নির্দেশ):
+১. রূপক, ব্যঙ্গ ও খোঁটা বোঝা:
+   - "নাম ধুয়ে পানি খাবো নাকি?", "নাম দিয়ে কি করব?", "মুখে বললে হবে?", "বাতাস কিনব নাকি?" — এর আসল অর্থ কাস্টমার পোশাকটির ছবি বা পিক দেখতে চেয়েছে! ভুলেও জামাকাপড় ধোয়া, ডিটারজেন্ট, পাওয়ার ওয়াশ বা লন্ড্রি টিউটোরিয়াল দেবে না! সঙ্গে সঙ্গে বলবে: "জি অবশ্যই, দুঃখিত! আমি এখনই ড্রেসটির আসল ছবি পাঠাচ্ছি।" এবং ছবির ট্যাগ দেবে।
+২. বাংলিশ ও ভুল বানানের শব্দ (Banglish Typos):
+   - "poc", "pik", "puk", "pic", "sobi", "chbi" ইত্যাদির অর্থ PICTURE বা ছবি (কখনোই Proof of Concept বা Detergent Wash নয়)!
+   - কাস্টমার "poc dite hobe" বা "poc den" বললে তাকে সঙ্গে সঙ্গে ছবির ট্যাগসহ ছবি পাঠাবে।
+৩. কাস্টমার যদি বলে "ছবি কই?", "পিক কই?", "ছবি তো দিলেন না", "ছবি পাই নাই":
+   - ভুলেও মিথ্যা দাবি করবে না যে "আমি তো পাঠিয়েছি!"
+   - বলবে: "আরে সরি, হয়তো নেটের কারণে যায়নি। আমি এখনই আবার ছবি পাঠাচ্ছি, দেখুন।" এবং সাথে ছবির ট্যাগ পাঠাবে।
 
 স্মার্ট গিবরিশ, দুর্ঘটনাজনিত মেসেজ ও বিদায় রুলস:
 ১. কাস্টমার যদি অর্থহীন গিবরিশ (যেমন: asdfgh, qwerty, 123456, ....) পাঠায় বা "ভুল করে মেসেজ দিয়েছি" বলে, কোনো সেলস পিচ বা প্রোডাক্টের ছবির ট্যাগ পাঠাবে না; ছোট করে বলবে "আচ্ছা সমস্যা নেই।"
@@ -544,11 +561,9 @@ async function callGroqEngine(messages, systemPrompt) {
 
   const candidateModels = [
     'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
-    'qwen/qwen3.8-27b',
-    'meta-llama/llama-4-scout-17b-16e-instruct'
+    'llama-3.1-70b-versatile',
+    'mixtral-8x7b-32768',
+    'gemma2-9b-it'
   ];
 
   const chatMessages = [
@@ -585,7 +600,7 @@ async function callGeminiEngine(messages, systemPrompt) {
   const candidateModels = [
     'gemini-2.5-flash',
     'gemini-2.0-flash',
-    'gemini-3.5-flash-lite'
+    'gemini-1.5-flash'
   ];
 
   const contents = messages.map(m => ({
@@ -691,14 +706,24 @@ function generateSmartFallback(userText, isFirstMessage, session = null, recentO
     return `${greeting}সাধারণত ৫ ফুট থেকে ৫ ফুট ১ ইঞ্চি হলে ৫০ সাইজ, ৫ ফুট ২ থেকে ৫ ফুট ৩ হলে ৫২ সাইজ, ৫ ফুট ৪ থেকে ৫ ফুট ৫ হলে ৫৪ সাইজ এবং ৫ ফুট ৬ বা তার বেশি হলে ৫৬ সাইজ পারফেক্ট হয়।`;
   }
 
-  // 3. Delivery timeline and fee
-  if (/(?:কয়দিনে|কবে|সময়|charge|timeline|ঢাকার\s*বাইরে|ডেলিভারি)/i.test(t) && /(?:চার্জ|কত|কয়দিনে|দিন)/i.test(t)) {
-    return `${greeting}ঢাকার ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে ২ থেকে ৩ দিনের মধ্যে ডেলিভারি সম্পন্ন হয়। ডেলিভারি চার্জ ঢাকায় ৳${insideFee} টাকা, ঢাকার বাইরে ৳${outsideFee} টাকা।`;
+  // 3. Payment submission verification (Checked FIRST to avoid being swallowed by delivery keywords)
+  if (/(?:পাঠিয়ে\s*দিয়েছি|পাঠালাম|সেন্ড\s*করলাম|দিলাম|paid|sent)/i.test(t) && /(?:বিকাশ|নগদ|টাকা|চার্জ|ডিজিট|লাস্ট)/i.test(t)) {
+    return `${greeting}আপনার পেমেন্টের তথ্যটি গ্রহণ করা হয়েছে। আমাদের অ্যাকাউন্ট ম্যানেজার খুব দ্রুত ভেরিফাই করে আপনার অর্ডারটি কনফার্ম করছেন।`;
   }
 
   // 4. Free delivery demand
-  if (/(?:ফ্রি|free)\s*(?:দেওয়া\s*যাবে|করেন|হবে|করবেন|রাখবেন)?/i.test(t) && /ডেলিভারি/i.test(t)) {
+  if (/(?:ফ্রি|free)/i.test(t) && /ডেলিভারি/i.test(t)) {
     return `${greeting}ডেলিভারি চার্জ আসলে আমাদের কুরিয়ার সার্ভিসের বুকিং ফি, তাই ডেলিভারি চার্জ ফ্রি করার সুযোগ নেই। তবে প্রোডাক্টের মূল টাকা আপনি ক্যাশ অন ডেলিভারিতে চেক করে দিতে পারবেন।`;
+  }
+
+  // 4b. Discount / promo
+  if (/ডিসকাউন্ট|অফার|অফারে|ছাড়|offer|discount/i.test(t)) {
+    return `${greeting}আমাদের প্রতিটি পোশাকের মূল্য একদম ফিক্সড ও পাইকারি রেটে রাখা হয়েছে। তবে যেকোনো বোরকা বা আবায়ার সাথে একটি আকর্ষণীয় ম্যাচিং প্রিমিয়াম হিজাব উপহার হিসেবে সম্পূর্ণ ফ্রি পাচ্ছেন!`;
+  }
+
+  // 4c. Delivery timeline and fee
+  if (/(?:কয়দিনে|কবে|সময়|timeline)/i.test(t) || (/(?:চার্জ|কত|ঢাকার\s*বাইরে)/i.test(t) && /ডেলিভারি/i.test(t))) {
+    return `${greeting}ঢাকার ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে ২ থেকে ৩ দিনের মধ্যে ডেলিভারি সম্পন্ন হয়। ডেলিভারি চার্জ ঢাকায় ৳${insideFee} টাকা, ঢাকার বাইরে ৳${outsideFee} টাকা।`;
   }
 
   // 5. 2-piece combo / multiple items
@@ -727,7 +752,7 @@ function generateSmartFallback(userText, isFirstMessage, session = null, recentO
   }
 
   // 10. Detected Model inquiries
-  const detectedModel = detectModelFromText(t);
+  const detectedModel = detectModelFromText(t) || (session?.imagesSentForModels && session.imagesSentForModels.length > 0 ? session.imagesSentForModels[session.imagesSentForModels.length - 1] : null);
   if (detectedModel) {
     const prod = getProductByCode(detectedModel);
     const prodName = prod ? prod.name : detectedModel;
@@ -735,8 +760,8 @@ function generateSmartFallback(userText, isFirstMessage, session = null, recentO
     const fabric = prod?.fabric || 'প্রিমিয়াম দুবাই চেরি কাপড়';
     const sizes = prod?.sizes || '৫০, ৫২, ৫৪, ৫৬';
 
-    if (prod && (prod.in_stock === false || (prod.stock_quantity !== null && prod.stock_quantity <= 0))) {
-      return `${greeting}${prodName} (${detectedModel}) মডেলটি বর্তমানে স্টকে নেই [স্টক আউট]। তবে আপনি চাইলে স্টকে থাকা কাছাকাছি অন্য মডেল সাজেস্ট করতে পারি।`;
+    if (!prod || prod.in_stock === false || (prod.stock_quantity !== null && prod.stock_quantity <= 0)) {
+      return `${greeting}${detectedModel} মডেলটি বর্তমানে আমাদের স্টকে নেই [স্টক আউট]। তবে আপনি চাইলে স্টকে থাকা কাছাকাছি অন্য মডেল সাজেস্ট করতে পারি।`;
     }
 
     if (isAskingForPriceOrDetails(t)) {
@@ -795,8 +820,26 @@ JSON Format:
 `;
 
     let rawJson = null;
-    if (groqClients.length > 0) {
-      for (const m of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b']) {
+    if (geminiApiKey) {
+      try {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: 'Output strictly valid JSON only.' }] },
+            contents: [{ role: 'user', parts: [{ text: extractPrompt }] }],
+            generationConfig: { response_mime_type: 'application/json' }
+          })
+        });
+        if (geminiRes.ok) {
+          const gData = await geminiRes.json();
+          rawJson = (gData.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+        }
+      } catch (e) {}
+    }
+
+    if (!rawJson && groqClients.length > 0) {
+      for (const m of ['llama-3.3-70b-versatile', 'llama3-70b-8192', 'llama3-8b-8192']) {
         try {
           const completion = await groqClients[0].chat.completions.create({
             model: m,
@@ -809,23 +852,6 @@ JSON Format:
           if (rawJson) break;
         } catch (e) {}
       }
-    }
-
-    if (!rawJson && geminiApiKey) {
-      try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: 'Output strictly valid JSON only.' }] },
-            contents: [{ role: 'user', parts: [{ text: extractPrompt }] }]
-          })
-        });
-        if (geminiRes.ok) {
-          const gData = await geminiRes.json();
-          rawJson = (gData.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json/gi, '').replace(/```/g, '').trim();
-        }
-      } catch (e) {}
     }
 
     const parsed = JSON.parse(rawJson || '{}');
@@ -980,6 +1006,32 @@ async function handleIncomingMessage(senderId, userText) {
     return statusReply;
   }
 
+  // If customer is abusive, swearing, or frustrated (e.g. "Baler buddhi daw tumi")
+  if (isAbusiveOrFrustrated(userText)) {
+    session.needsHumanAttention = true;
+    session.attentionReason = 'CUSTOMER_FRUSTRATED';
+    try {
+      if (supabase) {
+        await supabase
+          .from('chat_sessions')
+          .update({
+            needs_human_attention: true,
+            attention_reason: 'CUSTOMER_FRUSTRATED',
+            updated_at: new Date().toISOString()
+          })
+          .eq('seller_id', storeSettings.seller_id || 'autodokan_seller_1')
+          .eq('customer_identifier', senderId);
+      }
+    } catch (e) {}
+
+    const apologyModel = session.imagesSentForModels[session.imagesSentForModels.length - 1] || 'DF-101';
+    const apologyReply = `আচ্ছা সরি, আমারই ভুল হয়ে গেছে। আমি এখনই ড্রেসটার আসল ছবি পাঠাচ্ছি দেখুন। [SEND_IMAGE:${apologyModel}]`;
+    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
+    session.messages.push({ role: 'assistant', content: apologyReply, timestamp: Date.now() });
+    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
+    return apologyReply;
+  }
+
   const isFirstMessage = session.messages.length === 0;
 
   // Add customer message to session history
@@ -1001,11 +1053,14 @@ async function handleIncomingMessage(senderId, userText) {
     content: m.content
   }));
 
-  // Call Primary Groq or Secondary Gemini
-  let aiReply = await callGroqEngine(chatHistory, systemPrompt);
-  if (!aiReply) {
-    console.log('[AI Pipeline] Groq unavailable, calling Gemini...');
+  // Call Primary Gemini (#1) or Secondary Groq (#2)
+  let aiReply = null;
+  if (geminiApiKey) {
     aiReply = await callGeminiEngine(chatHistory, systemPrompt);
+  }
+  if (!aiReply && groqClients.length > 0) {
+    console.log('[AI Pipeline] Groq failover calling...');
+    aiReply = await callGroqEngine(chatHistory, systemPrompt);
   }
   if (!aiReply) {
     console.log('[AI Pipeline] LLM engines offline, generating smart fallback...');
@@ -1018,6 +1073,10 @@ async function handleIncomingMessage(senderId, userText) {
     .replace(/[-–—]{2,}/g, ' ')
     .replace(/[🌸😊🌺🌹]/g, '')
     .replace(/\b(ভাইয়া|আপু|ভাইয়া|আপুনি|স্যার|ম্যাম)\b/gi, '')
+    .replace(/ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য[।.]?/gi, '')
+    .replace(/আপনার\s*বার্তার\s*জন্য\s*ধন্যবাদ[।.]?/gi, '')
+    .replace(/আজ\s*কীভাবে\s*সাহায্য\s*করতে\s*পারি\??/gi, 'বোরকা বা আবায়ার কালেকশন দেখবেন?')
+    .replace(/কীভাবে\s*সাহায্য\s*করতে\s*পারি\??/gi, 'কোন ডিজাইন বা সাইজ দেখতে চান বলুন?')
     .trim();
 
   // ==========================================
@@ -1028,6 +1087,24 @@ async function handleIncomingMessage(senderId, userText) {
   const detectedModelInUser = detectModelFromText(userText);
   const detectedModelInReply = detectModelFromText(aiReply);
   const activeModel = detectedModelInUser || detectedModelInReply || session.imagesSentForModels[session.imagesSentForModels.length - 1];
+
+  const isAskingWhereIsPhoto = /(?:ছবি\s*কই|পিক\s*কই|sobi\s*koi|chobi\s*koi|pic\s*koi|poc\s*koi|ছবি\s*তো\s*দিলেন\s*না|ছবি\s*আসেনি|ছবি\s*পাইনি|ছবি\s*নাই|পিক\s*নাই)/i.test(userText);
+  const isSarcasticPhotoRequest = /(?:ধুয়ে\s*পানি|ধুয়ে\s*পানি|dhuye\s*pani|pani\s*khabo|poc|pik|sobi|নাম\s*দিয়ে\s*কি|নাম\s*ধুয়ে|মুখে\s*বললে\s*হবে|বাতাস\s*কিনবো)/i.test(userText);
+
+  // If customer asked "where is the photo?", apologize and dispatch immediately
+  if (isAskingWhereIsPhoto) {
+    const targetModel = activeModel || 'DF-101';
+    aiReply = `আরে সরি, হয়তো নেটের কারণে যায়নি। আমি এখনই আবার ছবি পাঠাচ্ছি, দেখুন। [SEND_IMAGE:${targetModel}]`;
+  }
+
+  // Prevent detergent / laundry wash hallucinations on sarcastic requests
+  if ((isSarcasticPhotoRequest || wantsImage) && /(?:ডিটারজেন্ট|পাওয়ার\s*ওয়াশ|কাপড়\s*ধোয়ার|লন্ড্রি|power\s*wash|detergent|wash)/i.test(aiReply)) {
+    const targetModel = activeModel || 'DF-101';
+    aiReply = `জি অবশ্যই, দুঃখিত! আমি এখনই ড্রেসটির ছবি পাঠাচ্ছি। [SEND_IMAGE:${targetModel}]`;
+  }
+
+  const promisesPhotoInReply = /(?:ছবি\s*পাঠাচ্ছি|ছবি\s*দিচ্ছি|পিক\s*দিচ্ছি|শোকেস\s*ছবি|আবার\s*পাঠাচ্ছি|ছবিটি\s*দেখুন|ছবি\s*পাঠালাম|পিক\s*পাঠাচ্ছি|ছবি\s*পাঠিয়েছি|ছবি\s*দিয়েছি)/i.test(aiReply);
+  const userWantedPhoto = wantsImage || isAskingWhereIsPhoto || isSarcasticPhotoRequest;
 
   if (isAskingForAllCatalog(userText, session.messages)) {
     // Stage 1b: Customer explicitly asked to see all models
@@ -1051,9 +1128,13 @@ async function handleIncomingMessage(senderId, userText) {
     } else {
       aiReply += ` [SEND_ALL_IMAGES:${detectedModelInUser}]`;
     }
-  } else if (isPureQuestion(userText) || !wantsImage) {
-    // Pure question or no explicit image request -> strip tags unless explicitly requested
-    if (!wantsImage && !isAskingForCatalogOverview(userText) && !isAskingForAllCatalog(userText, session.messages)) {
+  } else {
+    // Auto-Tag Guarantee: If reply promised photo or user requested photo, guarantee tag exists
+    const hasAnyImageTag = /\[\s*SEND_[A-Z_]+[^\]]*\]/i.test(aiReply);
+    if ((promisesPhotoInReply || userWantedPhoto) && !hasAnyImageTag) {
+      const fallbackModel = activeModel || 'DF-101';
+      aiReply += ` [SEND_IMAGE:${fallbackModel}]`;
+    } else if (!userWantedPhoto && !promisesPhotoInReply && !isAskingForCatalogOverview(userText) && !isAskingForAllCatalog(userText, session.messages)) {
       aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
     }
   }
@@ -1157,5 +1238,6 @@ module.exports = {
   isGoodbyeIntent,
   isAngryComplaint,
   isAgentRequest,
-  isOrderStatusInquiry
+  isOrderStatusInquiry,
+  isAbusiveOrFrustrated
 };

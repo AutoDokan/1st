@@ -7,7 +7,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest } = require('./commerce_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, isAbusiveOrFrustrated } = require('./commerce_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -3929,14 +3929,15 @@ async function processCustomerBuffer(remoteJid) {
       }
     }
 
-    // 3b. Customer Complaint or Human Agent Request Escalation Hook
+    // 3b. Customer Complaint, Abusive/Frustrated or Human Agent Request Escalation Hook
     if (typeof isAngryComplaint === 'function' && typeof isAgentRequest === 'function') {
       const isComplaint = isAngryComplaint(combinedText);
       const isAgentReq = isAgentRequest(combinedText);
-      if (isComplaint || isAgentReq) {
-        const escalationReason = isComplaint ? 'CUSTOMER_COMPLAINT' : 'HUMAN_AGENT_REQUESTED';
+      const isFrustrated = typeof isAbusiveOrFrustrated === 'function' ? isAbusiveOrFrustrated(combinedText) : false;
+      if (isComplaint || isAgentReq || isFrustrated) {
+        const escalationReason = isFrustrated ? 'CUSTOMER_FRUSTRATED' : (isComplaint ? 'CUSTOMER_COMPLAINT' : 'HUMAN_AGENT_REQUESTED');
         console.log(`[Auto Human Escalation] From: ${remoteJid} | Reason: ${escalationReason}`);
-        await pauseCustomerForHumanTakeover(remoteJid, 45, escalationReason);
+        await pauseCustomerForHumanTakeover(remoteJid, isFrustrated ? 15 : 45, escalationReason);
       }
     }
 
@@ -3954,8 +3955,8 @@ async function processCustomerBuffer(remoteJid) {
         await sock.sendPresenceUpdate('composing', remoteJid);
         await new Promise(r => setTimeout(r, 1200));
         let imagePayload;
-        const urlPath = url.replace(/^https?:\/\/[^\/]+/, '');
-        const localFile = path.join(__dirname, 'public', urlPath);
+        const cleanPath = url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '');
+        const localFile = path.join(__dirname, 'public', cleanPath);
         if (fs.existsSync(localFile)) {
           imagePayload = fs.readFileSync(localFile);
         } else {
@@ -4072,8 +4073,8 @@ async function processCustomerBuffer(remoteJid) {
         for (let i = 0; i < photoUrls.length; i++) {
           const url = photoUrls[i];
           let imagePayload;
-          const urlPath = url.replace(/^https?:\/\/[^\/]+/, '');
-          const localFile = path.join(__dirname, 'public', urlPath);
+          const cleanPath = url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '');
+          const localFile = path.join(__dirname, 'public', cleanPath);
           if (fs.existsSync(localFile)) {
             imagePayload = fs.readFileSync(localFile);
           } else {
@@ -4112,8 +4113,8 @@ async function processCustomerBuffer(remoteJid) {
           if (!p || !p.image_url) continue;
 
           let imagePayload;
-          const urlPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '');
-          const localFile = path.join(__dirname, 'public', urlPath);
+          const cleanPath = p.image_url.replace(/^https?:\/\/[^\/]+/, '').replace(/^[/\\]+/, '');
+          const localFile = path.join(__dirname, 'public', cleanPath);
           if (fs.existsSync(localFile)) {
             imagePayload = fs.readFileSync(localFile);
           } else {
