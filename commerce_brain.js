@@ -543,7 +543,7 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 ১. "ভাই", "ভাইয়া", "আপু", "স্যার/ম্যাম" সম্পূর্ণ নিষিদ্ধ; সর্বদা "আপনি/আপনার/জি" বলবে।
 ২. ড্যাশ, হাইফেন বা বুলেট (-, --, —, •, *) নিষিদ্ধ। তালিকা দিতে ১., ২., ৩. ব্যবহার করো।
 ৩. কোনো রোবটিক ইমোজি (🌸, 😊), "কীভাবে সাহায্য করতে পারি?", বা কর্পোরেট বুলি ("ধন্যবাদ আপনার মতামতের জন্য") নিষিদ্ধ। সাধারণ শুভেচ্ছায় উষ্ণ স্বাগতম জানাও।
-৪. AlreadyGreeted=true হলে সালাম বা স্বাগতমের পুনরাবৃত্তি করবে না।
+৪. সালামের নিয়ম: কাস্টমার নিজে সালাম ("আসসালামু আলাইকুম" বা "সালাম") না দিলে ভুলেও কখনোই "ওয়ালাইকুম আসসালাম" বলবে না। কাস্টমার "Hi", "Hello" বা সাধারণ শুভেচ্ছা জানালে শুধু আন্তরিক স্বাগতম জানাও ("স্বাগতম Dawah Fashion-এ! আমাদের বোরকা ও আবায়ার কালেকশন দেখতে পারেন।")। কাস্টমার সালাম দিলে তখন কেবল "ওয়ালাইকুম আসসালাম" বলবে। AlreadyGreeted=true হলে সালাম বা স্বাগতমের কোনো পুনরাবৃত্তি করবে না।
 ৫. কাস্টমার না চাইলে আগে থেকে দাম বা বড় বিবরণ ঢালবে না।
 
 বিক্রয় ও ফটো ফ্লো:
@@ -1241,6 +1241,16 @@ async function handleIncomingMessage(senderId, userText) {
   }
   if (activeModel && !session.imagesSentForModels.includes(activeModel)) {
     session.imagesSentForModels.push(activeModel);
+  }
+
+  // Bulletproof Salam Guardrail:
+  // If customer did NOT say Salam, bot must NEVER start or reply with "ওয়ালাইকুম আসসালাম" / "ওয়ালাইকুমুস সালাম"!
+  const customerGaveSalam = /(?:সালাম|salam|alaikum|আলাইকুম|slm)/i.test(userText);
+  if (!customerGaveSalam) {
+    aiReply = aiReply.replace(/^(?:ওয়ালাইকুম(?:ুস|\s*আস)?\s*সালাম[।,!\s]*)+/i, 'জি, ');
+    aiReply = aiReply.replace(/ওয়ালাইকুম(?:ুস|\s*আস)?\s*সালাম[।,!]*/gi, '');
+  } else if (!session.hasGreeted && !/(?:ওয়ালাইকুম|ওয়ালাইকুম)/i.test(aiReply)) {
+    aiReply = 'ওয়ালাইকুম আসসালাম! ' + aiReply.replace(/^(?:জি[।,!\s]*)+/, '');
   }
 
   // Apply Section 1 Clean Human Formatting Sanitizer
