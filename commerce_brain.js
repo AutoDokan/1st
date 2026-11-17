@@ -660,11 +660,11 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
   const activeGeminiKey = getGeminiApiKey();
   if (!activeGeminiKey) return null;
 
-  // 15% Complex route -> gemini-2.5-flash FIRST
-  // 85% Routine route -> gemini-2.5-flash-lite FIRST (sub-second latency, 1,000 free RPD)
+  // 15% Complex route -> gemini-3.5-flash FIRST
+  // 85% Routine route -> gemini-3.5-flash-lite FIRST (sub-second latency, 1,000 free RPD)
   const candidateModels = complexity === 'COMPLEX'
-    ? ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-    : ['gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+    ? ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash']
+    : ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
 
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -932,7 +932,7 @@ JSON Format:
     const activeExtractGeminiKey = getGeminiApiKey();
     if (activeExtractGeminiKey) {
       try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeExtractGeminiKey}`, {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${activeExtractGeminiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
