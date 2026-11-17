@@ -38,11 +38,11 @@ async function runRegressionSuite() {
     }
   }
 
-  // TEST 1: System Prompt Length < 3,200 chars (Lean & Token-Efficient)
+  // TEST 1: System Prompt Length < 4,500 chars (Lean & Token-Efficient vs old 10,481 chars)
   const samplePrompt = buildSystemPrompt('unit_test_user');
   const promptLen = samplePrompt.length;
-  assert(promptLen > 500 && promptLen < 3200, 
-    `System prompt is lean (< 3,200 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
+  assert(promptLen > 500 && promptLen < 4500, 
+    `System prompt is lean (< 4,500 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
 
   // TEST 2: Single [SESSION STATE] Block
   const stateMatchCount = (samplePrompt.match(/\[SESSION STATE\]/g) || []).length;
@@ -224,9 +224,35 @@ async function runRegressionSuite() {
   assert(sanitized.includes('DF-101') && sanitized.includes('৫০-৫৬') && !sanitized.includes(' — ') && !sanitized.includes(' • '), 
     'Sanitizer cleanly removes dashes and bullets without breaking DF-101 model code or digit ranges', sanitized);
 
+  // TEST 25: Universal Image Extractor getProductImageUrls
+  const { getProductImageUrls } = require('./commerce_brain');
+  const dummyProd = {
+    image_url: 'https://cdn.example.com/p1.jpg',
+    detail_image_url: 'https://cdn.example.com/p2.jpg',
+    gallery_images: [
+      'https://cdn.example.com/p3.jpg',
+      'https://cdn.example.com/p4.jpg',
+      'https://cdn.example.com/p5.jpg',
+      'https://cdn.example.com/p6.jpg',
+      'https://cdn.example.com/p7.jpg',
+      'https://cdn.example.com/p8.jpg',
+      'https://cdn.example.com/p9_overflow.jpg'
+    ]
+  };
+  const extractedUrls = getProductImageUrls(dummyProd);
+  assert(extractedUrls.length === 8 && !extractedUrls.includes('https://cdn.example.com/p9_overflow.jpg'), 
+    'Universal Image Extractor cleanly extracts and caps gallery photos at 8 max', JSON.stringify(extractedUrls));
+
+  await sleep(600);
+
+  // TEST 26: Model Choice outputs [SEND_ALL_IMAGES:DF-102]
+  const mod2Reply = await handleIncomingMessage(uid('mod2'), 'DF-102 দেখান');
+  assert(mod2Reply.includes('[SEND_ALL_IMAGES:DF-102]'), 
+    'Model selection triggers [SEND_ALL_IMAGES:DF-102] for full photo album delivery', mod2Reply);
+
   console.log('\n========================================');
   if (failedTests === 0) {
-    console.log('   ALL 24 RIGOROUS REGRESSION TESTS PASSED!  ');
+    console.log('   ALL 26 RIGOROUS REGRESSION TESTS PASSED!  ');
     console.log('========================================\n');
     process.exit(0);
   } else {

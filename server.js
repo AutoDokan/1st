@@ -7,7 +7,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, transcribeAudioWithGroq, transcribeAudioWithGemini, cleanHumanFormatting } = require('./commerce_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, getProductImageUrls, isAngryComplaint, isAgentRequest, transcribeAudioWithGroq, transcribeAudioWithGemini, cleanHumanFormatting } = require('./commerce_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -3898,14 +3898,6 @@ async function processCustomerBuffer(remoteJid) {
         // MODE B: Automated payment & courier dispatch
         await verifyPaymentAndDispatchCourier({ phone: remoteJid, text: combinedText }, curSettings);
       } else {
-        // MODE A (Current Default: Manual Account Manager Verification - ZERO EMOJI)
-        const paymentReplyChoices = [
-          "ধন্যবাদ, আপনার পেমেন্টের তথ্য নোট করে রাখা হয়েছে। আমাদের অ্যাকাউন্ট ম্যানেজার ভেরিফাই করে আপনাকে কল দিয়ে অর্ডার কনফার্ম করবেন।",
-          "আপনার পাঠানো নম্বর ও পেমেন্ট তথ্য নোট করা হয়েছে। আমাদের অ্যাকাউন্ট সেকশন থেকে চেক করে আপনাকে কল দেওয়া হবে।",
-          "ধন্যবাদ, পেমেন্টের বিবরণ পেয়েছি। অ্যাকাউন্টস টিম ট্রানজ্যাকশন ভেরিফাই করে অর্ডারটি চূড়ান্ত করার জন্য আপনাকে কল দেবে।"
-        ];
-        const paymentReply = paymentReplyChoices[Math.floor(Math.random() * paymentReplyChoices.length)];
-
         // Update existing pending order in orders table
         try {
           const rawPhone = remoteJid.split('@')[0].replace(/\D/g, '');
@@ -3930,32 +3922,13 @@ async function processCustomerBuffer(remoteJid) {
           console.warn('[Payment Order Update Error]:', dbErr.message);
         }
 
-        // Set human takeover & attention flag in chat_sessions
-        await pauseCustomerForHumanTakeover(remoteJid, 30, 'PAYMENT_VERIFICATION');
-
-        // Dynamic typing simulation
-        if (sock) {
-          await sock.sendPresenceUpdate('composing', remoteJid);
-          const typingDuration = Math.min(Math.max(paymentReply.length * 35, 1800), 4500);
-          await new Promise(r => setTimeout(r, typingDuration));
-          const sent = await sock.sendMessage(remoteJid, { text: paymentReply });
-          if (sent?.key?.id) botSentMessageIds.add(sent.key.id);
-          await sock.sendPresenceUpdate('paused', remoteJid);
-          incrementStats('messages_out');
-          incrementSellerMessageUsage(CURRENT_SELLER_ID);
-        }
-
-        // Finish processing turn and drain pending queue if customer typed more
-        state.isProcessing = false;
-        if (state.pendingQueue.length > 0) {
-          state.texts = [...state.pendingQueue];
-          state.pendingQueue = [];
-          state.firstMsgAt = Date.now();
-          state.debounceTimer = setTimeout(() => {
-            processCustomerBuffer(remoteJid);
-          }, DEBOUNCE_DELAY_MS);
-        }
-        return;
+        // Set needs_human_attention flag in chat_sessions WITHOUT pausing the bot
+        try {
+          await supabase.from('chat_sessions').update({
+            needs_human_attention: true,
+            attention_reason: 'PAYMENT_VERIFICATION'
+          }).eq('seller_id', CURRENT_SELLER_ID).eq('customer_identifier', remoteJid);
+        } catch (attErr) {}
       }
     }
 
@@ -4093,19 +4066,17 @@ async function processCustomerBuffer(remoteJid) {
     }
 
     function buildProductAlbumCaption(p) {
-      return `${p.model_code || 'DF-101'} : ${p.name || ''}`;
+      const code = p.model_code || 'DF-101';
+      const price = p.price ? ` | ৳${p.price}` : '';
+      return `${code} : ${p.name || ''}${price}`;
     }
 
     async function sendProductAlbum(p) {
       if (!sock || !p) return false;
       try {
-        const photoUrls = [
-          p.image_url,
-          p.detail_image_url,
-          p.hijab_image_url,
-          p.flare_image_url,
-          p.real_image_url
-        ].filter(Boolean);
+        const photoUrls = (typeof getProductImageUrls === 'function')
+          ? getProductImageUrls(p)
+          : [p.image_url, p.detail_image_url, p.hijab_image_url, p.flare_image_url, p.real_image_url].filter(Boolean);
 
         if (photoUrls.length === 0) return false;
 
@@ -4136,7 +4107,7 @@ async function processCustomerBuffer(remoteJid) {
           }
         }
         await sock.sendPresenceUpdate('paused', remoteJid);
-        console.log(`[WhatsApp Album Sent] To: ${remoteJid} | Model: ${p.model_code}`);
+        console.log(`[WhatsApp Album Sent] To: ${remoteJid} | Model: ${p.model_code} | Count: ${photoUrls.length}`);
         return true;
       } catch (err) {
         console.error('[WhatsApp Album Send Error]:', err.message);
