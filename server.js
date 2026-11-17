@@ -101,6 +101,7 @@ async function incrementSellerMessageUsage(sellerId = CURRENT_SELLER_ID) {
 const customerMessageStates = new Map(); // remoteJid -> { texts: [], debounceTimer: null, firstMsgAt: null, isProcessing: false, pendingQueue: [], lastKey: null }
 const processedIncomingMsgIds = new Map(); // msgId -> timestamp (for 15-min deduplication)
 const botSentMessageIds = new Set(); // msgId of messages sent by bot/system
+const botSentMediaTracking = new Map(); // msgId -> { seller_id, product_id, model_code, name, price }
 const userPausedCache = new Map(); // remoteJid -> { isPaused: boolean, expiresAt: number } (Max 10s TTL RAM Cache)
 const activeConversations = new Set();
 const lastVoiceReplyTime = new Map();
@@ -136,9 +137,12 @@ setInterval(() => {
       lastCallReplyTime.delete(jid);
     }
   }
-  // 4. Bound botSentMessageIds
+  // 4. Bound botSentMessageIds & botSentMediaTracking
   if (botSentMessageIds.size > 3000) {
     botSentMessageIds.clear();
+  }
+  if (botSentMediaTracking.size > 5000) {
+    botSentMediaTracking.clear();
   }
 }, 10 * 60 * 1000);
 
@@ -4099,7 +4103,16 @@ async function processCustomerBuffer(remoteJid) {
           };
 
           const sentAlbum = await sock.sendMessage(remoteJid, msgOptions);
-          if (sentAlbum?.key?.id) botSentMessageIds.add(sentAlbum.key.id);
+          if (sentAlbum?.key?.id) {
+            botSentMessageIds.add(sentAlbum.key.id);
+            botSentMediaTracking.set(sentAlbum.key.id, {
+              seller_id: CURRENT_SELLER_ID,
+              product_id: p.id,
+              model_code: p.model_code,
+              name: p.name,
+              price: p.price
+            });
+          }
           incrementStats('messages_out');
 
           if (i < photoUrls.length - 1) {
@@ -4138,7 +4151,16 @@ async function processCustomerBuffer(remoteJid) {
             image: imagePayload,
             caption: buildSingleProductCaption(p)
           });
-          if (sentCat?.key?.id) botSentMessageIds.add(sentCat.key.id);
+          if (sentCat?.key?.id) {
+            botSentMessageIds.add(sentCat.key.id);
+            botSentMediaTracking.set(sentCat.key.id, {
+              seller_id: CURRENT_SELLER_ID,
+              product_id: p.id,
+              model_code: p.model_code,
+              name: p.name,
+              price: p.price
+            });
+          }
           incrementStats('messages_out');
 
           if (i < allProds.length - 1) {
@@ -4160,14 +4182,16 @@ async function processCustomerBuffer(remoteJid) {
       await new Promise(r => setTimeout(r, 1200));
     }
 
-    if (hasCatalogOverview) {
+    // Strict Safety: If browsing catalog or multiple models outputted -> send Catalog Overview (1 photo per model = 5 photos max)
+    // NEVER send multiple 5-8 photo albums in a single turn!
+    if (hasCatalogOverview || allMatches.length > 1) {
       await sendCatalogOverview();
-    } else {
-      for (const match of allMatches) {
-        const code = match[1].toUpperCase().trim();
-        const p = findProd(code);
-        if (p) await sendProductAlbum(p);
-      }
+    } else if (allMatches.length === 1) {
+      // Exactly 1 specific model chosen -> send that single model's album
+      const code = allMatches[0][1].toUpperCase().trim();
+      const p = findProd(code);
+      if (p) await sendProductAlbum(p);
+    }
       for (const match of hijabMatches) {
         const code = match[1].toUpperCase().trim();
         const p = findProd(code);
@@ -4388,19 +4412,32 @@ async function connectToWhatsApp() {
       // Check for WhatsApp Quoted Message Context (Swipe-to-Reply on images or previous chats)
       let quotedContextText = '';
       const contextInfo = unwrappedMsg?.extendedTextMessage?.contextInfo;
-      if (contextInfo && contextInfo.quotedMessage) {
-        const qm = contextInfo.quotedMessage;
-        const quotedText = qm.conversation || 
-                           qm.extendedTextMessage?.text || 
-                           qm.imageMessage?.caption || 
-                           qm.videoMessage?.caption || '';
-        if (quotedText.trim()) {
-          const codeMatch = quotedText.match(/DF-\d{3}/i);
-          if (codeMatch) {
-            quotedContextText = `[Customer replied to image/message of model ${codeMatch[0].toUpperCase()}]: `;
-          } else {
-            const shortQuote = quotedText.substring(0, 80).replace(/\n/g, ' ');
-            quotedContextText = `[Customer quoted: "${shortQuote}"]: `;
+      if (contextInfo) {
+        const quotedStanzaId = contextInfo.stanzaId;
+        const trackedMedia = quotedStanzaId ? botSentMediaTracking.get(quotedStanzaId) : null;
+        if (trackedMedia) {
+          quotedContextText = `[Customer replied to image of Model: ${trackedMedia.model_code} (${trackedMedia.name}) | Price: ৳${trackedMedia.price}]: `;
+        } else if (contextInfo.quotedMessage) {
+          const qm = contextInfo.quotedMessage;
+          const quotedText = qm.conversation || 
+                             qm.extendedTextMessage?.text || 
+                             qm.imageMessage?.caption || 
+                             qm.videoMessage?.caption || '';
+          if (quotedText.trim()) {
+            const allCached = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
+            let matchedCode = null;
+            for (const p of allCached) {
+              if (p.model_code && quotedText.toLowerCase().includes(p.model_code.toLowerCase())) {
+                matchedCode = p;
+                break;
+              }
+            }
+            if (matchedCode) {
+              quotedContextText = `[Customer replied to image/message of model ${matchedCode.model_code} (${matchedCode.name})]: `;
+            } else {
+              const shortQuote = quotedText.substring(0, 80).replace(/\n/g, ' ');
+              quotedContextText = `[Customer quoted: "${shortQuote}"]: `;
+            }
           }
         }
       }

@@ -167,6 +167,14 @@ function getProductImageUrls(product) {
   return uniqueUrls.slice(0, 8);
 }
 
+function getProductColors(p) {
+  if (!p) return '';
+  if (p.colors && p.colors.trim()) return p.colors.trim();
+  const parenMatch = (p.name || '').match(/\(([^)]+)\)/);
+  if (parenMatch && parenMatch[1]) return parenMatch[1].trim();
+  return '';
+}
+
 async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
   await refreshSettingsFromDB(sellerId);
   if (!supabase) return cachedProductList;
@@ -184,8 +192,10 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
       cachedProductsText = prods.map((p, idx) => {
         const code = p.model_code || `DF-${100 + idx + 1}`;
         const price = p.price || 2200;
+        const colorStr = getProductColors(p);
         const details = [
           p.fabric ? `ফেব্রিক: ${p.fabric}` : '',
+          colorStr ? `কালার: ${colorStr}` : '',
           p.sizes ? `সাইজ: ${p.sizes}` : '',
           p.hijab_included ? 'হিজাব ফ্রি' : ''
         ].filter(Boolean).join(', ');
@@ -323,16 +333,30 @@ async function getCustomerSession(sellerId = 'autodokan_seller_1', channelType =
       const hasGreeted = msgs.some(m => m.role === 'assistant' && (m.content.includes('আসসালামু') || m.content.includes('স্বাগতম')));
       const sentModels = [];
       msgs.forEach(m => {
-        const matches = m.content.match(/DF-\d{3}/gi);
-        if (matches) matches.forEach(c => sentModels.push(c.toUpperCase()));
+        const matches = m.content.match(/[A-Z0-9_-]+/gi);
+        if (matches) {
+          matches.forEach(c => {
+            if (c.includes('-') && c.length >= 4) sentModels.push(c.toUpperCase());
+          });
+        }
       });
+
+      // Check time gap from last message (2+ hours gap allows fresh warm greeting!)
+      const lastMsg = msgs[msgs.length - 1];
+      const lastMsgTime = lastMsg?.timestamp || (data.updated_at ? new Date(data.updated_at).getTime() : null);
+      const timeGapHours = lastMsgTime ? (Date.now() - lastMsgTime) / (1000 * 60 * 60) : 0;
+      const isLongGap = timeGapHours >= 2.0;
+      const effectiveHasGreeted = isLongGap ? false : hasGreeted;
+      const lastViewed = data.metadata?.lastViewedModel || null;
 
       const loadedSession = {
         messages: msgs,
         stage: data.stage || 'BROWSING',
         customer_notes: data.customer_notes || '',
         customer_name: data.customer_name || null,
-        hasGreeted: hasGreeted,
+        hasGreeted: effectiveHasGreeted,
+        lastViewedModel: lastViewed,
+        timeGapHours: isLongGap ? Math.round(timeGapHours) : 0,
         imagesSentForModels: Array.from(new Set(sentModels)),
         deliveryFeeMentioned: msgs.some(m => m.role === 'assistant' && (m.content.includes('ডেলিভারি চার্জ') || m.content.includes('৮০') || m.content.includes('১৫০')))
       };
@@ -364,6 +388,11 @@ async function saveCustomerSession(sellerId = 'autodokan_seller_1', channelType 
       stage: session.stage || 'BROWSING',
       messages: trimmedMessages,
       customer_notes: session.customer_notes || '',
+      metadata: {
+        lastViewedModel: session.lastViewedModel || null,
+        hasGreeted: session.hasGreeted,
+        stage: session.stage
+      },
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }, { onConflict: 'seller_id,channel_type,customer_identifier' });
@@ -377,6 +406,30 @@ async function saveCustomerSession(sellerId = 'autodokan_seller_1', channelType 
 // ==========================================
 
 // Clean human formatting sanitizer (Section 1)
+function trimIncompleteEnding(text) {
+  if (!text) return '';
+  let str = text.trim();
+  // If ends cleanly with terminal punctuation or bracket/tag
+  if (/[।!?\]]$/.test(str)) return str;
+
+  // Find last valid sentence ending
+  const lastDanda = str.lastIndexOf('।');
+  const lastQuestion = str.lastIndexOf('?');
+  const lastExcl = str.lastIndexOf('!');
+  const lastTag = str.lastIndexOf(']');
+  const lastPunctIdx = Math.max(lastDanda, lastQuestion, lastExcl, lastTag);
+
+  // If there is a complete sentence preceding it and the trailing fragment is incomplete
+  if (lastPunctIdx > 15) {
+    const trailingFragment = str.substring(lastPunctIdx + 1).trim();
+    // If the trailing fragment doesn't end with sentence-ending punctuation and is short (< 40 chars), cut it off
+    if (trailingFragment.length > 0 && trailingFragment.length < 40) {
+      return str.substring(0, lastPunctIdx + 1).trim();
+    }
+  }
+  return str;
+}
+
 function cleanHumanFormatting(text) {
   if (!text) return '';
   let s = String(text);
@@ -400,12 +453,14 @@ function cleanHumanFormatting(text) {
   s = s.replace(/(?<![A-Za-z0-9০-৯])[-–—]+(?![A-Za-z0-9০-৯])/g, ' ');
 
   // 7a. Strip robotic corporate phrases
-  s = s.replace(/(?:আজ\s*)?কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি[?।]*/gi, '');
+  s = s.replace(/(?:আজ\s*)?কীভাবে\s*(?:সাহায্য|সহায়তা|সহযোগিতা)\s*করতে\s*পারি[?।]*/gi, '');
   s = s.replace(/ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য[।.]*/gi, '');
+  s = s.replace(/আপনার\s*বার্তার\s*জন্য\s*ধন্যবাদ[।.]?/gi, '');
 
-  // 7. Strip accidental "আরে ভাই", "আরে না ভাই", "ভাইয়া", "আপু", etc.
+  // 7. Strip accidental informal address tags: "আরে ভাই", "আরে না ভাই", "ভাইয়া", "আপু", etc.
+  // Note: NEVER strip "আপনি" or "আপনার"!
   s = s.replace(/(?:আরে\s*না\s*ভাই|আরে\s*ভাই)/gi, 'জি');
-  s = s.replace(/(?:ভাইয়া|আপু|ভাইয়া|আপুনি|ভাই|স্যার|ম্যাম)/gi, '');
+  s = s.replace(/(?:ভাইয়া|আপু|ভাইয়া|ভাই|স্যার|ম্যাম)/gi, '');
 
   // 8. Clean repetitive punctuation & clean up commas
   s = s.replace(/,\s*,+/g, ',');
@@ -415,6 +470,9 @@ function cleanHumanFormatting(text) {
 
   // 9. Extra empty lines: max 1 blank line between blocks
   s = s.replace(/\n{3,}/g, '\n\n');
+
+  // 10. Trim abrupt cutoffs: remove dangling fragmented words at sentence end
+  s = trimIncompleteEnding(s);
 
   return s.trim();
 }
@@ -614,31 +672,72 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
   if (nagadNum) paymentMethods.push(`নগদ (${nagadNum})`);
   const paymentMethodText = paymentMethods.length > 0 ? paymentMethods.join(' বা ') : 'বিকাশ বা নগদ';
 
+  const distinctCategories = Array.isArray(cachedProductList)
+    ? [...new Set(cachedProductList.map(p => p.category || (p.custom_attributes && p.custom_attributes.category)).filter(Boolean))]
+    : [];
+
   const dynamicPlaybook = typeof getDynamicPlaybookGuidance === 'function' ? getDynamicPlaybookGuidance(userText) : '';
 
+  const activeModelCode = sessionState.lastViewedModel || 'None';
+  const timeGapInfo = sessionState.timeGapHours ? `${sessionState.timeGapHours} hours ago` : 'None';
+
   return `
-[SESSION STATE]: AlreadyGreeted=${sessionState.hasGreeted ? 'true' : 'false'}, Stage=${sessionState.stage || 'BROWSING'}, CatalogOverviewSent=${sessionState.catalogSent ? 'true' : 'false'}, PreviouslySentPhotos=${sessionState.imagesSentForModels?.join(',') || 'None'}${recentOrderText ? `\n[RECENT ORDER]: ${recentOrderText}` : ''}
+[SESSION STATE]: AlreadyGreeted=${sessionState.hasGreeted ? 'true' : 'false'}, Stage=${sessionState.stage || 'BROWSING'}, ActiveModel=${activeModelCode}, CatalogOverviewSent=${sessionState.catalogSent ? 'true' : 'false'}, TimeGapSinceLastMsg=${timeGapInfo}${recentOrderText ? `\n[RECENT ORDER]: ${recentOrderText}` : ''}
 
-তুমি "${shopName}"-এর বাস্তব শপ ইনচার্জ, সরাসরি হোয়াটসঅ্যাপে কাস্টমারের সাথে কথা বলছ। কোনো এআই বা রোবট নও। ১-৩ লাইনে সংক্ষিপ্ত, সাবলীল ও মার্জিত বাংলাদেশি বাংলায় পূর্ণাঙ্গ বাক্যে উত্তর দাও। কোনো কথা বা শব্দ মাঝপথে কাটা রাখবে না।
+তুমি "${shopName}"-এর অভিজ্ঞ শপ ইনচার্জ ও আসল সেলসম্যান, সরাসরি হোয়াটসঅ্যাপে কাস্টমারের সাথে কথা বলছ। কোনো এআই বা হেল্পডেস্ক সাপোর্ট এজেন্ট নও। তোমার লক্ষ্য কাস্টমারের সাথে আপন মানুষের মতো আন্তরিক সম্পর্ক তৈরি করা এবং সঠিক পণ্যটি বেছে দিতে সাহায্য করে বিক্রয় নিশ্চিত করা। ১-৩ লাইনে সংক্ষিপ্ত, আকর্ষণীয় ও মার্জিত বাংলাদেশি বাংলায় পূর্ণাঙ্গ বাক্যে উত্তর দাও। কোনো কথা বা বাক্য মাঝপথে কাটা রাখবে না।
 
-কঠোর শিষ্টাচার ও নিয়ম:
-১. "ভাই", "ভাইয়া", "আপু", "স্যার/ম্যাম" সম্পূর্ণ নিষিদ্ধ; সর্বদা "আপনি/আপনার/জি" বলবে।
+কঠোর শিষ্টাচার ও ভাষা:
+১. "ভাই", "ভাইয়া", "আপু", "স্যার/ম্যাম" সম্পূর্ণ নিষিদ্ধ; সর্বদা সম্মানসূচক "আপনি/আপনার/জি" বলবে।
 ২. ড্যাশ, হাইফেন বা বুলেট (-, --, —, •, *) সম্পূর্ণ নিষিদ্ধ। একাধিক তথ্য দিতে ১., ২., ৩. ব্যবহার করো।
-৩. কোনো রোবটিক ইমোজি (🌸, 😊), "কীভাবে সাহায্য করতে পারি?", বা কর্পোরেট বুলি নিষিদ্ধ।
-৪. সালাম ও শুভেচ্ছার নিয়ম:
-   - AlreadyGreeted=false (প্রথম মেসেজ): কাস্টমার নিজে সালাম ("আসসালামু আলাইকুম" বা "সালাম") দিলে উত্তর: "ওয়ালাইকুম আসসালাম! ${shopName}-এ স্বাগতম।" কাস্টমার সালাম না দিয়ে শুধু "Hi", "Hello" বা শুভেচ্ছা জানালে উত্তর: "${shopName}-এ স্বাগতম! আমাদের কালেকশন দেখতে পারেন।" (সালাম না দিলে কখনোই ওয়ালাইকুম আসসালাম বলবে না)।
-   - AlreadyGreeted=true (কথোপকথনের মাঝখানে): কাস্টমার আবার "Hi", "Hello" বা সালাম দিলে স্বাগতম বা সালামের পুনরাবৃত্তি করবে না। সরাসরি আন্তরিকভাবে বলবে: "জি বলুন, কীভাবে সহযোগিতা করতে পারি?" বা "জি, কোন কালেকশনটি দেখতে চান বলুন।"
-৫. কাস্টমার না চাইলে আগে থেকে দাম বা বড় বিবরণ ঢালবে না।
+৩. কোনো রোবটিক ইমোজি (🌸, 😊), হেল্পডেস্কের বুলি ("কীভাবে সাহায্য/সহযোগিতা করতে পারি?") বা সাধু ভাষা ("উপলব্ধ আছে", "প্রয়োজনীয়তা") সম্পূর্ণ নিষিদ্ধ। সর্বদা লোকাল স্বাভাবিক বাংলা ব্যবহার করবে: "স্টকে আছে", "ইন-স্টকে অ্যাভেইলেবল আছে", "অফার প্রাইস"।
+৪. সালাম ও কুশল বিনিময়ের খাঁটি সেলসম্যান নিয়ম:
+   - কাস্টমার সালাম দিলে ("আসসালামু আলাইকুম"): সরাসরি উত্তর দাও: "ওয়ালাইকুম আসসালাম! ${shopName}-এ স্বাগতম।" কাস্টমার নিজে "কেমন আছেন" না জিজ্ঞেস করলে নিজ থেকে কখনোই "ভালো আছি" বলবে না। কাস্টমার "কেমন আছেন" জিজ্ঞেস করলে উত্তর দাও: "আলহামদুলিল্লাহ ভালো আছি, আপনি কেমন আছেন?"
+   - কাস্টমার "Hi" বা "Hello" দিলে: আন্তরিক সালাম দিয়ে বলো: "আসসালামু আলাইকুম! ${shopName}-এ স্বাগতম। আমাদের কিছু ট্রেন্ডিং কালেকশন চলছে, দেখতে চাইলে জানাতে পারেন।"
+   - কাস্টমার শুরুতেই কোনো প্রশ্ন বা কালেকশন চাইলে (যেমন "বোরকা আছে?", "কালেকশন দেখান" বা "দাম কত"): সালাম ও শপের নাম দিয়ে সরাসরি উত্তর দাও। "আমি কি ছবি পাঠাব?" বলে কখনো অনুমতি খুঁজবে না।
+   - দীর্ঘ সময় (২+ ঘণ্টা) পর কাস্টমার ফিরে এলে: নতুন করে আন্তরিক কুশল বিনিময় করো এবং আগে যে মডেলটি দেখছিল তা বুকিং করতে চায় নাকি নতুন কোনো কালেকশন দেখতে চায় জানতে চাও।
+৫. কাস্টমার না চাইলে আগে থেকে বড় বিবরণ বা মূল্য ঢালবে না।
 
-বিক্রয় ও ফটো ফ্লো:
-১. কালেকশন দেখতে চাইলে ওভারভিউ পাঠাও: [SEND_CATALOG_OVERVIEW] এবং জানতে চাও কোন ডিজাইন পছন্দ।
-২. নির্দিষ্ট কোনো মডেল সিলেক্ট করলে বা তার ছবি চাইলে (যেমন "DF-102 দেখাও", "২ নম্বরটা", "সবুজের সেটটা", "আরও ছবি দেখি"): অবশ্যই পূর্ণাঙ্গ অ্যালবাম ট্যাগ পাঠাও: [SEND_ALL_IMAGES:MODEL_CODE]। ডাটাবেসে প্রতিটি মডেলের একাধিক পূর্ণাঙ্গ অ্যালবাম ছবি বিদ্যমান। ভুলেও বলবে না "১টি ছবিই আছে"। বলবে: "এই মডেলটির চমৎকার ছবিগুলো পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:MODEL_CODE], দেখে জানান কেমন লাগছে।"
-৩. দাম ও বিবরণ: ফিক্সড মূল্য, ফেব্রিক/স্পেক্স ও ডেলিভারি চার্জ (ঢাকায় ৳${insideFee}, বাইরে ৳${outsideFee}) জানিয়ে সাইজ/উচ্চতা জানতে চাও।
-৪. সাইজ চার্ট (বোরকার জন্য ঝুল): ৫'০"-৫'১" হলে ৫০ সাইজ; ৫'২"-৫'৩" হলে ৫২ সাইজ; ৫'৪"-৫'৫" হলে ৫৪ সাইজ; ৫'৬"-৫'৮" হলে ৫৬ সাইজ। হিলের কথা না বললে সাধারণ সাইজটিই সাজেস্ট করবে (যেমন ৫'৩" এর জন্য ৫২ সাইজ)।
-৫. অর্ডার ও পেমেন্ট স্বচ্ছতা:
-   - অর্ডার বুকিং করতে কাস্টমারের নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নম্বর নাও।
-   - ডেলিভারি পলিসি: ${advanceRequired ? 'পার্সেল বুকিং নিশ্চিত করতে ডেলিভারি চার্জ অগ্রিম প্রযোজ্য, পণ্যের মূল্য ক্যাশ অন ডেলিভারি।' : '১০০% ক্যাশ অন ডেলিভারি, কোনো অগ্রিম চার্জ নেই।'} চার্জ অগ্রিম দিতে বললে আমাদের ${paymentMethodText} নম্বরে সেন্ড মানি করতে বলো।
-   - কাস্টমার TrxID বা পেমেন্ট তথ্য দিলে বলবে: "ধন্যবাদ, আপনার ট্রানজেকশন তথ্য নোট করা হয়েছে। আমাদের অ্যাকাউন্টস ম্যানেজার ভেরিফাই করে কল দিয়ে অর্ডার চূড়ান্ত করবেন।" ভুলেও নিজে থেকে মনগড়া বলবে না যে "টাকা পাওয়া গেছে এবং পার্সেল পাঠিয়ে দেওয়া হয়েছে"।
+বিক্রয় ও ক্যাটালগ ফ্লো:
+১. কালেকশন ব্রাউজিং:
+   ${distinctCategories.length > 1 
+     ? `আমাদের শপে ${distinctCategories.join(', ')} ক্যাটাগরির পণ্য রয়েছে। কাস্টমার কালেকশন দেখতে চাইলে কোন ক্যাটাগরি দেখতে চান জানতে চাও।`
+     : `কাস্টমার কালেকশন দেখতে চাইলে ওভারভিউ পাঠাও: [SEND_CATALOG_OVERVIEW] এবং উৎসাহ নিয়ে বলো: "আমাদের সেরা কালেকশনের ছবিগুলো পাঠিয়েছি। ডিজাইনগুলো দেখে কোনটি আপনার বেশি পছন্দ হচ্ছে জানান, সেটির বিস্তারিত ও অফার প্রাইস জানিয়ে দিচ্ছি!"`}
+২. নির্দিষ্ট মডেল ও অ্যালবাম:
+   - কাস্টমার নির্দিষ্ট কোনো একটি মডেল পছন্দ করলে বা সেটির ছবি দেখতে চাইলে (যেমন "DF-102 দেখাও", "২ নম্বরটা", "সবুজের সেটটা", "আরও ছবি দেখি" বা কোনো ছবিতে সোয়াইপ/কোট রিপ্লাই দিলে): অবশ্যই শুধুমাত্র সেই ১টি মডেলের অ্যালবাম ট্যাগ পাঠাও: [SEND_ALL_IMAGES:MODEL_CODE]। ভুলেও বলবে না "১টি ছবিই আছে"। বলবে: "এই মডেলটির সুন্দর কিছু ছবি পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:MODEL_CODE], দেখে জানান কেমন লাগছে।"
+   - এক টার্নে কখনোই একের অধিক মডেলের অ্যালবাম ট্যাগ পাঠাবে না।
+   - কাস্টমার নির্দিষ্ট মডেল উল্লেখ না করে যদি বলে "Eta koto" বা "এটার দাম কত": ActiveModel জানা থাকলে সরাসরি সেটির দাম ও অফার বলো; আর জানা না থাকলে বলো: "কোন মডেলটির দাম জানতে চাচ্ছেন একটু নাম বা কোড বলুন, আমি এখনই দাম জানিয়ে দিচ্ছি।"
+৩. সাইজ পরামর্শ (কনসালটেটিভ গাইড):
+   - মডেল পছন্দ হওয়ার পর কাস্টমার সাইজ জানতে চাইলে বা নির্দিষ্ট সাইজ চাইলে তবেই কথা বলবে।
+   - কাস্টমার সাইজ জানতে চাইলে ডাটাবেজ দেখে বলো কোন কোন সাইজ স্টকে আছে।
+   - কাস্টমার নিজের বা গিফটের জন্য উচ্চতা জানালে (যেমন "আমার হাইট ৫'৩"" বা "যাকে দেব তার হাইট ৫'৫""):
+     বোরকার ঝুল: ৫'০"-৫'১" হলে ৫০ সাইজ; ৫'২"-৫'৩" হলে ৫২ সাইজ; ৫'৪"-৫'৫" হলে ৫৪ সাইজ; ৫'৬"-৫'৮" হলে ৫৬ সাইজ সাজেস্ট করবে।
+৪. অর্ডার বুকিং ও ডাবল-কনফার্মেশন (২ ধাপের স্মার্ট ফ্লো):
+   - গুরুত্বপূর্ণ সতর্কতা: কাস্টমার যতক্ষণ কোনো নির্দিষ্ট মডেল এবং সাইজ পছন্দ না করেছে, ততক্ষণ আগ বাড়িয়ে কখনোই নাম, ঠিকানা বা মোবাইল নম্বর চাইবে না! ব্রাউজিং অবস্থায় প্রোডাক্ট ও সাইজ বাছাইয়ে সাহায্য করো।
+   - ধাপ ১: মডেল এবং সাইজ উভয়ই নিশ্চিত হওয়ার পর (অথবা কাস্টমার সরাসরি "অর্ডার করব / নিতে চাই" বললে) বুকিংয়ের জন্য কাস্টমারের নাম, সম্পূর্ণ ডেলিভারি ঠিকানা ও মোবাইল নম্বর চাও।
+   - ধাপ ২: কাস্টমার ঠিকানা পাঠালে সাথে সাথে একটি সুন্দর সামারি দিয়ে কাস্টমারকে কনফার্ম করতে বলো:
+     "অর্ডার সামারি:
+     ১. প্রোডাক্ট: [মডেলের নাম]
+     ২. সাইজ: [সাইজ]
+     ৩. ঠিকানা: [কাস্টমারের ঠিকানা]
+     ৪. মোবাইল: [মোবাইল নম্বর]
+     ৫. পণ্য পেয়ে মূল্য পরিশোধ (ক্যাশ অন ডেলিভারি): ৳[মূল্য]
+     ৬. ডেলিভারি চার্জ: ঢাকায় ৳${insideFee} / বাইরে ৳${outsideFee}
+     সব তথ্য ঠিক থাকলে একটু 'ঠিক আছে' বা 'কনফার্ম' লিখে দিন, আমরা পার্সেল বুকিং শুরু করব।"
+   - ধাপ ৩: কাস্টমার কনফার্ম করার পর ডেলিভারি পলিসি:
+     ${advanceRequired ? `পার্সেল বুকিং নিশ্চিত করতে ডেলিভারি চার্জটি আমাদের ${paymentMethodText} নম্বরে সেন্ড মানি করতে বলো। কাস্টমার TrxID দিলে বলো: "ধন্যবাদ! আপনার পেমেন্ট তথ্যটি নোট করা হয়েছে। আমাদের অ্যাকাউন্টস ম্যানেজার ভেরিফাই করে কল দিয়ে অর্ডারটি চূড়ান্ত করবেন এবং কুরিয়ারের ট্র্যাকিং কোড পাঠিয়ে দেওয়া হবে।"` : '১০০% ক্যাশ অন ডেলিভারি, কোনো অগ্রিম চার্জ নেই।'}
+
+কালার সংক্রান্ত অলঙ্ঘনীয় নিয়ম (Zero Guessing / Dynamic Colors):
+১. প্রতিটি প্রোডাক্টের সঠিক অ্যাভেইলেবল কালার [LIVE PRODUCTS] তালিকায় "কালার: ..." অংশে স্পষ্টভাবে দেওয়া আছে।
+২. কাস্টমার কালার জানতে চাইলে (যেমন "কী কী কালার আছে?", "কালার অপশন কি?", "অন্য কালার আছে?"):
+   - ডাটাবেসের তালিকায় উল্লিখিত কালারটিই সরাসরি জানাবে।
+   - নিজের থেকে কোনো মনগড়া বা আন্দাজে কালার (যেমন লাল, গোলাপি, হলুদ ইত্যাদি) কখনোই বানিয়ে বলবে না!
+   - যদি কোনো মডেলে ১টি মাত্র কালার থাকে (যেমন DF-102 কেবল জেট ব্ল্যাক, বা DF-104 কেবল নেভি ব্লু), তবে স্পষ্টভাবে বলবে: "এই মডেলটি আমাদের স্টকে শুধুমাত্র [কালারের নাম] কালারেই তৈরি করা হয়েছে এবং এই কালারেই সবচেয়ে সুন্দর মানায়।"
+   - কাস্টমার যদি এমন কোনো কালার চায় যা ওই মডেলে নেই: সরাসরি বলবে যে এই মডেলে ওই কালারটি নেই, এটি কেবল [আসল কালার] কালারেই রয়েছে; চাইলে আমাদের অন্য কালেকশনে দেখতে পারেন।
+
+স্টক ও দামের ব্যাখ্যা (ভ্যালু-বেসড সেলিং):
+১. ডাটাবেসে যে প্রোডাক্ট "স্টক আউট" রয়েছে, সেটির কথা বললে স্পষ্টভাবে বলো যে এই মডেলটি এখন স্টকে নেই এবং স্টকে থাকা একই কোয়ালিটির অন্য রানিং মডেল দেখতে বলো।
+২. কাস্টমার দাম বেশি বললে বা বাজারে কম দামের কথা তুললে রোবটের মতো শুধু "ফিক্সড" বলে মুখ ফিরিয়ে নেবে না। মিষ্টি ভাষায় কোয়ালিটি তুলে ধরো: "বাজারে কমদামে অনেক কপি পাওয়া যেতে পারে, কিন্তু আমাদের কাপড়ের প্রিমিয়াম দুবাই চেরি ফিনিশিং, নিখুঁত সেলাই এবং ১০০% কালার গ্যারান্টি হাতে নিলেই প্রিমিয়াম ফিল পাবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।"
+৩. একাধিক পিস নিলে বলো: "আমাদের প্রতিটি প্রোডাক্টের রেট একদম রিজনেবল মূল্যে রাখা, তবে আপনি একসাথে একাধিক নিলে আমরা ডেলিভারি খরচে স্পেশাল ছাড় বা সুন্দর গিফটের ব্যবস্থা করে দেব।"
 
 স্ল্যাং ও অভিযোগ:
 ১. "নাম ধুয়ে পানি খাবো", "poc", "sobi", "pic den" মানে ছবি দেখতে চেয়েছেন।
@@ -727,7 +826,7 @@ async function callGroqEngine(messages, systemPrompt) {
           messages: chatMessages,
           temperature: 0.42,
           top_p: 0.85,
-          max_tokens: 600
+          max_tokens: 1024
         }, { timeout: 7000 });
         const reply = completion.choices[0]?.message?.content;
         if (reply && reply.trim()) {
@@ -750,11 +849,12 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
   if (!activeGeminiKey) return null;
 
   // Active verified models with high quota:
-  // 15% Complex route -> gemini-3.5-flash-lite / gemini-flash-lite-latest
-  // 85% Routine route -> gemini-flash-lite-latest / gemini-3.5-flash-lite
-  const candidateModels = complexity === 'COMPLEX'
-    ? ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest']
-    : ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
+  // Fast, uninterrupted full sentence completions
+  const candidateModels = [
+    'gemini-3.5-flash-lite',
+    'gemini-flash-lite-latest',
+    'gemini-flash-latest'
+  ];
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }]
@@ -771,13 +871,13 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: contents,
           generationConfig: {
             temperature: 0.38,
-            maxOutputTokens: 1200
+            maxOutputTokens: 2048
           }
         })
       });
@@ -1284,7 +1384,7 @@ async function handleIncomingMessage(senderId, userText) {
     .replace(/[•●▪*]/g, '')
     .replace(/[-–—]{2,}/g, ' ')
     .replace(/[🌸😊🌺🌹]/g, '')
-    .replace(/\b(ভাইয়া|আপু|ভাইয়া|আপুনি|স্যার|ম্যাম)\b/gi, '')
+    .replace(/(?:ভাইয়া|আপু|ভাইয়া|ভাই|স্যার|ম্যাম)/gi, '')
     .replace(/ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য[।.]?/gi, '')
     .replace(/আপনার\s*বার্তার\s*জন্য\s*ধন্যবাদ[।.]?/gi, '')
     .trim();
@@ -1376,6 +1476,7 @@ module.exports = {
   getProductByCode,
   getAllCachedProducts,
   getProductImageUrls,
+  getProductColors,
   extractAndSaveOrderLead,
   getFastPathReply,
   isGibberishOrAccidental,

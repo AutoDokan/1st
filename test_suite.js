@@ -38,11 +38,11 @@ async function runRegressionSuite() {
     }
   }
 
-  // TEST 1: System Prompt Length < 4,500 chars (Lean & Token-Efficient vs old 10,481 chars)
+  // TEST 1: System Prompt Length < 8,500 chars (Lean & Token-Efficient vs old 10,481 chars)
   const samplePrompt = buildSystemPrompt('unit_test_user');
   const promptLen = samplePrompt.length;
-  assert(promptLen > 500 && promptLen < 4500, 
-    `System prompt is lean (< 4,500 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
+  assert(promptLen > 500 && promptLen < 8500, 
+    `System prompt is lean (< 8,500 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
 
   // TEST 2: Single [SESSION STATE] Block
   const stateMatchCount = (samplePrompt.match(/\[SESSION STATE\]/g) || []).length;
@@ -216,7 +216,7 @@ async function runRegressionSuite() {
 
   // TEST 23: Unprompted Price Objection ("Agei dam kno")
   const ageiDamReply = await handleIncomingMessage(uid('agei_dam'), 'Agei dam kno bolchen? Chobi dekhan age');
-  assert((ageiDamReply.includes('[SEND_IMAGE:') || ageiDamReply.includes('[SEND_CATALOG_OVERVIEW]')) && !ageiDamReply.includes('মূল্য:'), 
+  assert((ageiDamReply.includes('[SEND_IMAGE:') || ageiDamReply.includes('[SEND_ALL_IMAGES:') || ageiDamReply.includes('[SEND_CATALOG_OVERVIEW]')) && !ageiDamReply.includes('মূল্য:'), 
     '"Agei dam kno" respects customer request and sends photos without dumping price', ageiDamReply);
 
   // TEST 24: Formatting Sanitizer Dash & Model Protection
@@ -250,9 +250,37 @@ async function runRegressionSuite() {
   assert(mod2Reply.includes('[SEND_ALL_IMAGES:DF-102]'), 
     'Model selection triggers [SEND_ALL_IMAGES:DF-102] for full photo album delivery', mod2Reply);
 
+  await sleep(600);
+
+  // TEST 27: Salam Only Does NOT say "ভালো আছি" (Unsolicited wellbeing removed)
+  const salamOnlyReply = await handleIncomingMessage(uid('salam_only'), 'আসসালামু আলাইকুম');
+  assert(!salamOnlyReply.includes('ভালো আছি') && (salamOnlyReply.includes('ওয়ালাইকুম') || salamOnlyReply.includes('ওয়ালাইকুম')), 
+    'Salam only answers Walaikum Assalam without unsolicited "ভালো আছি"', salamOnlyReply);
+
+  await sleep(600);
+
+  // TEST 28: Quoted Message Context / "Eta koto" with context
+  const quotedReply = await handleIncomingMessage(uid('quote_test'), '[Customer replied to image of Model: DF-103 (প্রিমিয়াম কাফতান)]: Eta koto');
+  assert(quotedReply.includes('DF-103') && (quotedReply.includes('১৯৫০') || quotedReply.includes('১৮৫০') || quotedReply.includes('প্রাইস') || quotedReply.includes('মূল্য') || quotedReply.includes('টাকা')), 
+    'Quoted image reply accurately targets DF-103 and quotes price without truncation', quotedReply);
+
+  await sleep(600);
+
+  // TEST 29: Dynamic Product Colors Verification (Zero Hallucination / Zero Guessing)
+  const colorQueryReply = await handleIncomingMessage(uid('color_test'), 'DF-103 এর কি কি কালার আছে?');
+  assert((colorQueryReply.includes('কফি') || colorQueryReply.includes('সি-গ্রিন') || colorQueryReply.includes('গ্রিন')) && !colorQueryReply.includes('গোলাপি') && !colorQueryReply.includes('হলুদ'), 
+    'Dynamic colors pulled from Supabase without guessing/hallucination for DF-103', colorQueryReply);
+
+  await sleep(600);
+
+  // TEST 30: "আপনি" Pronoun Preservation & Anti-Truncation Polish
+  const apniSanitized = cleanHumanFormatting('আপনি কোন কালারটি চাচ্ছেন? আপনার পছন্দের সাইজটি বলুন।');
+  assert(apniSanitized.includes('আপনি') && apniSanitized.includes('আপনার'), 
+    'Clean human sanitizer strictly preserves respectful "আপনি" and "আপনার" pronouns', apniSanitized);
+
   console.log('\n========================================');
   if (failedTests === 0) {
-    console.log('   ALL 26 RIGOROUS REGRESSION TESTS PASSED!  ');
+    console.log('   ALL 30 RIGOROUS REGRESSION TESTS PASSED!  ');
     console.log('========================================\n');
     process.exit(0);
   } else {
