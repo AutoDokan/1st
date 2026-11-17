@@ -7,7 +7,7 @@ const pino = require('pino');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { useSupabaseAuthState } = require('./supabase_adapter');
-const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, isAbusiveOrFrustrated, isInsultOrTrolling, transcribeAudioWithGroq, transcribeAudioWithGemini, cleanHumanFormatting } = require('./commerce_brain');
+const { handleIncomingMessage, refreshProductsFromDB, refreshSettingsFromDB, getStoreSettings, getProductByCode, getAllCachedProducts, isAngryComplaint, isAgentRequest, transcribeAudioWithGroq, transcribeAudioWithGemini, cleanHumanFormatting } = require('./commerce_brain');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -431,6 +431,7 @@ app.post('/api/settings/update', requireAuth, async (req, res) => {
 
   await supabase.from('store_settings').upsert(updatePayload);
   await refreshSettingsFromDB();
+  await refreshProductsFromDB();
   if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
     return res.json({ success: true, auto_followup_enabled: autoFollowupEnabled, settings: updatePayload });
   }
@@ -469,6 +470,7 @@ app.post('/api/promotions/create', requireAuth, async (req, res) => {
     }).select();
     if (error) throw error;
     await refreshSettingsFromDB();
+    await refreshProductsFromDB();
     if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
       return res.json({ success: true, promotion: data ? data[0] : null });
     }
@@ -485,6 +487,7 @@ app.post('/api/promotions/:id/toggle', requireAuth, async (req, res) => {
     const activeVal = (is_active === true || is_active === 'true');
     await supabase.from('promotions').update({ is_active: activeVal }).eq('id', id);
     await refreshSettingsFromDB();
+    await refreshProductsFromDB();
     res.json({ success: true, id, is_active: activeVal });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -496,6 +499,7 @@ app.post('/api/promotions/:id/delete', requireAuth, async (req, res) => {
     const { id } = req.params;
     await supabase.from('promotions').delete().eq('id', id);
     await refreshSettingsFromDB();
+    await refreshProductsFromDB();
     if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
       return res.json({ success: true, id });
     }
@@ -3955,18 +3959,14 @@ async function processCustomerBuffer(remoteJid) {
       }
     }
 
-    // 3b. Customer Complaint, Abusive/Frustrated or Human Agent Request Escalation Hook
+    // 3b. Customer Complaint, Frustrated or Human Agent Request Escalation Hook (NEVER PAUSE BOT)
     if (typeof isAngryComplaint === 'function' && typeof isAgentRequest === 'function') {
       const isComplaint = isAngryComplaint(combinedText);
       const isAgentReq = isAgentRequest(combinedText);
       const isFrustrated = typeof isAbusiveOrFrustrated === 'function' ? isAbusiveOrFrustrated(combinedText) : false;
-      if (isAgentReq) {
-        // Only explicit request for human agent/owner pauses bot
-        console.log(`[Auto Human Escalation] From: ${remoteJid} | Reason: HUMAN_AGENT_REQUESTED`);
-        await pauseCustomerForHumanTakeover(remoteJid, 45, 'HUMAN_AGENT_REQUESTED');
-      } else if (isComplaint || isFrustrated) {
-        // Frustration, slang, or complaints -> NEVER pause bot! Keep replying while alerting dashboard
-        const escalationReason = isFrustrated ? 'CUSTOMER_FRUSTRATED' : 'CUSTOMER_COMPLAINT';
+      if (isAgentReq || isComplaint || isFrustrated) {
+        // Human agent request, frustration, or complaints -> NEVER pause bot! Keep replying while alerting dashboard
+        const escalationReason = isAgentReq ? 'HUMAN_AGENT_REQUESTED' : (isFrustrated ? 'CUSTOMER_FRUSTRATED' : 'CUSTOMER_COMPLAINT');
         console.log(`[Flag Human Attention] From: ${remoteJid} | Reason: ${escalationReason} (Bot remains active!)`);
         try {
           await supabase.from('chat_sessions').update({
@@ -3976,7 +3976,7 @@ async function processCustomerBuffer(remoteJid) {
           }).eq('seller_id', CURRENT_SELLER_ID).eq('customer_identifier', remoteJid);
         } catch (err) {}
       }
-    }
+        }
 
     // 4. Normal AI Conversation Flow
     if (sock) {
@@ -4089,11 +4089,11 @@ async function processCustomerBuffer(remoteJid) {
     }
 
     function buildSingleProductCaption(p) {
-      return `মডেল ${p.model_code || 'DF-101'}\n${p.name}\nমূল্য ${p.price || 2200} টাকা`;
+      return `${p.model_code || 'DF-101'} : ${p.name || ''}`;
     }
 
     function buildProductAlbumCaption(p) {
-      return `মডেল ${p.model_code || 'DF-101'}\n${p.name}\nমূল্য ${p.price || 2200} টাকা`;
+      return `${p.model_code || 'DF-101'} : ${p.name || ''}`;
     }
 
     async function sendProductAlbum(p) {

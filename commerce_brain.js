@@ -76,6 +76,7 @@ let cachedProductsText = '';
 let cachedProductList = [];
 let cachedPromotionsText = '';
 let cachedPlaybookHints = '';
+let cachedPlaybookRows = [];
 
 // Supabase Client Setup
 const supabaseUrl = process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co';
@@ -142,40 +143,21 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
       .from('products')
       .select('*')
       .eq('seller_id', sellerId)
+      .order('model_code', { ascending: true })
       .order('id', { ascending: true });
 
     if (!prodErr && prods && prods.length > 0) {
       cachedProductList = prods;
       cachedProductsText = prods.map((p, idx) => {
         const code = p.model_code || `DF-${100 + idx + 1}`;
-        const regPrice = Number(p.regular_price) || Number(p.price);
-        const discPrice = Number(p.discount_price);
-        let priceStr = `মূল্য: ৳${p.price} টাকা (ফিক্সড)`;
-        if (discPrice > 0 && discPrice < regPrice) {
-          priceStr = `রেগুলার প্রাইস: ৳${regPrice}, বর্তমান অফার প্রাইস: ৳${discPrice} (ছাড় চলছে!)`;
-        }
-
-        let stockStr = '[স্টকে আছে]';
-        if (p.in_stock === false || (p.stock_quantity !== null && p.stock_quantity <= 0)) {
-          stockStr = '[স্টক আউট / বর্তমানে নেই — অর্ডার নেওয়া যাবে না, বিকল্প মডেল সাজেস্ট করুন]';
-        } else if (p.stock_quantity !== null && p.stock_quantity > 0 && p.stock_quantity <= 5) {
-          stockStr = `[স্টকে আছে — মাত্র ${p.stock_quantity} পিস বাকি]`;
-        }
-
+        const price = p.price || 2200;
         const details = [
-          `ফেব্রিক: ${p.fabric || 'প্রিমিয়াম চেরি'}`,
-          `সাইজ: ${p.sizes || '৫০, ৫২, ৫৪, ৫৬'}`,
-          `হিজাব: ${p.hijab_included ? 'ম্যাচিং হিজাব উপহার হিসেবে সম্পূর্ণ ফ্রি' : 'আলাদা'}`,
-          p.colors ? `কালার: ${p.colors}` : '',
-          p.short_description ? `বিবরণ: ${p.short_description}` : '',
-          p.image_url ? 'মেইন ছবি: আছে' : '',
-          p.detail_image_url ? 'কাজের ক্লোজ-আপ: আছে' : '',
-          p.hijab_image_url ? 'হিজাব ছবি: আছে' : '',
-          p.flare_image_url ? 'ঘেরের ছবি: আছে' : '',
-          p.real_image_url ? 'রিয়েল ছবি: আছে' : ''
+          p.fabric ? `ফেব্রিক: ${p.fabric}` : '',
+          p.sizes ? `সাইজ: ${p.sizes}` : '',
+          p.hijab_included ? 'হিজাব ফ্রি' : ''
         ].filter(Boolean).join(', ');
-
-        return `${idx + 1}. [মডেল কোড: ${code}] ${p.name} | ${priceStr} | ${stockStr} (${details})`;
+        const stock = p.in_stock === false ? 'স্টক আউট' : 'স্টকে আছে';
+        return `${idx + 1}. [${code}] ${p.name} | ৳${price} | ${stock} (${details})`;
       }).join('\n');
 
       console.log(`[Products Sync] Loaded ${prods.length} products for ${sellerId}`);
@@ -200,19 +182,21 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
       }
     } catch (e) {}
 
-    // 3. Fetch Style Playbook Hints
+    // 3. Fetch Style Playbook Hints (All active rows for dynamic matching)
     try {
       const { data: hints } = await supabase
         .from('human_style_playbook')
-        .select('*')
-        .eq('is_active', true)
-        .limit(3);
+        .select('id, scenario_tag, customer_trigger_example, human_reply_guideline, sample_natural_reply')
+        .eq('is_active', true);
 
       if (hints && hints.length > 0) {
-        cachedPlaybookHints = hints.map(h => 
-          `• [পরিস্থিতি: ${h.scenario_tag}] কাস্টমার যেমন: "${h.customer_trigger_example}" -> নির্দেশনা: ${h.human_reply_guideline} (ন্যাচারাল স্টাইল যেমন: "${h.sample_natural_reply}")`
+        cachedPlaybookRows = hints;
+        cachedPlaybookHints = hints.slice(0, 1).map(h => 
+          `• [${h.scenario_tag}]: "${h.customer_trigger_example}" -> ${h.human_reply_guideline}`
         ).join('\n');
+        console.log(`[Playbook Sync] Loaded ${hints.length} human style playbook guidelines`);
       } else {
+        cachedPlaybookRows = [];
         cachedPlaybookHints = '';
       }
     } catch (e) {}
@@ -221,6 +205,44 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
     console.warn('[Products Sync Error]:', err.message);
   }
   return cachedProductList;
+}
+
+function getDynamicPlaybookGuidance(userText) {
+  if (!cachedPlaybookRows || cachedPlaybookRows.length === 0) return cachedPlaybookHints;
+  const t = (userText || '').toLowerCase().trim();
+  if (!t) return cachedPlaybookHints;
+
+  const scored = [];
+  for (const row of cachedPlaybookRows) {
+    let score = 0;
+    const trigger = (row.customer_trigger_example || '').toLowerCase();
+    const tag = (row.scenario_tag || '').toLowerCase();
+
+    if (/(?:দাম|price|koman|kom|কম|টাকা|ছাড়|ডিসকাউন্ট|বাজেট)/i.test(t) && (tag.includes('bargain') || tag.includes('discount') || trigger.includes('দাম'))) score += 5;
+    if (/(?:প্রতারণা|বাটপার|চিটার|ফেক|ছবিতে|বাস্তবে|ডেলিভারি\s*ম্যান|খুলে|চেক)/i.test(t) && (tag.includes('scam') || tag.includes('check') || trigger.includes('প্রতারিত') || trigger.includes('খুল'))) score += 5;
+    if (/(?:আম্মা|আম্মু|হাজবেন্ড|পরিবার|কথা\s*বলে|জানাবো)/i.test(t) && (tag.includes('family') || tag.includes('husband') || trigger.includes('হাজবেন্ড'))) score += 5;
+    if (/(?:সাইজ|উচ্চতা|হাইট|ফিট|ফুট|ইঞ্চি)/i.test(t) && (tag.includes('size') || tag.includes('height') || trigger.includes('সাইজ'))) score += 5;
+    if (/(?:কাপড়|ফেব্রিক|পাতলা|ট্রান্সপারেন্ট|কোয়ালিটি)/i.test(t) && (tag.includes('fabric') || tag.includes('quality') || trigger.includes('কাপড়'))) score += 5;
+    if (/(?:কবে|দেরি|লেট|দেরিতে|কখন)/i.test(t) && (tag.includes('delay') || tag.includes('timeline') || trigger.includes('কবে'))) score += 5;
+    if (/(?:রোবট|বট|মানুষ|স্টাফ)/i.test(t) && (tag.includes('robot') || tag.includes('human') || trigger.includes('রোবট'))) score += 5;
+
+    const words = t.split(/\s+/).filter(w => w.length > 2);
+    for (const w of words) {
+      if (trigger.includes(w)) score += 2;
+      if (tag.includes(w)) score += 2;
+    }
+
+    if (score > 0) scored.push({ row, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  const topMatches = scored.slice(0, 2).map(s => s.row);
+  if (topMatches.length === 0) {
+    const fallback = cachedPlaybookRows.slice(0, 1);
+    return fallback.map(h => `• [${h.scenario_tag}]: "${h.customer_trigger_example}" -> ${h.human_reply_guideline}`).join('\n');
+  }
+
+  return topMatches.map(h => `• [${h.scenario_tag}]: "${h.customer_trigger_example}" -> ${h.human_reply_guideline}`).join('\n');
 }
 
 // Initial Sync
@@ -340,6 +362,10 @@ function cleanHumanFormatting(text) {
 
   // 6. Remove standalone hyphens not inside model codes or digits (Preserves DF-101 to DF-105, phone numbers, and বাংলা digit ranges like ৫০-৫৬)
   s = s.replace(/(?<![A-Za-z0-9০-৯])[-–—]+(?![A-Za-z0-9০-৯])/g, ' ');
+
+  // 7a. Strip robotic corporate phrases
+  s = s.replace(/(?:আজ\s*)?কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি[?।]*/gi, '');
+  s = s.replace(/ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য[।.]*/gi, '');
 
   // 7. Strip accidental "আরে ভাই", "আরে না ভাই", "ভাইয়া", "আপু", etc.
   s = s.replace(/(?:আরে\s*না\s*ভাই|আরে\s*ভাই)/gi, 'জি');
@@ -499,115 +525,42 @@ function getAllCachedProducts() {
 // 5. Complete Real-Human System Prompt Builder
 // ==========================================
 
-function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = '') {
+function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = '', userText = '') {
   const shopName = storeSettings.shop_name || 'Dawah Fashion';
   const insideFee = storeSettings.inside_dhaka_fee || 80;
-  const outsideFee = storeSettings.outside_dhaka_fee || 150;
+  const outsideFee = storeSettings.outside_dhaka_fee || 120;
   const bkashNum = storeSettings.bkash_number || '01613-129192';
   const nagadNum = storeSettings.nagad_number || '01677-557292';
-  const returnPolicy = storeSettings.return_policy || 'ডেলিভারি ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।';
 
-  const greetingDirective = (isFirstMessage || !sessionState.hasGreeted)
-    ? `১. প্রথম মেসেজের অভিবাদন:
-   - কাস্টমারকে প্রথমবারের মতো সম্ভাষণ জানাও: "আসসালামু আলাইকুম, ${shopName} থেকে বলছি। বোরকা বা আবায়ার কালেকশন দেখবেন?"
-   - শুধুমাত্র কাস্টমার যদি নিজে থেকে কুশল জানতে চায় (যেমন: "কেমন আছেন?"): বলবে "আলহামদুলিল্লাহ, আমরা ভালো আছি। আপনি কেমন আছেন?"
-   - কাস্টমার যদি শুধু সালাম বা সাধারণ সম্ভাষণ জানায় (যেমন: "Hi", "Hello", "হাই"): ভুলেও আগ বাড়িয়ে "ভালো আছি" বলবে না এবং কখনোই "আজ কীভাবে সাহায্য করতে পারি?" বা "কীভাবে সাহায্য করতে পারি?" বলবে না! বলবে: "আসসালামু আলাইকুম, ${shopName} থেকে বলছি। বোরকা বা আবায়ার কালেকশন দেখবেন?"`
-    : `১. স্ট্রিক্ট জিরো সালাম রুল (সালাম পুনরাবৃত্তি সম্পূর্ণ নিষিদ্ধ):
-   - এই কাস্টমারের সাথে ইতিমধ্যে কথা হয়েছে (AlreadyGreeted = true)।
-   - ভুলেও দ্বিতীয়বার "আসসালামু আলাইকুম", "ওয়া আলাইকুম আসসালাম" বা সালামের পুনরাবৃত্তি করবে না!
-   - কাস্টমার আবার সালাম দিলেও সালাম ফেরত দেবে না; সরাসরি "জি বলুন", "অবশ্যই" বা মূল প্রশ্নের উত্তর দিয়ে শুরু করবে।`;
+  const dynamicPlaybook = typeof getDynamicPlaybookGuidance === 'function' ? getDynamicPlaybookGuidance(userText) : '';
 
   return `
-তুমি "${shopName}"-এর একজন বাস্তব মানুষ ও ইনচার্জ, যে নিজের ফোন হাতে নিয়ে সরাসরি হোয়াটসঅ্যাপে কাস্টমারের সাথে কথা বলছে। তুমি কোনো এআই, ভার্চুয়াল বট বা অটোমেটেড রোবট নও।
+[SESSION STATE]: AlreadyGreeted=${sessionState.hasGreeted ? 'true' : 'false'}, Stage=${sessionState.stage || 'BROWSING'}, CatalogOverviewSent=${sessionState.catalogSent ? 'true' : 'false'}, PreviouslySentPhotos=${sessionState.imagesSentForModels?.join(',') || 'None'}${recentOrderText ? `\n[RECENT ORDER]: ${recentOrderText}` : ''}
 
-[SESSION STATE]: AlreadyGreeted=${sessionState.hasGreeted ? 'true' : 'false'}, Stage=${sessionState.stage || 'BROWSING'}, PreviouslySentPhotos=${sessionState.imagesSentForModels?.join(',') || 'None'}, DeliveryFeeMentioned=${sessionState.deliveryFeeMentioned ? 'true' : 'false'}, CustomerNotes=${sessionState.customer_notes || 'None'}
+তুমি "${shopName}"-এর বাস্তব শপ ইনচার্জ, সরাসরি হোয়াটসঅ্যাপে কাস্টমারের সাথে কথা বলছ। কোনো এআই বা রোবট নও। ১-৩ লাইনে সংক্ষিপ্ত, সাবলীল ও মার্জিত বাংলাদেশি বাংলায় উত্তর দাও।
 
-${greetingDirective}
+কঠোর নিয়ম ও শিষ্টাচার:
+১. "ভাই", "ভাইয়া", "আপু", "স্যার/ম্যাম" সম্পূর্ণ নিষিদ্ধ; সর্বদা "আপনি/আপনার/জি" বলবে।
+২. ড্যাশ, হাইফেন বা বুলেট (-, --, —, •, *) নিষিদ্ধ। তালিকা দিতে ১., ২., ৩. ব্যবহার করো।
+৩. কোনো রোবটিক ইমোজি (🌸, 😊), "কীভাবে সাহায্য করতে পারি?", বা কর্পোরেট বুলি ("ধন্যবাদ আপনার মতামতের জন্য") নিষিদ্ধ। সাধারণ শুভেচ্ছায় উষ্ণ স্বাগতম জানাও।
+৪. AlreadyGreeted=true হলে সালাম বা স্বাগতমের পুনরাবৃত্তি করবে না।
+৫. কাস্টমার না চাইলে আগে থেকে দাম বা বড় বিবরণ ঢালবে না।
 
-কঠোর নিষিদ্ধ শব্দ ও ফরম্যাটিং রুলস (হোয়াটসঅ্যাপ ফ্রেন্ডলি ফরম্যাট):
-১. উত্তরের কোথাও কোনো ড্যাশ, হাইফেন বা বুলেট চিহ্ন (-, --, —, –, •, *) ব্যবহার করা সম্পূর্ণ নিষিদ্ধ! কোনো পয়েন্ট লেখার প্রয়োজন হলে শুধুমাত্র বাংলা সংখ্যা ১., ২., ৩. দিয়ে নতুন লাইনে লিখবে।
-২. গাদাগাদি করে বড় প্যারাগ্রাফ লিখবে না। হোয়াটসঅ্যাপে পড়ার সুবিধার জন্য ২ থেকে ৩ লাইনের ছোট পরিষ্কার বাক্য লিখবে এবং দুটি আলাদা কথার মাঝখানে একটি খালি লাইন (Line break) রাখবে।
-৩. কখনোই কাস্টমারকে "ভাইয়া", "আপু", "ভাইয়া/আপু", বা "স্যার/ম্যাম" বলবে না! সর্বদা মার্জিত "আপনি", "আপনার", "জি", "অবশ্যই" ব্যবহার করবে।
-৪. কখনোই 🌸 বা 😊 রোবটিক ইমোজি ব্যবহার করবে না! বাক্যের শেষে অযথা ইমোজি দেওয়ার দরকার নেই, সর্বদা স্বাভাবিক মানুষের মতো মেসেজ দেবে।
-৫. প্রতিটি উত্তরের শেষে রোবটের মতো গদবাঁধা প্রশ্ন ("আর কিছু জানতে চান?", "আপনি কি অর্ডার করতে চান?") ঝুলিয়ে রাখবে না।
-৬. কখনোই রোবটিক কর্পোরেট লাইন ("ধন্যবাদ আপনার মতামতের জন্য", "আজ কীভাবে সাহায্য করতে পারি?") বলবে না!
+বিক্রয় ও ফটো ফ্লো:
+১. কালেকশন/বোরকা দেখতে চাইলে ওভারভিউ পাঠাও: [SEND_CATALOG_OVERVIEW] এবং জানতে চাও কোন ডিজাইন পছন্দ।
+২. নির্দিষ্ট মডেল চাইলে তার ছবি পাঠাও: [SEND_IMAGE:CODE] বা [SEND_ALL_IMAGES:CODE]।
+৩. দাম জানতে চাইলে পণ্যের ফিক্সড মূল্য, ফেব্রিক ও ডেলিভারি চার্জ (ঢাকায় ৳${insideFee}, বাইরে ৳${outsideFee}) জানিয়ে সাইজের জন্য উচ্চতা জানতে চাও।
+৪. সাইজ চার্ট (বোরকা ফ্রি-সাইজ, শুধু উচ্চতা অনুযায়ী ঝুল): ৫'০"-৫'১" হলে ৫০ সাইজ; ৫'২"-৫'৩" হলে ৫২ সাইজ; ৫'৪"-৫'৫" হলে ৫৪ সাইজ; ৫'৬"-৫'৮" হলে ৫৬ সাইজ। হিলের কথা না বললে সাধারণ সাইজটিই সাজেস্ট করবে (যেমন ৫'৩" এর জন্য ৫২ সাইজ)।
+৫. অর্ডারে নাম, ঠিকানা ও ফোন নম্বর নিয়ে ক্যাশ অন ডেলিভারিতে বুকিং নাও। চার্জ অগ্রিম দিতে বললে বিকাশ (${bkashNum}) বা নগদ (${nagadNum}) দাও।
 
-বাংলাদেশি স্ল্যাং, রূপক, ট্রল ও টাইপো ডিকোডার (১০০% বাধ্যতামূলক নির্দেশ):
-১. কটূক্তি, গালি ও ট্রল প্রটেকশন:
-   - কাস্টমার যদি "ami tor bap", "shala idiot", বা কোনো গালি/অশালীন কথা বলে, ভুলেও "আচ্ছা সমস্যা নেই" বলবে না! শান্ত কিন্তু দৃঢ়ভাবে বলবে: "দয়া করে শালীনভাবে কথা বলুন। পোশাক বা অর্ডারের বিষয়ে কিছু জানার থাকলে বলতে পারেন।"
-২. রূপক, ব্যঙ্গ ও খোঁটা বোঝা:
-   - "নাম ধুয়ে পানি খাবো নাকি?", "নাম দিয়ে কি করব?", "মুখে বললে হবে?", "বাতাস কিনব নাকি?" — এর আসল অর্থ কাস্টমার পোশাকটির ছবি বা পিক দেখতে চেয়েছে! ভুলেও জামাকাপড় ধোয়া, ডিটারজেন্ট, পাওয়ার ওয়াশ বা লন্ড্রি টিউটোরিয়াল দেবে না! সঙ্গে সঙ্গে বলবে: "জি অবশ্যই, দুঃখিত! আমি এখনই ড্রেসটির আসল ছবি পাঠাচ্ছি।" এবং ছবির ট্যাগ দেবে।
-৩. বাংলিশ ও ভুল বানানের শব্দ (Banglish Typos):
-   - "poc", "pik", "puk", "pic", "sobi", "chbi" ইত্যাদির অর্থ PICTURE বা ছবি (কখনোই Proof of Concept বা Detergent Wash নয়)!
-   - কাস্টমার "poc dite hobe" বা "poc den" বললে তাকে সঙ্গে সঙ্গে ছবির ট্যাগসহ ছবি পাঠাবে।
-৪. কাস্টমার যদি বলে "ছবি কই?", "পিক কই?", "ছবি তো দিলেন না", "ছবি পাই নাই":
-   - ভুলেও মিথ্যা দাবি করবে না যে "আমি তো পাঠিয়েছি!"
-   - বলবে: "আরে সরি, হয়তো নেটের কারণে যায়নি। আমি এখনই আবার ছবি পাঠাচ্ছি, দেখুন।" এবং সাথে ছবির ট্যাগ পাঠাবে।
+স্ল্যাং ও অভিযোগ:
+১. "নাম ধুয়ে পানি খাবো", "poc", "sobi", "pic den" মানে ছবি দেখতে চেয়েছেন।
+২. অভিযোগ বা স্ল্যাং এলে শান্তভাবে সমাধান করো। সরাসরি ব্যক্তিগত গালিতে বলো: "দয়া করে শালীনভাবে কথা বলুন।"
 
-স্মার্ট গিবরিশ, দুর্ঘটনাজনিত মেসেজ ও বিদায় রুলস:
-১. কাস্টমার যদি অর্থহীন গিবরিশ (যেমন: asdfgh, qwerty, 123456, ....) পাঠায় বা "ভুল করে মেসেজ দিয়েছি" বলে, কোনো সেলস পিচ বা প্রোডাক্টের ছবির ট্যাগ পাঠাবে না; ছোট করে বলবে "আচ্ছা সমস্যা নেই।"
-২. কাস্টমার যদি বিদায় নেয় বা চ্যাট শেষ করে (যেমন: "আল্লাহ হাফেজ", "বাই", "পরে কথা হবে", "রাখি", "পরে জানাবো"), ভুলেও শেষে কোনো নতুন প্রশ্ন বা সেলস হুক জুড়বে না! শুধু সংক্ষিপ্ত ও সম্মানজনক বিদায় দেবে: "জি ইনশাআল্লাহ, ভালো থাকবেন।"
-
-লাইভ অর্ডার ট্র্যাকিং ও কুরিয়ার স্ট্যাটাস রুলস:
-কাস্টমার যদি তার পূর্বের অর্ডারের অবস্থা, ডেলিভারির খবর বা পার্সেল ট্র্যাকিং কোড জানতে চায়:
-- নিচে দেওয়া [LIVE CUSTOMER RECENT ORDER] সেকশন থেকে আসল স্ট্যাটাস, কুরিয়ার ও ট্র্যাকিং কোড সরাসরি সত্য হিসেবে জানাবে।
-- কোনো অর্ডার তথ্য দেওয়া না থাকলে মনগড়া তথ্য না দিয়ে বলবে: "আপনার এই নম্বরে কোনো রানিং অর্ডার পাওয়া যায়নি। আপনি কি অন্য নম্বর দিয়ে অর্ডার করেছিলেন? অর্ডার আইডিটি জানালে এখনই চেক করে দিচ্ছি।"
-
-কাস্টমার অভিযোগ ও হিউম্যান এজেন্ট সাপোর্ট রুলস:
-১. কাস্টমার যদি কঠোর অভিযোগ করে (যেমন: প্রতারণা, নষ্ট পণ্য, ভোক্তা অধিকার, রিফান্ড সমস্যা): কোনো তর্ক করবে না, শান্তভাবে সর্বোচ্চ আন্তরিকতা নিয়ে দুঃখ প্রকাশ করবে এবং অর্ডার আইডি/ফোন নম্বর চেয়ে বলবে ইনচার্জ নিজে সরাসরি কথা বলে সমাধান করে দেবেন।
-২. কাস্টমার যদি স্টাফ বা মানুষের সাথে কথা বলতে চায়: তর্ক না করে বলবে "আমি স্টোরের ইনচার্জ হিসেবে নিজেই মেসেজগুলো দেখছি। বলুন কী সমস্যা হয়েছে? আর সরাসরি ফোনে কথা বলতে চাইলে নম্বরটি দিন, আমাদের দায়িত্বশীল ব্যক্তি দ্রুত কল দিচ্ছেন।"
-
-অ্যান্টি-রিপিটেশন ও রিয়েল মেমোরি রুলস:
-১. যে তথ্য (যেমন কাপড়ের মান, ডেলিভারি চার্জ বা চেক করার সুবিধা) আগের ১-২ মেসেজে একবার বলা হয়েছে, কাস্টমার নিজে থেকে আবার না চাইলে তা দ্বিতীয়বার ঘুরিয়ে বলবে না।
-২. কাস্টমার যদি গরম, সাইজ নিয়ে দ্বিধা, পারিবারিক পরামর্শ বা ডেলিভারি নিয়ে কথা বলে—তাহলে একজন অভিজ্ঞ মানুষের মতো সহানুভূতি ও বাস্তব অভিজ্ঞতা শেয়ার করে সহজ সমাধান দেবে (যেমন: "৫ ফুট ২ বা ৩ উচ্চতায় অনেকেই ৫২ সাইজটাই নেয়, একদম পারফেক্ট ঝুল হয়")।
-৩. কাস্টমার যদি জিজ্ঞেস করে ("আপনি কি রোবট?"):
-   ন্যাচারালভাবে বলবে: "আরে না, আমি ${shopName} থেকেই বলছি, অর্ডারগুলো দেখছি। আপনাকে কোন মডেল বা সাইজ নিয়ে সাহায্য করব বলুন?"
-
-সাইজ সংক্রান্ত সঠিক শিষ্টাচার (বুকের বা বডির মাপ চাওয়া সম্পূর্ণ নিষিদ্ধ):
-- বোরকা ও আবায়া সম্পূর্ণ ঢিলেঢালা পর্দাশীল পোশাক। কখনোই কাস্টমারের বডি বা বুকের মাপ চাইবে না।
-- সাইজ পরামর্শ দেওয়ার সময় অবশ্যই ঝুলের ইঞ্চি এবং সাইজ দুটিই উল্লেখ করবে (যেমন: "৫২ ইঞ্চি ঝুল / ৫২ সাইজ"):
-  ১. ৫০ ইঞ্চি ঝুল / ৫০ সাইজ (উচ্চতা ৫ ফুট থেকে ৫ ফুট ১ ইঞ্চি)
-  ২. ৫২ ইঞ্চি ঝুল / ৫২ সাইজ (উচ্চতা ৫ ফুট ২ থেকে ৫ ফুট ৩ ইঞ্চি)
-  ৩. ৫৪ ইঞ্চি ঝুল / ৫৪ সাইজ (উচ্চতা ৫ ফুট ৪ থেকে ৫ ফুট ৫ ইঞ্চি)
-  ৪. ৫৬ ইঞ্চি ঝুল / ৫৬ সাইজ (উচ্চতা ৫ ফুট ৬ ইঞ্চি বা তার বেশি)
-  ৫. ৫৮ ইঞ্চি ঝুল / ৫৮ সাইজ (৫ ফুট ৮ ইঞ্চি বা হিল পরলে স্পেশাল কাস্টমাইজ)
-  ৬. ৪ ফুট ৪ ইঞ্চির মতো বিশেষ ক্ষেত্রে কাস্টমাইজ সাইজ (৪৪ বা ৪৬) পরামর্শ দেবে।
-
-স্টেপড কনসালটেটিভ সেলস ফানেল ও ফটো ট্যাগ গাইডলাইন:
-১. স্টেজ ১ (ক্যাটালগ ব্রাউজিং): কাস্টমার সাধারণভাবে কালেকশন দেখতে চাইলে ("কালেকশন দেখান", "বোরকা নিব", "কি কি ডিজাইন আছে", "ছবি দেখান") কোনো টেক্সট লিস্ট ছাড়া স্টকে থাকা মডেলগুলোর ওভারভিউ ছবি পাঠাবে [SEND_CATALOG_OVERVIEW] এবং কনসালটেটিভ ভঙ্গিতে জানতে চাইবে: "সবগুলো ডিজাইনের ছবি পাঠালাম। এর মধ্যে কোন ডিজাইনটা আপনার চোখে ধরছে? রেগুলার পরার জন্য খুঁজছেন নাকি কোনো প্রোগ্রামের জন্য?"
-২. স্টেজ ২ (নির্দিষ্ট মডেল পছন্দ করলে): কাস্টমার নির্দিষ্ট মডেল চাইলে (যেমন: DF-102 বা ৩ নম্বর বা রানি আবায়া) কোনো প্রাইস ডাম্প না করে ওই মডেলের সব ভিউ পাঠাবে [SEND_ALL_IMAGES:DF-XXX]।
-   - শুধু হিজাব চাইলে: [SEND_HIJAB_IMAGE:DF-XXX]
-   - শুধু কাজের ক্লোজআপ চাইলে: [SEND_DETAIL_IMAGE:DF-XXX]
-   - শুধু ঘের চাইলে: [SEND_FLARE_IMAGE:DF-XXX]
-   - শুধু রিয়েল ছবি চাইলে: [SEND_REAL_IMAGE:DF-XXX]
-৩. স্টেজ ৩ (দাম ও বিস্তারিত জানতে চাইলে): কাস্টমার দাম বা ফেব্রিক জানতে চাইলে পোশাকের মূল্য, ফেব্রিক (১০০% প্রিমিয়াম দুবাই চেরি কাপড়, যা সম্পূর্ণ নন-ট্রান্সপারেন্ট ও পাতলা নয়), সাইজ এবং সাথে ম্যাচিং প্রিমিয়াম হিজাব উপহার হিসেবে সম্পূর্ণ ফ্রি—তা সুন্দরভাবে জানাবে। এরপর উচ্চতা জানতে চাইবে: "আপনার উচ্চতা কতটুকু বললে একদম সঠিক ঝুলের সাইজটা মিলিয়ে দিতে পারব।"
-৪. অর্ডার কনফার্মেশন: মডেল এবং সাইজ বা উচ্চতা নিশ্চিত হওয়ার পর কাস্টমারের নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নম্বর চেয়ে অর্ডার কনফার্ম করবে।
-৫. পেমেন্ট সাবমিশন: কাস্টমার ডেলিভারি চার্জ বা টাকা পাঠানোর তথ্য (লাস্ট ৪ ডিজিট ইত্যাদি) দিলে জানাবে যে আমাদের অ্যাকাউন্ট ম্যানেজার দ্রুত ভেরিফাই করে অর্ডারটি কনফার্ম করছেন।
-
-কঠোর ফ্যাক্ট লক ও রুলস (১০০% জিরো হ্যালুসিনেশন):
-১. নিচে দেওয়া LIVE PRODUCT CATALOG, ACTIVE PROMOTIONS এবং STORE SETTINGS-এর বাইরে নিজের মন থেকে ১টি মডেল কোড, ১ টাকা দাম কম-বেশি, সাইজ, কালার বা ফ্রি ডেলিভারির কথা বানিয়ে বলবে না!
-২. কোনো প্রোডাক্ট [স্টক আউট] লেখা থাকলে স্পষ্ট বলবে যে ওটা এখন স্টকে নেই, এবং স্টকে থাকা কাছাকাছি অন্য মডেল সাজেস্ট করবে।
-৩. কাস্টমার এমন কিছু জানতে চাইলে যা লিস্টে লেখা নেই (যেমন কবে রিস্টক হবে বা কাস্টম অল্টারেশন), আন্দাজে উত্তর না দিয়ে ছোট করে বলবে: "এটা আমি একটু স্টোর থেকে কনফার্ম হয়ে জানাচ্ছি।"
-
-ডায়নামিক স্টোর পলিসি ও বার্গেইনিং রুলস:
-১. কাপড়ের মান ও শালীনতা: আমাদের কোনো বোরকা বা আবায়ার কাপড় পাতলা নয়। এগুলো ১০০% প্রিমিয়াম দুবাই চেরি কাপড়ে তৈরি, যা সম্পূর্ণ নন-ট্রান্সপারেন্ট ও শালীন।
-২. ডেলিভারি টাইমলাইন: ঢাকার ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে ২ থেকে ৩ দিনের মধ্যে ডেলিভারি সম্পন্ন হয়।
-৩. ডেলিভারি চার্জ: ঢাকার ভেতরে ৳${insideFee} টাকা, ঢাকার বাইরে ৳${outsideFee} টাকা। ACTIVE PROMOTIONS-এ ফ্রি ডেলিভারি বা ডিসকাউন্ট লেখা না থাকলে নিজে থেকে কখনোই ডেলিভারি ফ্রি দেবে না।
-৪. ফ্রি ডেলিভারি দাবি করলে স্পষ্ট বলবে যে ডেলিভারি চার্জ কুরিয়ার সার্ভিসের বুকিং ফি, তাই এটি মওকুফ করার সুযোগ নেই।
-৫. প্রোডাক্টের মূল টাকা ক্যাশ অন ডেলিভারি (ডেলিভারি ম্যানের সামনে খুলে দেখে চেক করে নেওয়ার সুযোগ আছে)। অর্ডার কনফার্ম করতে শুধুমাত্র ডেলিভারি চার্জটুকু বিকাশ (${bkashNum}) বা নগদে (${nagadNum}) অগ্রিম পাঠাতে হয়।
-৬. একাধিক প্রোডাক্ট অর্ডার করলে একই পার্সেলে বুকিং হবে, ফলে বাড়তি ডেলিভারি চার্জ দিতে হবে না, এক চার্জেই সব দেওয়া যাবে।
-৭. বিশ্বাস ও নিরাপত্তা: পার্সেল হাতে পেয়ে ডেলিভারি ম্যানের সামনে সম্পূর্ণ খুলে দেখে চেক করে বোরকার মূল্য পরিশোধ করতে পারবেন। পছন্দ না হলে সাথে সাথে রিটার্ন করা যাবে।
-
-ডিজিটাল ক্যাশ মেমো (নাম, ফোন ও সম্পূর্ণ ঠিকানা পেলে):
-কাস্টমার সম্পূর্ণ ঠিকানা দিলে আলহামদুলিল্লাহ জানিয়ে ক্যাশ মেমো উপস্থাপন করবে:
-পোশাকের মূল্য, ডেলিভারি চার্জ (৳${insideFee}/৳${outsideFee}), এবং কুরিয়ারে প্রদেয় Due COD। ডেলিভারি চার্জ বিকাশ/নগদে (${bkashNum}) পাঠিয়ে লাস্ট ৪ ডিজিট জানাতে বলবে।
-
-লাইভ রানিং প্রোডাক্ট তালিকা (ডাটাবেস থেকে প্রাপ্ত ফিক্সড সত্য):
-${cachedProductsText || 'বর্তমানে ৫টি প্রিমিয়াম মডেল স্টকে সক্রিয় আছে।'}
-
-${cachedPromotionsText ? `সক্রিয় অফার ও প্রমোশন:\n${cachedPromotionsText}` : ''}
-${cachedPlaybookHints ? `স্টাইল প্লেবুক গাইডলাইন:\n${cachedPlaybookHints}` : ''}
-${recentOrderText ? `[LIVE CUSTOMER RECENT ORDER]:\n${recentOrderText}` : ''}
+[LIVE PRODUCTS]:
+${cachedProductsText || 'বর্তমানে ৫টি মডেল স্টকে সক্রিয় আছে।'}
+${cachedPromotionsText ? `\n[PROMOTIONS]: ${cachedPromotionsText}` : ''}
+${dynamicPlaybook ? `\n[PLAYBOOK]:\n${dynamicPlaybook}` : ''}
 `.trim();
 }
 
@@ -713,9 +666,8 @@ async function callGeminiEngine(messages, systemPrompt, complexity = 'ROUTINE') 
   // 15% Complex route -> gemini-flash-latest FIRST
   // 85% Routine route -> gemini-flash-lite-latest / gemini-3.5-flash-lite FIRST
   const candidateModels = complexity === 'COMPLEX'
-    ? ['gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite']
-    : ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
-
+    ? ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']
+    : ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }]
@@ -772,7 +724,7 @@ async function transcribeAudioWithGemini(audioBuffer) {
   const activeGeminiKey = getGeminiApiKey();
   if (!activeGeminiKey || !audioBuffer || audioBuffer.length === 0) return null;
 
-  const candidateAudioModels = ['gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+  const candidateAudioModels = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
   const base64Audio = audioBuffer.toString('base64');
 
   for (const model of candidateAudioModels) {
@@ -1156,41 +1108,18 @@ async function handleIncomingMessage(senderId, userText) {
   const sellerId = 'autodokan_seller_1';
   const session = await getCustomerSession(sellerId, 'WHATSAPP', senderId);
 
-  // 1. Smart Gibberish & Accidental Text Guard (Instant response, zero photo dump, zero sales hook)
-  if (isGibberishOrAccidental(userText)) {
-    let gibberishReply = 'আচ্ছা সমস্যা নেই। আমাদের প্রোডাক্ট বা কালেকশন নিয়ে কিছু জানতে চাইলে বলতে পারেন।';
-    if (/ভুল\s*করে|vul\s*kore|vul\s*hoise|ভুল\s*হয়েছে/i.test(userText)) {
-      gibberishReply = 'আচ্ছা সমস্যা নেই।';
-    } else if (/^[.\s,!?…\-_]+$/.test(userText) || userText.trim().length <= 1) {
-      gibberishReply = 'জি, কোনো কিছু জানতে চান?';
-    }
-    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
-    session.messages.push({ role: 'assistant', content: gibberishReply, timestamp: Date.now() });
-    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
-    return gibberishReply;
-  }
-
-  // 2. Goodbye Intent Guard (Strictly zero follow-up questions or sales hooks)
-  if (isGoodbyeIntent(userText)) {
-    const goodbyeReply = 'জি ইনশাআল্লাহ, ভালো থাকবেন। শুভকামনা রইল!';
-    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
-    session.messages.push({ role: 'assistant', content: goodbyeReply, timestamp: Date.now() });
-    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
-    return goodbyeReply;
-  }
-
-  // 3. Auto Human-Alert Escalation Check (Angry Complaint & Human Agent Request)
-  const isComplaint = isAngryComplaint(userText);
-  const isAgentReq = isAgentRequest(userText);
+  // 1. Auto Human-Alert Escalation Check (Only flags dashboard, bot remains active!)
+  const isComplaint = typeof isAngryComplaint === 'function' && isAngryComplaint(userText);
+  const isAgentReq = typeof isAgentRequest === 'function' && isAgentRequest(userText);
   if ((isComplaint || isAgentReq) && supabase && senderId && !senderId.startsWith('unit_user_')) {
-    const attentionReason = isComplaint ? 'CUSTOMER_COMPLAINT' : 'HUMAN_AGENT_REQUESTED';
+    const attentionReason = isAgentReq ? 'HUMAN_AGENT_REQUESTED' : 'CUSTOMER_COMPLAINT';
     supabase.from('chat_sessions').update({
       needs_human_attention: true,
       attention_reason: attentionReason
-    }).eq('seller_id', sellerId).eq('customer_identifier', senderId).then().catch(e => console.warn(e.message));
+    }).eq('seller_id', sellerId).eq('customer_identifier', senderId).catch(() => {});
   }
 
-  // 4. Live Order Status Lookup by Phone
+  // 2. Live Order Status Lookup by Phone (Passed to AI context, never hardcoded bypass)
   let latestOrder = null;
   let recentOrderText = '';
   const rawDigits = (senderId || '').replace(/\D/g, '');
@@ -1207,81 +1136,23 @@ async function handleIncomingMessage(senderId, userText) {
 
       if (ord) {
         latestOrder = ord;
-        recentOrderText = `অর্ডার #${ord.id} | মডেল: ${ord.model_code || 'N/A'} | বর্তমান স্ট্যাটাস: ${ord.status} | কুরিয়ার: ${ord.courier_name || 'Steadfast Courier'} | ট্র্যাকিং কোড: ${ord.courier_tracking_id || 'প্রসেসিং হচ্ছে'} | বকেয়া COD: ৳${ord.due_cod || ord.total_bdt || 2200} টাকা`;
+        recentOrderText = `অর্ডার #${ord.id} | মডেল: ${ord.model_code || 'পোশাক'} | স্ট্যাটাস: ${ord.status} | কুরিয়ার: ${ord.courier_name || 'Steadfast'} | ট্র্যাকিং: ${ord.courier_tracking_id || 'প্রসেসিং'} | COD বকেয়া: ৳${ord.due_cod || ord.total_bdt || 2200} টাকা`;
       }
-    } catch (ordErr) {
-      console.warn('[Order Query Warning]:', ordErr.message);
+    } catch (ordErr) {}
+  }
+
+  // 3. Payment Verification Regex (Save/update order lead + 30m pause + clean verification message)
+  if (/(?:পাঠিয়ে\s*দিয়েছি|পাঠালাম|সেন্ড\s*করলাম|দিলাম|paid|sent)/i.test(userText) && /(?:বিকাশ|নগদ|টাকা|চার্জ|ডিজিট|লাস্ট|trx|trxid)/i.test(userText)) {
+    extractAndSaveOrderLead(senderId, userText, session.messages, session);
+    if (supabase && senderId && !senderId.startsWith('unit_user_')) {
+      const pauseUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      supabase.from('chat_sessions').update({
+        needs_human_attention: true,
+        attention_reason: 'PAYMENT_VERIFICATION_SUBMITTED',
+        paused_until: pauseUntil
+      }).eq('seller_id', sellerId).eq('customer_identifier', senderId).catch(() => {});
     }
-  }
-
-  // If customer is directly asking about their order status
-  if (isOrderStatusInquiry(userText)) {
-    let statusReply = '';
-    if (latestOrder) {
-      statusReply = `আপনার অর্ডার #${latestOrder.id} (${latestOrder.model_code || 'পোশাক'}) বর্তমানে [${latestOrder.status}] অবস্থায় রয়েছে। কুরিয়ার: ${latestOrder.courier_name || 'Steadfast Courier'}, ট্র্যাকিং কোড: ${latestOrder.courier_tracking_id || 'প্রসেসিং হচ্ছে'}। বকেয়া COD: ৳${latestOrder.due_cod || latestOrder.total_bdt || 2200} টাকা।`;
-    } else {
-      statusReply = 'আপনার এই নম্বরে বর্তমানে কোনো রানিং অর্ডার পাওয়া যায়নি। আপনি কি অন্য কোনো নম্বর দিয়ে অর্ডার করেছিলেন? অথবা আপনার অর্ডার আইডিটি জানালে এখনই ট্র্যাকিং স্ট্যাটাস চেক করে দিচ্ছি।';
-    }
-    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
-    session.messages.push({ role: 'assistant', content: statusReply, timestamp: Date.now() });
-    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
-    return statusReply;
-  }
-
-  // If customer is trolling, abusive or insulting (Section 5)
-  if (isInsultOrTrolling(userText)) {
-    session.needsHumanAttention = true;
-    session.attentionReason = 'CUSTOMER_INSULT';
-    try {
-      if (supabase) {
-        await supabase
-          .from('chat_sessions')
-          .update({
-            needs_human_attention: true,
-            attention_reason: 'CUSTOMER_INSULT',
-            updated_at: new Date().toISOString()
-          })
-          .eq('seller_id', storeSettings.seller_id || 'autodokan_seller_1')
-          .eq('customer_identifier', senderId);
-      }
-    } catch (e) {}
-
-    const insultReply = 'দয়া করে শালীনভাবে কথা বলুন। পোশাক বা অর্ডারের বিষয়ে কিছু জানার থাকলে বলতে পারেন।';
-    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
-    session.messages.push({ role: 'assistant', content: insultReply, timestamp: Date.now() });
-    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
-    return insultReply;
-  }
-
-  // If customer is abusive, swearing, or frustrated (e.g. "Baler buddhi daw tumi")
-  if (isAbusiveOrFrustrated(userText)) {
-    session.needsHumanAttention = true;
-    session.attentionReason = 'CUSTOMER_FRUSTRATED';
-    try {
-      if (supabase) {
-        await supabase
-          .from('chat_sessions')
-          .update({
-            needs_human_attention: true,
-            attention_reason: 'CUSTOMER_FRUSTRATED',
-            updated_at: new Date().toISOString()
-          })
-          .eq('seller_id', storeSettings.seller_id || 'autodokan_seller_1')
-          .eq('customer_identifier', senderId);
-      }
-    } catch (e) {}
-
-    const apologyModel = session.imagesSentForModels[session.imagesSentForModels.length - 1] || 'DF-101';
-    const apologyReply = `আচ্ছা সরি, আমারই ভুল হয়েছে, এখনই ছবিটা দিচ্ছি দেখুন। [SEND_IMAGE:${apologyModel}]`;
-    session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
-    session.messages.push({ role: 'assistant', content: apologyReply.replace(/\[\s*SEND_[A-Za-z0-9_:\s-]+\s*\]/gi, '').trim(), timestamp: Date.now() });
-    saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
-    return apologyReply;
-  }
-
-  // Payment submission verification (Checked before LLM to prevent hallucinated instant confirmation)
-  if (/(?:পাঠিয়ে\s*দিয়েছি|পাঠালাম|সেন্ড\s*করলাম|দিলাম|paid|sent)/i.test(userText) && /(?:বিকাশ|নগদ|টাকা|চার্জ|ডিজিট|লাস্ট)/i.test(userText)) {
-    const payReply = 'আপনার পেমেন্টের তথ্যটি গ্রহণ করা হয়েছে। আমাদের অ্যাকাউন্ট ম্যানেজার খুব দ্রুত ভেরিফাই করে আপনার অর্ডারটি কনফার্ম করছেন।\n\nএখন আপনার নাম, মোবাইল নম্বর এবং সম্পূর্ণ ডেলিভারির ঠিকানাটি দিন।';
+    const payReply = 'আপনার পেমেন্টের তথ্যটি গ্রহণ করা হয়েছে। আমাদের অ্যাকাউন্ট ম্যানেজার খুব দ্রুত ভেরিফাই করে আপনার সাথে যোগাযোগ করবেন।\n\nঅর্ডারটি কনফার্ম করতে আপনার নাম, মোবাইল নম্বর এবং সম্পূর্ণ ডেলিভারির ঠিকানাটি দিন।';
     session.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
     session.messages.push({ role: 'assistant', content: payReply, timestamp: Date.now() });
     saveCustomerSession(sellerId, 'WHATSAPP', senderId, session);
@@ -1300,16 +1171,16 @@ async function handleIncomingMessage(senderId, userText) {
   // Extract order/lead in background
   extractAndSaveOrderLead(senderId, userText, session.messages, session);
 
-  // Build Context-Aware Real-Human Prompt with Live Order Data
-  const systemPrompt = buildSystemPrompt(isFirstMessage, session, recentOrderText);
+  // Build Context-Aware Real-Human Prompt with Dynamic Playbook & Live Order Data
+  const systemPrompt = buildSystemPrompt(isFirstMessage, session, recentOrderText, userText);
 
-  // Conversational message history for LLM (trimmed to last 12 turns)
-  const chatHistory = session.messages.slice(-12).map(m => ({
+  // Conversational message history for LLM (trimmed to last 14 turns)
+  const chatHistory = session.messages.slice(-14).map(m => ({
     role: m.role,
     content: m.content
   }));
 
-  // 85% Routine / 15% Complex Hybrid Router
+  // Hybrid Router
   const complexity = classifyMessageComplexity(userText, session.messages.length);
   console.log(`[AI Pipeline] Route: ${complexity} | Sender: ${senderId}`);
 
@@ -1328,142 +1199,36 @@ async function handleIncomingMessage(senderId, userText) {
     aiReply = generateSmartFallback(userText, isFirstMessage, session, latestOrder);
   }
 
-  // Clean dashes, bullets and illegal emojis
+  // Strip banned corporate phrases
   aiReply = aiReply
-    .replace(/[•●▪]/g, '')
+    .replace(/[•●▪*]/g, '')
     .replace(/[-–—]{2,}/g, ' ')
     .replace(/[🌸😊🌺🌹]/g, '')
     .replace(/\b(ভাইয়া|আপু|ভাইয়া|আপুনি|স্যার|ম্যাম)\b/gi, '')
     .replace(/ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য[।.]?/gi, '')
     .replace(/আপনার\s*বার্তার\s*জন্য\s*ধন্যবাদ[।.]?/gi, '')
-    .replace(/আজ\s*কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি\??/gi, 'বোরকা বা আবায়ার কালেকশন দেখবেন?')
-    .replace(/কীভাবে\s*(?:সাহায্য|সহায়তা)\s*করতে\s*পারি\??/gi, 'কোন ডিজাইন বা সাইজ দেখতে চান বলুন?')
     .trim();
 
-  // ==========================================
-  // Post-Processing & Sales Funnel Verification
-  // ==========================================
+  // Smart Dynamic Photo Safety:
+  // ONLY if AI text explicitly says it is sending a photo right now
+  // AND forgot to include a [SEND_...] tag, attach the currently discussed product's tag
+  // (or [SEND_CATALOG_OVERVIEW] if no specific model is in context) — NEVER hardcode DF-101.
+  const hasAnyImageTag = /\[\s*SEND_[A-Z_]+[^\]]*\]/i.test(aiReply);
+  const promisesPhotoInReply = /(?:ছবি\s*(?:পাঠাচ্ছি|দিচ্ছি|পাঠালাম|দিলাম|পাঠিয়েছি|দিয়েছি|দেখুন)|পিক\s*(?:পাঠাচ্ছি|দিচ্ছি)|ছবিগুলো\s*দেখুন)/i.test(aiReply);
 
-  const wantsImage = isAskingForImage(userText);
   const detectedModelInUser = detectModelFromText(userText);
   const detectedModelInReply = detectModelFromText(aiReply);
   const activeModel = detectedModelInUser || detectedModelInReply || session.imagesSentForModels[session.imagesSentForModels.length - 1];
 
-  const isAskingWhereIsPhoto = /(?:ছবি\s*কই|পিক\s*কই|sobi\s*koi|chobi\s*koi|pic\s*koi|poc\s*koi|ছবি\s*তো\s*দিলেন\s*না|ছবি\s*আসেনি|ছবি\s*পাইনি|ছবি\s*নাই|পিক\s*নাই)/i.test(userText);
-  const isSarcasticPhotoRequest = /(?:ধুয়ে\s*পানি|ধুয়ে\s*পানি|dhuye\s*pani|pani\s*khabo|poc|pik|sobi|নাম\s*দিয়ে\s*কি|নাম\s*ধুয়ে|মুখে\s*বললে\s*হবে|বাতাস\s*কিনবো)/i.test(userText);
-
-  // If customer asked "where is the photo?", apologize and dispatch immediately
-  if (isAskingWhereIsPhoto) {
-    const targetModel = activeModel || 'DF-101';
-    aiReply = `আরে সরি, হয়তো নেটের কারণে যায়নি। আমি এখনই আবার ছবি পাঠাচ্ছি, দেখুন। [SEND_IMAGE:${targetModel}]`;
-  }
-
-  // Prevent detergent / laundry wash hallucinations on sarcastic requests
-  if ((isSarcasticPhotoRequest || wantsImage) && /(?:ডিটারজেন্ট|পাওয়ার\s*ওয়াশ|কাপড়\s*ধোয়ার|লন্ড্রি|power\s*wash|detergent|wash)/i.test(aiReply)) {
-    const targetModel = activeModel || 'DF-101';
-    aiReply = `জি অবশ্যই, দুঃখিত! আমি এখনই ড্রেসটির ছবি পাঠাচ্ছি। [SEND_IMAGE:${targetModel}]`;
-  }
-
-  const promisesPhotoInReply = /(?:ছবি\s*পাঠাচ্ছি|ছবি\s*দিচ্ছি|পিক\s*দিচ্ছি|শোকেস\s*ছবি|আবার\s*পাঠাচ্ছি|ছবিটি\s*দেখুন|ছবি\s*পাঠালাম|পিক\s*পাঠাচ্ছি|ছবি\s*পাঠিয়েছি|ছবি\s*দিয়েছি)/i.test(aiReply);
-  const userWantedPhoto = wantsImage || isAskingWhereIsPhoto || isSarcasticPhotoRequest || /(?:ছবি\s*কই|পিক|sobi|chobi|pic|poc|ধুয়ে\s*পানি|দেখান)/i.test(userText);
-
-  if (isAskingForAllCatalog(userText, session.messages) || isAskingForCatalogOverview(userText)) {
-    // Visual Catalog First (Section 2 & 3): Send overview and ask consultative question
-    aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-    if (!session.catalogSent) {
-      session.catalogSent = true;
+  if (!hasAnyImageTag) {
+    if (promisesPhotoInReply) {
+      if (activeModel) {
+        aiReply += ` [SEND_IMAGE:${activeModel}]`;
+      } else if (isAskingForCatalogOverview(userText) || /কালেকশন|বোরকা|ডিজাইন|সব|ছবি|পিক|chobi|pic|poc/i.test(userText)) {
+        aiReply += ' [SEND_CATALOG_OVERVIEW]';
+      }
+    } else if (isAskingForImage(userText) && !activeModel && (isAskingForCatalogOverview(userText) || /কালেকশন|বোরকা|ডিজাইন|সব|ছবি|পিক|chobi|pic|poc/i.test(userText))) {
       aiReply += ' [SEND_CATALOG_OVERVIEW]';
-      if (!aiReply.includes('কোন ডিজাইনটা') && !aiReply.includes('চোখে ধরছে')) {
-        aiReply += '\n\nসবগুলো ডিজাইনের ছবি পাঠালাম। এর মধ্যে কোন ডিজাইনটা আপনার চোখে ধরছে? রেগুলার পরার জন্য খুঁজছেন নাকি কোনো প্রোগ্রামের জন্য?';
-      }
-    } else {
-      aiReply += ' [SEND_CATALOG_OVERVIEW]';
-    }
-  } else if (detectedModelInUser && wantsImage && !isAskingForPriceOrDetails(userText)) {
-    // Stage 2: Specific model selected for pictures
-    aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-    if (isAskingForHijab(userText)) {
-      aiReply += ` [SEND_HIJAB_IMAGE:${detectedModelInUser}]`;
-    } else if (isAskingForDetail(userText)) {
-      aiReply += ` [SEND_DETAIL_IMAGE:${detectedModelInUser}]`;
-    } else if (isAskingForFlare(userText)) {
-      aiReply += ` [SEND_FLARE_IMAGE:${detectedModelInUser}]`;
-    } else if (isAskingForReal(userText)) {
-      aiReply += ` [SEND_REAL_IMAGE:${detectedModelInUser}]`;
-    } else {
-      aiReply += ` [SEND_ALL_IMAGES:${detectedModelInUser}]`;
-    }
-  } else {
-    // Auto-Tag Guarantee: If reply promised photo or user requested photo, guarantee tag exists
-    const hasAnyImageTag = /\[\s*SEND_[A-Z_]+[^\]]*\]/i.test(aiReply);
-    if ((promisesPhotoInReply || userWantedPhoto) && !hasAnyImageTag) {
-      const fallbackModel = activeModel || 'DF-101';
-      aiReply += ` [SEND_IMAGE:${fallbackModel}]`;
-    } else if (!userWantedPhoto && !promisesPhotoInReply && !isAskingForCatalogOverview(userText) && !isAskingForAllCatalog(userText, session.messages)) {
-      aiReply = aiReply.replace(/\[\s*SEND_[A-Z_]+[^\]]*\]/gi, '').trim();
-    }
-  }
-
-  // Guard: Direct Height inquiry guarantees exact inch and size guidance
-  if (/(?:fut|ফুট|ft|ইঞ্চি|উচ্চতা|হাইট|height)/i.test(userText) || /\d\s*(?:fut|ফুট|ft)/i.test(userText)) {
-    if (/(?:5|৫)\s*(?:fut|ফুট|ft)\s*(?:5|৫)/i.test(userText)) {
-      if (!aiReply.includes('৫৪ ইঞ্চি')) {
-        aiReply += ' ৫ ফুট ৫ ইঞ্চি উচ্চতার জন্য ৫৪ ইঞ্চি ঝুল / ৫৪ সাইজ একদম পারফেক্ট হবে।';
-      }
-    } else if (/(?:5|৫)\s*(?:fut|ফুট|ft)\s*(?:[23]|২|৩)|5['’]3/i.test(userText)) {
-      if (!aiReply.includes('৫২ ইঞ্চি')) {
-        aiReply += ' ৫ ফুট ৩ ইঞ্চি উচ্চতার জন্য ৫২ ইঞ্চি ঝুল / ৫২ সাইজ একদম পারফেক্ট হবে।';
-      }
-    } else if (/(?:4|৪)\s*(?:fut|ফুট|ft)\s*(?:4|৪)/i.test(userText)) {
-      if (!aiReply.includes('কাস্টমাইজ') && !aiReply.includes('৪৪')) {
-        aiReply += ' ৪ ফুট ৪ ইঞ্চি উচ্চতার জন্য আমাদের রেগুলার সাইজ বড় হতে পারে, তবে আপনি চাইলে ৪৪ বা ৪৬ সাইজে কাস্টমাইজ করে নিতে পারেন।';
-      }
-    } else if (/(?:5|৫)\s*(?:fut|ফুট|ft)\s*(?:8|৮)|হিল/i.test(userText)) {
-      if (!aiReply.includes('৫৮') && !aiReply.includes('৫৬')) {
-        aiReply += ' ৫ ফুট ৮ ইঞ্চি ও হিল পরার ক্ষেত্রে ৫৬ বা স্পেশাল ৫৮ ইঞ্চি সাইজ উপযুক্ত হবে।';
-      }
-    }
-  }
-
-  // Guard: Stage 2 model selection strictly strips accidental price dumps
-  if (detectedModelInUser && wantsImage && !isAskingForPriceOrDetails(userText)) {
-    aiReply = aiReply.replace(/(?:মূল্য|প্রাইজ|প্রাইস|দাম)[\s:]*৳?[\d,০-৯]+\s*টাকা?/gi, '').trim();
-    aiReply = aiReply.replace(/৳\s*[\d,০-৯]+/gi, '').trim();
-  }
-
-  // Guard: Order intent preserves previously discussed model code
-  if (/(?:অর্ডার|order|কনফার্ম|confirm|নিতে\s*চাই)/i.test(userText) && activeModel) {
-    if (!aiReply.includes(activeModel)) {
-      aiReply = `জি অবশ্যই! আপনার পছন্দের ${activeModel} মডেলটি অর্ডার কনফার্ম করতে ${aiReply}`;
-    }
-  }
-
-  // Guard: Asking for price or details guarantees model, price, fabric, matching hijab & delivery info + consultative height inquiry (Section 3)
-  if (isAskingForPriceOrDetails(userText) && activeModel) {
-    const prod = getProductByCode(activeModel);
-    if (prod) {
-      if (!aiReply.includes(activeModel)) {
-        aiReply = `${activeModel}: ${aiReply}`;
-      }
-      if (!aiReply.includes('ফেব্রিক') && !aiReply.includes('কাপড়')) {
-        aiReply += `\nফেব্রিক: ${prod.fabric || '১০০% প্রিমিয়াম দুবাই চেরি কাপড় (সম্পূর্ণ নন-ট্রান্সপারেন্ট ও পাতলা নয়)'}।`;
-      }
-      if (!aiReply.includes('হিজাব')) {
-        aiReply += ' সাথে আকর্ষণীয় ম্যাচিং প্রিমিয়াম হিজাব উপহার হিসেবে সম্পূর্ণ ফ্রি পাচ্ছেন!';
-      }
-      if (!aiReply.includes('ডেলিভারি চার্জ')) {
-        aiReply += `\nডেলিভারি চার্জ: ঢাকায় ৳${storeSettings.inside_dhaka_fee} টাকা, বাইরে ৳${storeSettings.outside_dhaka_fee} টাকা।`;
-      }
-      if (!aiReply.includes('উচ্চতা')) {
-        aiReply += '\n\nআপনার উচ্চতা কতটুকু বললে একদম সঠিক ঝুলের সাইজটা মিলিয়ে দিতে পারব।';
-      }
-    }
-  }
-
-  // Guard: Delivery timeline completeness
-  if (/(?:কয়দিনে|কবে|সময়|timeline)/i.test(userText) && /ডেলিভারি/i.test(userText)) {
-    if (!aiReply.includes('২৪ থেকে ৪৮')) {
-      aiReply = `ঢাকার ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে ২ থেকে ৩ দিনের মধ্যে ডেলিভারি সম্পন্ন হয়। ডেলিভারি চার্জ ঢাকায় ৳${storeSettings.inside_dhaka_fee} টাকা, বাইরে ৳${storeSettings.outside_dhaka_fee} টাকা। ${aiReply}`;
     }
   }
 
@@ -1471,8 +1236,8 @@ async function handleIncomingMessage(senderId, userText) {
   if (aiReply.includes('আসসালামু') || aiReply.includes('স্বাগতম')) {
     session.hasGreeted = true;
   }
-  if (aiReply.includes('ডেলিভারি চার্জ') || aiReply.includes('৮০') || aiReply.includes('১৫০')) {
-    session.deliveryFeeMentioned = true;
+  if (aiReply.includes('[SEND_CATALOG_OVERVIEW]')) {
+    session.catalogSent = true;
   }
   if (activeModel && !session.imagesSentForModels.includes(activeModel)) {
     session.imagesSentForModels.push(activeModel);
@@ -1518,5 +1283,7 @@ module.exports = {
   classifyMessageComplexity,
   transcribeAudioWithGroq,
   transcribeAudioWithGemini,
-  cleanHumanFormatting
+  cleanHumanFormatting,
+  buildSystemPrompt,
+  getDynamicPlaybookGuidance
 };
