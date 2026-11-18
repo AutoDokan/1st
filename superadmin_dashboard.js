@@ -1,13 +1,13 @@
 /**
  * AutoDokan Engine OS — Super Admin Executive Control Center
- * A dedicated, world-class SaaS command panel for platform administrators.
+ * Antigravity Eye-Comfort Design Edition
  * Features:
+ *  - Soothing Soft Slate & Calm Neutral Canvas (Zero eye-strain, no blinding glare or harsh pitch-black clashing)
  *  - Real-time Multi-Tenant Management & WhatsApp Bot Fleet Monitor
  *  - 10-Second Dynamic Shop Creation & Category Archetype Onboarding
  *  - Master Product Matrix & Stock Toggle
  *  - Global Orders Pipeline
  *  - Live AI Conversation Inspector across all shops
- *  - Deep Slate / Neon Executive Aesthetic (Stripe/Shopify Plus style)
  */
 
 const crypto = require('crypto');
@@ -100,7 +100,7 @@ function createSuperAdminRouter({
     shopsTelemetry.forEach(s => shopNameMap.set(s.seller_id, s.shop_name));
     shopNameMap.set('autodokan_seller_1', 'Dawah Fashion');
 
-    // Generate Shops HTML Cards
+    // Generate Shops HTML Cards (Comfortable Soft Slate Style)
     const shopsCardsHtml = shopsTelemetry.map(s => {
       const portalUrl = `/portal?token=${s.invite_token}`;
       const connectUrl = `/connect?token=${s.invite_token}`;
@@ -117,27 +117,27 @@ function createSuperAdminRouter({
       const catLabel = catBadges[s.category] || '🛍️ ই-কমার্স';
 
       return `
-      <div class="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-5 shadow-lg space-y-4 transition">
+      <div class="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-5 shadow-xs space-y-4 transition">
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <h3 class="text-base font-black text-white">${s.shop_name}</h3>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">${catLabel}</span>
+              <h3 class="text-base font-bold text-slate-900">${s.shop_name}</h3>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200/70">${catLabel}</span>
             </div>
-            <p class="text-xs text-slate-400 mt-1">
-              ওনার: <span class="text-slate-200 font-semibold">${s.owner_name}</span> • 
-              আইডি: <span class="font-mono text-slate-400">${s.seller_id}</span>
+            <p class="text-xs text-slate-500 mt-1">
+              ওনার: <span class="text-slate-800 font-medium">${s.owner_name}</span> • 
+              আইডি: <span class="font-mono text-slate-500">${s.seller_id}</span>
             </p>
           </div>
           <div>
             ${s.is_online ? `
-              <span class="inline-flex items-center gap-1.5 bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-1 rounded-full font-bold">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs px-2.5 py-1 rounded-full font-bold">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                 <span>বট লাইভ (+${s.live_number})</span>
               </span>
             ` : `
-              <span class="inline-flex items-center gap-1.5 bg-rose-950/80 text-rose-400 border border-rose-500/30 text-xs px-2.5 py-1 rounded-full font-bold">
-                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 border border-slate-200 text-xs px-2.5 py-1 rounded-full font-bold">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
                 <span>সংযোগ বিচ্ছিন্ন</span>
               </span>
             `}
@@ -145,42 +145,42 @@ function createSuperAdminRouter({
         </div>
 
         <!-- Shop Telemetry Metrics -->
-        <div class="grid grid-cols-4 gap-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-center">
+        <div class="grid grid-cols-4 gap-2 bg-slate-50/90 p-3 rounded-xl border border-slate-100 text-center">
           <div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">প্রোডাক্টস</div>
-            <div class="text-sm font-black text-white mt-0.5">${s.products_count}টি</div>
-            <div class="text-[10px] text-emerald-400">${s.instock_count} স্টকে</div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">প্রোডাক্টস</div>
+            <div class="text-sm font-black text-slate-800 mt-0.5">${s.products_count}টি</div>
+            <div class="text-[10px] text-emerald-600 font-semibold">${s.instock_count} স্টকে</div>
           </div>
           <div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">মোট অর্ডার</div>
-            <div class="text-sm font-black text-white mt-0.5">${s.orders_count}টি</div>
-            <div class="text-[10px] text-amber-400">${s.pending_orders_count} পেন্ডিং</div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">মোট অর্ডার</div>
+            <div class="text-sm font-black text-slate-800 mt-0.5">${s.orders_count}টি</div>
+            <div class="text-[10px] text-amber-600 font-semibold">${s.pending_orders_count} পেন্ডিং</div>
           </div>
           <div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">মোট সেলস</div>
-            <div class="text-sm font-black text-amber-400 mt-0.5">${formatMoney(s.revenue)}</div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">মোট সেলস</div>
+            <div class="text-sm font-black text-slate-900 mt-0.5">${formatMoney(s.revenue)}</div>
             <div class="text-[10px] text-slate-400">COD ভলিউম</div>
           </div>
           <div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">AI বট এজেন্ট</div>
-            <div class="text-xs font-black text-cyan-400 mt-1">${s.persona_name}</div>
-            <div class="text-[10px] text-slate-400">২৪/৭ সচল</div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">AI বট এজেন্ট</div>
+            <div class="text-xs font-bold text-indigo-600 mt-1">${s.persona_name}</div>
+            <div class="text-[10px] text-slate-400">২৪/৭ সক্রিয়</div>
           </div>
         </div>
 
         <!-- Action Links -->
-        <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 flex-wrap">
+        <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 flex-wrap">
           <div class="flex items-center gap-2">
-            <a href="${portalUrl}" target="_blank" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 shadow-xs">
+            <a href="${portalUrl}" target="_blank" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 shadow-2xs">
               <span>মার্চেন্ট পোর্টাল</span><span>↗</span>
             </a>
-            <a href="${connectUrl}" target="_blank" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3 py-1.5 rounded-xl border border-slate-700 transition flex items-center gap-1">
+            <a href="${connectUrl}" target="_blank" class="bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs px-3 py-1.5 rounded-xl border border-slate-200 transition flex items-center gap-1 shadow-2xs">
               <span>WhatsApp QR</span><span>↗</span>
             </a>
           </div>
           <div class="flex items-center gap-2">
-            <a href="/dashboard?seller_id=${s.seller_id}&tab=products" class="bg-cyan-950/80 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-700/50 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
-              <span>ক্যাটালগ ইন্সপেক্ট</span><span>→</span>
+            <a href="/dashboard?seller_id=${s.seller_id}&tab=products" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+              <span>ক্যাটালগ দেখুন</span><span>→</span>
             </a>
           </div>
         </div>
@@ -195,33 +195,33 @@ function createSuperAdminRouter({
       const stockStatus = p.in_stock ? 'IN_STOCK' : 'STOCK_OUT';
 
       return `
-      <div class="prod-card bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xs space-y-3 hover:border-amber-500/50 transition" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}">
+      <div class="prod-card bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3 hover:border-slate-300 transition" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}">
         <div class="flex gap-3">
-          <img src="${p.image_url || 'https://placehold.co/120x150?text=' + encodeURIComponent(p.model_code || 'PROD')}" alt="${p.model_code}" class="w-20 h-24 object-cover rounded-xl bg-slate-800 border border-slate-700 shrink-0">
+          <img src="${p.image_url || 'https://placehold.co/120x150?text=' + encodeURIComponent(p.model_code || 'PROD')}" alt="${p.model_code}" class="w-20 h-24 object-cover rounded-xl bg-slate-100 border border-slate-200 shrink-0">
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between gap-1">
-              <span class="font-mono font-black text-xs text-amber-400 bg-amber-950/60 border border-amber-500/40 px-2 py-0.5 rounded-md">${p.model_code || 'PROD'}</span>
-              <button type="button" onclick="toggleStockLive(${p.id}, ${p.in_stock ? 'false' : 'true'})" class="text-[11px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition ${p.in_stock ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900' : 'bg-rose-950 text-rose-300 border border-rose-500/40 hover:bg-rose-900'}">
+              <span class="font-mono font-bold text-xs text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">${p.model_code || 'PROD'}</span>
+              <button type="button" onclick="toggleStockLive(${p.id}, ${p.in_stock ? 'false' : 'true'})" class="text-[11px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition ${p.in_stock ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'}">
                 ${p.in_stock ? '● ইন-স্টক' : '✕ স্টক আউট'}
               </button>
             </div>
             <div class="mt-1">
-              <span class="bg-slate-800 text-slate-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-700">🏪 ${shopName}</span>
+              <span class="bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-slate-200">🏬 ${shopName}</span>
             </div>
-            <h3 class="font-bold text-white text-sm mt-1 truncate" title="${p.name}">${p.name}</h3>
+            <h3 class="font-bold text-slate-800 text-sm mt-1 truncate" title="${p.name}">${p.name}</h3>
             <div class="flex items-center gap-2 mt-0.5">
-              <span class="font-black text-white text-base">৳${p.price}</span>
-              ${p.regular_price && p.regular_price > p.price ? `<span class="text-slate-500 line-through text-xs font-semibold">৳${p.regular_price}</span>` : ''}
+              <span class="font-black text-slate-900 text-base">৳${p.price}</span>
+              ${p.regular_price && p.regular_price > p.price ? `<span class="text-slate-400 line-through text-xs font-semibold">৳${p.regular_price}</span>` : ''}
             </div>
-            <p class="text-[11px] text-slate-400 mt-0.5 truncate">✨ ${p.fabric || 'ম্যাটেরিয়াল'} • 📏 ${p.sizes || 'সাইজ'}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5 truncate">✨ ${p.fabric || 'ম্যাটেরিয়াল'} • 📏 ${p.sizes || 'সাইজ'}</p>
           </div>
         </div>
 
-        <div class="flex items-center justify-between gap-1 pt-2 border-t border-slate-800 text-xs">
-          <button type="button" onclick="openEditProductModalById(${p.id})" class="text-slate-300 hover:text-white font-bold px-2.5 py-1 rounded-md hover:bg-slate-800 transition">
+        <div class="flex items-center justify-between gap-1 pt-2 border-t border-slate-100 text-xs">
+          <button type="button" onclick="openEditProductModalById(${p.id})" class="text-slate-600 hover:text-slate-900 font-semibold px-2.5 py-1 rounded-md hover:bg-slate-100 transition">
             ✏️ এডিট
           </button>
-          <button type="button" onclick="deleteProductLive(${p.id}, '${p.model_code}')" class="text-rose-400 hover:text-rose-300 font-bold px-2.5 py-1 rounded-md hover:bg-rose-950/40 transition">
+          <button type="button" onclick="deleteProductLive(${p.id}, '${p.model_code}')" class="text-rose-600 hover:text-rose-700 font-semibold px-2.5 py-1 rounded-md hover:bg-rose-50 transition">
             🗑️ মুছুন
           </button>
         </div>
@@ -239,35 +239,35 @@ function createSuperAdminRouter({
       const searchMeta = (o.id + ' ' + (o.model_code || '') + ' ' + (o.customer_name || '') + ' ' + (o.customer_phone || '') + ' ' + (o.address || '') + ' ' + shopName).toLowerCase();
 
       return `
-      <tr class="order-row border-b border-slate-800/80 hover:bg-slate-800/40 transition text-xs" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
+      <tr class="order-row border-b border-slate-100 hover:bg-slate-50/70 transition text-xs" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
         <td class="p-3">
-          <div class="font-mono font-black text-amber-400">#${o.id}</div>
+          <div class="font-mono font-bold text-indigo-600">#${o.id}</div>
           <div class="text-[10px] text-slate-400 mt-0.5">${o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) : ''}</div>
-          <div class="mt-1"><span class="bg-slate-800 text-slate-300 text-[9px] font-bold px-1.5 py-0.5 rounded border border-slate-700">🏪 ${shopName}</span></div>
+          <div class="mt-1"><span class="bg-slate-100 text-slate-600 text-[9px] font-semibold px-1.5 py-0.5 rounded border border-slate-200">🏬 ${shopName}</span></div>
         </td>
         <td class="p-3">
-          <div class="font-bold text-white text-xs">${o.customer_name || 'কাস্টমার'}</div>
-          <a href="https://wa.me/${waPhone}" target="_blank" class="text-emerald-400 hover:underline text-xs font-mono font-bold flex items-center gap-1 mt-0.5">
+          <div class="font-bold text-slate-800 text-xs">${o.customer_name || 'কাস্টমার'}</div>
+          <a href="https://wa.me/${waPhone}" target="_blank" class="text-emerald-700 hover:underline text-xs font-mono font-bold flex items-center gap-1 mt-0.5">
             <span>💬</span>
             <span>${o.customer_phone || ''}</span>
           </a>
         </td>
         <td class="p-3 max-w-[200px]">
-          <div class="text-xs text-slate-300 line-clamp-2" title="${o.address || ''}">${o.address || 'ঠিকানা দেওয়া হয়নি'}</div>
+          <div class="text-xs text-slate-600 line-clamp-2" title="${o.address || ''}">${o.address || 'ঠিকানা দেওয়া হয়নি'}</div>
         </td>
         <td class="p-3">
-          <span class="font-mono font-black text-white text-xs">[${o.model_code || 'PROD'}]</span>
-          <div class="text-[11px] text-slate-400 mt-0.5">সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'}</div>
+          <span class="font-mono font-bold text-slate-800 text-xs">[${o.model_code || 'PROD'}]</span>
+          <div class="text-[11px] text-slate-500 mt-0.5">সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'}</div>
         </td>
         <td class="p-3">
-          <span class="font-black text-white text-xs">৳${dueCod}</span>
+          <span class="font-black text-slate-900 text-xs">৳${dueCod}</span>
         </td>
         <td class="p-3">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${
-            o.status === 'Approved' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
-            o.status === 'Shipped' ? 'bg-blue-950 text-blue-300 border border-blue-500/40' :
-            o.status === 'Cancelled' ? 'bg-rose-950 text-rose-300 border border-rose-500/40' :
-            'bg-amber-950 text-amber-300 border border-amber-500/40'
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            o.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+            o.status === 'Shipped' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+            o.status === 'Cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+            'bg-amber-50 text-amber-700 border border-amber-200'
           }">
             ${o.status || 'Pending'}
           </span>
@@ -279,28 +279,27 @@ function createSuperAdminRouter({
     // Generate Live Chat Audit Rows
     const liveChatRowsHtml = recentChats.map(c => {
       const shopName = shopNameMap.get(c.seller_id) || c.seller_id || 'দোকান';
-      const lastMsg = (c.messages && c.messages.length > 0) ? c.messages[c.messages.length - 1] : null;
       const lastUserMsg = (c.messages || []).filter(m => m.role === 'user').pop();
       const lastBotMsg = (c.messages || []).filter(m => m.role === 'assistant' || m.role === 'model').pop();
 
       return `
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2 text-xs">
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-2 text-xs">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="bg-slate-800 text-amber-300 font-bold px-2 py-0.5 rounded text-[10px] border border-slate-700">🏪 ${shopName}</span>
-            <span class="font-mono font-bold text-white">${c.customer_phone || c.customer_identifier}</span>
-            <span class="bg-cyan-950 text-cyan-300 text-[10px] font-bold px-2 py-0.5 rounded border border-cyan-800/40">${c.stage || 'BROWSING'}</span>
+            <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] border border-slate-200">🏬 ${shopName}</span>
+            <span class="font-mono font-bold text-slate-800">${c.customer_phone || c.customer_identifier}</span>
+            <span class="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-200/60">${c.stage || 'BROWSING'}</span>
           </div>
-          <span class="text-[10px] text-slate-500">${c.updated_at ? new Date(c.updated_at).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+          <span class="text-[10px] text-slate-400">${c.updated_at ? new Date(c.updated_at).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
         </div>
         ${lastUserMsg ? `
-          <div class="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-slate-300">
+          <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 text-slate-700">
             <span class="text-slate-500 font-bold">👤 কাস্টমার:</span> ${lastUserMsg.content || lastUserMsg.text || 'মেসেজ'}
           </div>
         ` : ''}
         ${lastBotMsg ? `
-          <div class="bg-emerald-950/40 p-2 rounded-lg border border-emerald-800/30 text-emerald-200">
-            <span class="text-emerald-400 font-bold">🤖 AI এজেন্ট:</span> ${(lastBotMsg.content || lastBotMsg.text || '').substring(0, 160)}...
+          <div class="bg-indigo-50/60 p-2.5 rounded-xl border border-indigo-100 text-indigo-950 font-medium">
+            <span class="text-indigo-700 font-bold">🤖 AI এজেন্ট:</span> ${(lastBotMsg.content || lastBotMsg.text || '').substring(0, 160)}...
           </div>
         ` : ''}
       </div>
@@ -324,56 +323,56 @@ function createSuperAdminRouter({
   <title>AutoDokan OS — সুপার অ্যাডমিন কমান্ড সেন্টার</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
     body { font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-[#0b0f17] text-slate-100 min-h-screen pb-24">
+<body class="bg-[#f8fafc] text-slate-800 min-h-screen pb-24 antialiased">
 
-  <!-- Executive Top Navbar -->
-  <header class="bg-[#0f172a] border-b border-slate-800 sticky top-0 z-40 px-4 py-3 shadow-xl">
+  <!-- Executive Top Navbar (Antigravity Clean Style) -->
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
       
       <!-- Brand & Platform Fleet Indicator -->
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 flex items-center justify-center font-black text-slate-950 text-xl shadow-lg ring-2 ring-amber-400/40">
+        <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-base shadow-xs">
           ⚡
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="font-black text-base text-white tracking-tight">AutoDokan Engine OS</h1>
-            <span class="bg-amber-400/20 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-400/30">Super Admin</span>
+            <h1 class="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">AutoDokan Engine OS</h1>
+            <span class="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200">Super Admin</span>
           </div>
-          <div class="flex items-center gap-2 mt-0.5 text-xs text-slate-400 font-medium">
-            <span class="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div class="flex items-center gap-2 mt-0.5 text-xs text-slate-500 font-medium">
+            <span class="inline-flex items-center gap-1.5 text-emerald-700 font-semibold">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
               <span>${onlineBots}/${totalShops}টি WhatsApp বট সক্রিয়</span>
             </span>
             <span>•</span>
-            <span>প্ল্যাটফর্ম রাজস্ব: <span class="text-amber-300 font-bold">${formatMoney(totalPlatformGMV)}</span></span>
+            <span>প্ল্যাটফর্ম সেলস: <span class="text-slate-800 font-bold">${formatMoney(totalPlatformGMV)}</span></span>
           </div>
         </div>
       </div>
 
       <!-- Quick Actions & Shop Inspector -->
-      <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2.5 flex-wrap">
         <!-- Dynamic Shop Switcher Dropdown -->
-        <div class="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 shadow-inner">
-          <span class="text-xs mr-1.5">🏪</span>
-          <select onchange="window.location.href='/dashboard?seller_id=' + this.value + '&tab=${activeTab}'" class="bg-transparent text-amber-300 font-black text-xs outline-none cursor-pointer">
-            <option value="ALL" class="bg-slate-900 text-white font-bold" ${selectedSeller === 'ALL' ? 'selected' : ''}>🌐 সবগুলো শপ একসাথে (All Stores)</option>
-            ${shopsTelemetry.map(s => `<option value="${s.seller_id}" class="bg-slate-900 text-white font-bold" ${selectedSeller === s.seller_id ? 'selected' : ''}>${s.shop_name} (${s.category})</option>`).join('')}
+        <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs">
+          <span class="text-xs mr-1 text-slate-500">🏬</span>
+          <select onchange="window.location.href='/dashboard?seller_id=' + this.value + '&tab=${activeTab}'" class="bg-transparent text-slate-800 font-bold text-xs outline-none cursor-pointer">
+            <option value="ALL" class="bg-white text-slate-800 font-medium" ${selectedSeller === 'ALL' ? 'selected' : ''}>🌐 সবগুলো শপ একসাথে (All Stores)</option>
+            ${shopsTelemetry.map(s => `<option value="${s.seller_id}" class="bg-white text-slate-800 font-medium" ${selectedSeller === s.seller_id ? 'selected' : ''}>${s.shop_name} (${s.category})</option>`).join('')}
           </select>
         </div>
 
         <!-- Add Shop Onboarding Button -->
-        <button type="button" onclick="openNewShopModal()" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
+        <button type="button" onclick="openNewShopModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
           <span>➕ নতুন শপ অনবোর্ডিং</span>
         </button>
 
-        <a href="/logout" title="লগআউট" class="text-slate-400 hover:text-white px-2 py-2 text-xs transition">
+        <a href="/logout" title="লগআউট" class="text-slate-400 hover:text-slate-700 p-2 text-xs transition">
           🔒
         </a>
       </div>
@@ -385,47 +384,47 @@ function createSuperAdminRouter({
 
     <!-- 4 Platform Metric Telemetry Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-      <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xs">
+      <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs hover:border-slate-300 transition">
         <div class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">রেজিস্টার্ড শপসমূহ</div>
-        <div class="text-2xl font-black text-white mt-1">${totalShops}টি <span class="text-xs text-emerald-400 font-semibold">(${onlineBots} লাইভ)</span></div>
+        <div class="text-2xl font-black text-slate-900 mt-1">${totalShops}টি <span class="text-xs text-emerald-600 font-bold">(${onlineBots} লাইভ)</span></div>
       </div>
-      <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xs">
+      <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs hover:border-slate-300 transition">
         <div class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">প্ল্যাটফর্ম প্রোডাক্টস</div>
-        <div class="text-2xl font-black text-white mt-1">${totalPlatformProducts}টি</div>
+        <div class="text-2xl font-black text-slate-900 mt-1">${totalPlatformProducts}টি</div>
       </div>
-      <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xs">
+      <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs hover:border-slate-300 transition">
         <div class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">মোট অর্ডারস</div>
-        <div class="text-2xl font-black text-white mt-1">${totalPlatformOrders}টি</div>
+        <div class="text-2xl font-black text-slate-900 mt-1">${totalPlatformOrders}টি</div>
       </div>
-      <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xs">
+      <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs hover:border-slate-300 transition">
         <div class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">গ্রস মার্চেন্ডাইজ ভলিউম</div>
-        <div class="text-2xl font-black text-amber-400 mt-1">${formatMoney(totalPlatformGMV)}</div>
+        <div class="text-2xl font-black text-slate-900 mt-1">${formatMoney(totalPlatformGMV)}</div>
       </div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="flex items-center gap-2 border-b border-slate-800 pb-2 flex-wrap">
-      <button type="button" onclick="switchSuperTab('shops')" id="stab-btn-shops" class="stab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'shops' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'}">
+    <!-- Navigation Tabs (Modern Segmented Bar) -->
+    <div class="bg-slate-200/60 p-1.5 rounded-2xl flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <button type="button" onclick="switchSuperTab('shops')" id="stab-btn-shops" class="stab-btn px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'shops' ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'}">
         <span>🏢 দোকানসমূহ ও লাইভ বট</span>
-        <span class="bg-slate-950/60 text-[10px] px-2 py-0.5 rounded-full font-bold">${totalShops}</span>
+        <span class="${activeTab === 'shops' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200 text-slate-600'} text-[10px] px-2 py-0.5 rounded-full font-bold">${totalShops}</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('products')" id="stab-btn-products" class="stab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'products' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('products')" id="stab-btn-products" class="stab-btn px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'products' ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'}">
         <span>📦 মাস্টার ক্যাটালগ ও স্টক</span>
-        <span class="bg-slate-950/60 text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredProducts.length}</span>
+        <span class="${activeTab === 'products' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200 text-slate-600'} text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredProducts.length}</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('orders')" id="stab-btn-orders" class="stab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'orders' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('orders')" id="stab-btn-orders" class="stab-btn px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'orders' ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'}">
         <span>📋 সর্বমোট অর্ডারস পাইপলাইন</span>
-        <span class="bg-slate-950/60 text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredOrders.length}</span>
+        <span class="${activeTab === 'orders' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200 text-slate-600'} text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredOrders.length}</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('chats')" id="stab-btn-chats" class="stab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'chats' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('chats')" id="stab-btn-chats" class="stab-btn px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'chats' ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'}">
         <span>💬 লাইভ AI চ্যাট অডিট</span>
-        <span class="bg-slate-950/60 text-[10px] px-2 py-0.5 rounded-full font-bold">লাইভ</span>
+        <span class="${activeTab === 'chats' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200 text-slate-600'} text-[10px] px-2 py-0.5 rounded-full font-bold">লাইভ</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('settings')" id="stab-btn-settings" class="stab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'settings' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('settings')" id="stab-btn-settings" class="stab-btn px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'settings' ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'}">
         <span>⚙️ শপ সেটিংস</span>
       </button>
     </div>
@@ -434,8 +433,8 @@ function createSuperAdminRouter({
     <section id="stab-shops" class="${activeTab === 'shops' ? '' : 'hidden'} space-y-4">
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 class="text-base font-black text-white">🏢 প্ল্যাটফর্ম টেন্যান্টস ও WhatsApp বট ফ্লিট</h2>
-          <p class="text-xs text-slate-400 mt-0.5">প্রতিটি দোকানের আলাদা WhatsApp কানেকশন, নিজস্ব প্রোডাক্টস এবং মার্চেন্ট পোর্টাল রয়েছে।</p>
+          <h2 class="text-base font-bold text-slate-900">🏢 প্ল্যাটফর্ম টেন্যান্টস ও WhatsApp বট ফ্লিট</h2>
+          <p class="text-xs text-slate-500 mt-0.5">প্রতিটি দোকানের আলাদা WhatsApp কানেকশন, নিজস্ব প্রোডাক্টস এবং মার্চেন্ট পোর্টাল রয়েছে।</p>
         </div>
       </div>
 
@@ -446,15 +445,15 @@ function createSuperAdminRouter({
 
     <!-- TAB 2: PRODUCTS MATRIX -->
     <section id="stab-products" class="${activeTab === 'products' ? '' : 'hidden'} space-y-4">
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-3">
+      <div class="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-3">
           <div>
-            <h2 class="text-base font-black text-white">📦 প্রোডাক্ট ক্যাটালগ ও স্টক কন্ট্রোল</h2>
-            <p class="text-xs text-slate-400 mt-0.5">বর্তমানে প্রদর্শিত: <span class="text-amber-300 font-bold">${selectedSeller === 'ALL' ? 'সকল শপ' : (shopNameMap.get(selectedSeller) || selectedSeller)}</span></p>
+            <h2 class="text-base font-bold text-slate-900">📦 প্রোডাক্ট ক্যাটালগ ও স্টক কন্ট্রোল</h2>
+            <p class="text-xs text-slate-500 mt-0.5">বর্তমানে প্রদর্শিত: <span class="text-slate-800 font-bold">${selectedSeller === 'ALL' ? 'সকল শপ' : (shopNameMap.get(selectedSeller) || selectedSeller)}</span></p>
           </div>
           <div class="flex items-center gap-2">
-            <input type="text" id="adminProdSearch" oninput="filterAdminProducts(this.value)" placeholder="🔍 প্রোডাক্ট খুঁজুন..." class="bg-slate-950 border border-slate-700 text-xs px-3 py-2 rounded-xl text-white outline-none focus:border-amber-500">
-            <button type="button" onclick="openAddProductModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl transition cursor-pointer">
+            <input type="text" id="adminProdSearch" oninput="filterAdminProducts(this.value)" placeholder="🔍 প্রোডাক্ট খুঁজুন..." class="bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-xl text-slate-800 outline-none focus:bg-white focus:border-indigo-500 shadow-2xs">
+            <button type="button" onclick="openAddProductModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer">
               + প্রোডাক্ট যোগ করুন
             </button>
           </div>
@@ -468,17 +467,17 @@ function createSuperAdminRouter({
 
     <!-- TAB 3: GLOBAL ORDERS -->
     <section id="stab-orders" class="${activeTab === 'orders' ? '' : 'hidden'} space-y-4">
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div class="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
-            <h2 class="text-base font-black text-white">📋 কাস্টমার অর্ডারস পাইপলাইন</h2>
-            <p class="text-xs text-slate-400 mt-0.5">প্ল্যাটফর্ম জুড়ে সংগৃহীত সকল লাইভ অর্ডার।</p>
+            <h2 class="text-base font-bold text-slate-900">📋 কাস্টমার অর্ডারস পাইপলাইন</h2>
+            <p class="text-xs text-slate-500 mt-0.5">প্ল্যাটফর্ম জুড়ে সংগৃহীত সকল লাইভ অর্ডার।</p>
           </div>
         </div>
 
-        <div class="overflow-x-auto border border-slate-800 rounded-xl">
-          <table class="w-full text-left text-slate-300 text-xs">
-            <thead class="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
+        <div class="overflow-x-auto border border-slate-100 rounded-xl">
+          <table class="w-full text-left text-slate-700 text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
               <tr>
                 <th class="p-3">অর্ডার ID ও শপ</th>
                 <th class="p-3">কাস্টমার</th>
@@ -489,7 +488,7 @@ function createSuperAdminRouter({
               </tr>
             </thead>
             <tbody>
-              ${orderRowsHtml || '<tr><td colspan="6" class="p-8 text-center text-slate-500">কোনো অর্ডার পাওয়া যায়নি</td></tr>'}
+              ${orderRowsHtml || '<tr><td colspan="6" class="p-8 text-center text-slate-400">কোনো অর্ডার পাওয়া যায়নি</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -498,66 +497,66 @@ function createSuperAdminRouter({
 
     <!-- TAB 4: LIVE CHATS AUDIT -->
     <section id="stab-chats" class="${activeTab === 'chats' ? '' : 'hidden'} space-y-4">
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl space-y-4">
-        <div class="border-b border-slate-800 pb-3">
-          <h2 class="text-base font-black text-white">💬 লাইভ AI চ্যাট অডিট ও কোয়ালিটি কন্ট্রোল</h2>
-          <p class="text-xs text-slate-400 mt-0.5">বিভিন্ন শপে কাস্টমারদের সাথে AI সেলস এজেন্টের কথোপকথন রিয়েল-টাইমে মনিটর করুন।</p>
+      <div class="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-base font-bold text-slate-900">💬 লাইভ AI চ্যাট অডিট ও কোয়ালিটি কন্ট্রোল</h2>
+          <p class="text-xs text-slate-500 mt-0.5">বিভিন্ন শপে কাস্টমারদের সাথে AI সেলস এজেন্টের কথোপকথন রিয়েল-টাইমে মনিটর করুন।</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          ${liveChatRowsHtml || '<div class="col-span-full py-10 text-center text-slate-500">এখনও কোনো লাইভ চ্যাট রেকর্ড নেই।</div>'}
+          ${liveChatRowsHtml || '<div class="col-span-full py-10 text-center text-slate-400">এখনও কোনো লাইভ চ্যাট রেকর্ড নেই।</div>'}
         </div>
       </div>
     </section>
 
     <!-- TAB 5: SETTINGS -->
     <section id="stab-settings" class="${activeTab === 'settings' ? '' : 'hidden'} space-y-4">
-      <div class="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl max-w-2xl mx-auto space-y-5">
-        <div class="border-b border-slate-800 pb-3">
-          <h2 class="text-base font-black text-white">⚙️ শপ সেটিংস ও ডেলিভারি রুলস</h2>
-          <p class="text-xs text-slate-400 mt-0.5">সক্রিয় শপ: <span class="text-amber-300 font-bold">${shopNameMap.get(selectedSeller) || selectedSeller}</span></p>
+      <div class="bg-white border border-slate-200/80 p-6 rounded-2xl max-w-2xl mx-auto shadow-xs space-y-5 text-slate-800">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-base font-bold text-slate-900">⚙️ শপ সেটিংস ও ডেলিভারি রুলস</h2>
+          <p class="text-xs text-slate-500 mt-0.5">সক্রিয় শপ: <span class="text-slate-800 font-bold">${shopNameMap.get(selectedSeller) || selectedSeller}</span></p>
         </div>
 
         <form onsubmit="saveStoreSettingsLive(event)" class="space-y-4">
           <input type="hidden" id="set_seller_id" value="${selectedSeller === 'ALL' ? 'autodokan_seller_1' : selectedSeller}">
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">🏪 শপ / ব্র্যান্ডের নাম</label>
-            <input type="text" id="set_shop_name" value="${activeSettings.shop_name || ''}" required class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-bold p-2.5 rounded-xl outline-none focus:border-amber-500">
+            <label class="block text-xs font-bold text-slate-700 mb-1">🏬 শপ / ব্র্যান্ডের নাম</label>
+            <input type="text" id="set_shop_name" value="${activeSettings.shop_name || ''}" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-slate-300 mb-1">🚚 ঢাকা ভেতরে চার্জ (টাকা)</label>
-              <input type="number" id="set_inside_fee" value="${activeSettings.inside_dhaka_fee || 80}" required class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-bold p-2.5 rounded-xl outline-none focus:border-amber-500">
+              <label class="block text-xs font-bold text-slate-700 mb-1">🚚 ঢাকা ভেতরে চার্জ (টাকা)</label>
+              <input type="number" id="set_inside_fee" value="${activeSettings.inside_dhaka_fee || 80}" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-300 mb-1">🚛 ঢাকা বাইরে চার্জ (টাকা)</label>
-              <input type="number" id="set_outside_fee" value="${activeSettings.outside_dhaka_fee || 150}" required class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-bold p-2.5 rounded-xl outline-none focus:border-amber-500">
+              <label class="block text-xs font-bold text-slate-700 mb-1">🚛 ঢাকা বাইরে চার্জ (টাকা)</label>
+              <input type="number" id="set_outside_fee" value="${activeSettings.outside_dhaka_fee || 150}" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-slate-300 mb-1">📱 বিকাশ নাম্বার</label>
-              <input type="text" id="set_bkash" value="${activeSettings.bkash_number || ''}" class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-mono font-bold p-2.5 rounded-xl outline-none focus:border-amber-500">
+              <label class="block text-xs font-bold text-slate-700 mb-1">📱 বিকাশ নাম্বার</label>
+              <input type="text" id="set_bkash" value="${activeSettings.bkash_number || ''}" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-mono font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-300 mb-1">📱 নগদ নাম্বার</label>
-              <input type="text" id="set_nagad" value="${activeSettings.nagad_number || ''}" class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-mono font-bold p-2.5 rounded-xl outline-none focus:border-amber-500">
+              <label class="block text-xs font-bold text-slate-700 mb-1">📱 নগদ নাম্বার</label>
+              <input type="text" id="set_nagad" value="${activeSettings.nagad_number || ''}" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-mono font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">🎁 বিশেষ অফার / কম্বো ছাড়</label>
-            <input type="text" id="set_promo_offer" value="${activeSettings.promo_offer || ''}" placeholder="যেমন: ২টি নিলে ১০০ টাকা ছাড়" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2.5 rounded-xl outline-none focus:border-amber-500">
+            <label class="block text-xs font-bold text-slate-700 mb-1">🎁 বিশেষ অফার / প্রোমো টেক্সট</label>
+            <input type="text" id="set_promo_offer" value="${activeSettings.promo_offer || ''}" placeholder="যেমন: ২ টি নিলে ডেলিভারি ফ্রি!" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">🔄 রিটার্ন পলিসি</label>
-            <textarea id="set_return_policy" rows="2" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2.5 rounded-xl outline-none focus:border-amber-500">${activeSettings.return_policy || 'ডেলিভারি ম্যানের সামনে চেক করে রিসিভ করতে পারবেন।'}</textarea>
+            <label class="block text-xs font-bold text-slate-700 mb-1">🔄 রিটার্ন ও এক্সচেঞ্জ পলিসি</label>
+            <textarea id="set_return_policy" rows="2" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">${activeSettings.return_policy || 'ডেলিভারি ম্যানের সামনে চেক করে রিসিভ করতে পারবেন।'}</textarea>
           </div>
 
-          <button type="submit" id="saveSettingsBtn" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black py-3 rounded-xl shadow-sm transition cursor-pointer">
+          <button type="submit" id="saveSettingsBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-3 rounded-xl shadow-xs transition cursor-pointer">
             💾 সেটিংস সেভ করুন
           </button>
         </form>
@@ -567,33 +566,33 @@ function createSuperAdminRouter({
   </main>
 
   <!-- DYNAMIC NEW SHOP ONBOARDING MODAL -->
-  <div id="newShopModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-black text-white text-base">🚀 নতুন শপ অনবোর্ডিং উইজার্ড</h3>
-        <button type="button" onclick="closeNewShopModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 font-bold cursor-pointer">✕</button>
+  <div id="newShopModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-base">🚀 নতুন শপ অনবোর্ডিং উইজার্ড</h3>
+        <button type="button" onclick="closeNewShopModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold cursor-pointer">✕</button>
       </div>
 
       <form id="newShopForm" onsubmit="handleDynamicShopCreation(event)" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">দোকানের নাম *</label>
-          <input type="text" id="onboard_shop_name" required placeholder="যেমন: Noor Fashion বা Smart Tech" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2.5 rounded-xl outline-none focus:border-amber-500 font-bold">
+          <label class="block text-xs font-bold text-slate-700 mb-1">দোকানের নাম *</label>
+          <input type="text" id="onboard_shop_name" required placeholder="যেমন: Noor Fashion বা Smart Tech" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500 font-bold">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">ওনারের নাম</label>
-            <input type="text" id="onboard_owner_name" placeholder="যেমন: তানভীর আহমেদ" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2.5 rounded-xl outline-none focus:border-amber-500">
+            <label class="block text-xs font-bold text-slate-700 mb-1">ওনারের নাম</label>
+            <input type="text" id="onboard_owner_name" placeholder="যেমন: তানভীর আহমেদ" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">মোবাইল নম্বর</label>
-            <input type="text" id="onboard_phone" placeholder="যেমন: 017XXXXXXXX" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2.5 rounded-xl outline-none focus:border-amber-500 font-mono">
+            <label class="block text-xs font-bold text-slate-700 mb-1">মোবাইল নম্বর</label>
+            <input type="text" id="onboard_phone" placeholder="যেমন: 017XXXXXXXX" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500 font-mono">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">🎯 বিজনেস ক্যাটাগরি (AI আর্কিটাইপ)</label>
-          <select id="onboard_category" required class="w-full bg-slate-950 border border-slate-700 text-amber-300 text-xs font-bold p-2.5 rounded-xl outline-none focus:border-amber-500 cursor-pointer">
+          <label class="block text-xs font-bold text-slate-700 mb-1">🎯 বিজনেস ক্যাটাগরি (AI আর্কিটাইপ)</label>
+          <select id="onboard_category" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500 cursor-pointer">
             <option value="footwear">👞 জুতা ও ফুটওয়্যার (৩৯-৪৪ বাটা/এপেক্স ফিট, কুশন ও গ্রিপ)</option>
             <option value="modest_fashion">👗 মোডেস্ট ফ্যাশন ও আবায়া (৫০-৫৬ সাইজ, দুবাই চেরি)</option>
             <option value="gadgets">📱 গ্যাজেটস ও টেক (ওয়ারেন্টি, অরিজিনাল আনপ্যাক চেকিং)</option>
@@ -606,37 +605,37 @@ function createSuperAdminRouter({
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">🤖 AI বট এজেন্টের নাম</label>
-            <input type="text" id="onboard_bot_name" value="সাকিব" required class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-bold p-2.5 rounded-xl outline-none focus:border-amber-500">
+            <label class="block text-xs font-bold text-slate-700 mb-1">🤖 AI বট এজেন্টের নাম</label>
+            <input type="text" id="onboard_bot_name" value="সাকিব" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">🚚 ঢাকা ভেতরে চার্জ (টাকা)</label>
-            <input type="number" id="onboard_inside_fee" value="80" class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-bold p-2.5 rounded-xl outline-none focus:border-amber-500">
+            <label class="block text-xs font-bold text-slate-700 mb-1">🚚 ঢাকা ভেতরে চার্জ (টাকা)</label>
+            <input type="number" id="onboard_inside_fee" value="80" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
         </div>
 
-        <button type="submit" id="onboardSubmitBtn" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs py-3 rounded-xl transition cursor-pointer shadow-lg mt-2">
+        <button type="submit" id="onboardSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition cursor-pointer shadow-xs mt-2">
           🚀 শপ তৈরি করুন ও লিংক জেনারেট করুন
         </button>
       </form>
 
       <!-- Success Alert Drawer -->
-      <div id="onboardSuccessDrawer" class="hidden bg-emerald-950/90 border border-emerald-500/40 rounded-2xl p-4 space-y-3">
-        <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+      <div id="onboardSuccessDrawer" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center gap-2 text-emerald-800 font-bold text-xs">
           <span>🎉 শপ সফলভাবে তৈরি হয়েছে!</span>
         </div>
         <div>
-          <label class="block text-[11px] text-slate-300 font-bold mb-1">মার্চেন্ট পোর্টাল লিংক (সেলারকে এই লিংক দিন):</label>
+          <label class="block text-[11px] text-slate-700 font-bold mb-1">মার্চেন্ট পোর্টাল লিংক (সেলারকে এই লিংক দিন):</label>
           <div class="flex items-center gap-2">
-            <input type="text" id="onboardResPortalUrl" readonly class="flex-1 bg-slate-950 border border-emerald-500/40 text-[11px] p-2 rounded-xl text-white font-mono">
-            <button type="button" onclick="copyInputVal('onboardResPortalUrl')" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer">কপি</button>
+            <input type="text" id="onboardResPortalUrl" readonly class="flex-1 bg-white border border-emerald-300 text-[11px] p-2 rounded-xl text-slate-900 font-mono">
+            <button type="button" onclick="copyInputVal('onboardResPortalUrl')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer">কপি</button>
           </div>
         </div>
         <div>
-          <label class="block text-[11px] text-slate-300 font-bold mb-1">WhatsApp QR কানেক্ট লিংক:</label>
+          <label class="block text-[11px] text-slate-700 font-bold mb-1">WhatsApp QR কানেক্ট লিংক:</label>
           <div class="flex items-center gap-2">
-            <input type="text" id="onboardResConnectUrl" readonly class="flex-1 bg-slate-950 border border-emerald-500/40 text-[11px] p-2 rounded-xl text-white font-mono">
-            <button type="button" onclick="copyInputVal('onboardResConnectUrl')" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer">কপি</button>
+            <input type="text" id="onboardResConnectUrl" readonly class="flex-1 bg-white border border-emerald-300 text-[11px] p-2 rounded-xl text-slate-900 font-mono">
+            <button type="button" onclick="copyInputVal('onboardResConnectUrl')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer">কপি</button>
           </div>
         </div>
       </div>
@@ -644,52 +643,52 @@ function createSuperAdminRouter({
   </div>
 
   <!-- ADD PRODUCT MODAL -->
-  <div id="addProductModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-black text-white text-base">➕ নতুন প্রোডাক্ট যোগ করুন</h3>
-        <button type="button" onclick="closeAddProductModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 font-bold cursor-pointer">✕</button>
+  <div id="addProductModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-base">➕ নতুন প্রোডাক্ট যোগ করুন</h3>
+        <button type="button" onclick="closeAddProductModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold cursor-pointer">✕</button>
       </div>
       <form onsubmit="saveNewProduct(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">টার্গেট শপ *</label>
-          <select id="add_seller_id" required class="w-full bg-slate-950 border border-slate-700 text-amber-300 text-xs font-bold p-2.5 rounded-xl outline-none cursor-pointer">
+          <label class="block text-xs font-bold text-slate-700 mb-1">টার্গেট শপ *</label>
+          <select id="add_seller_id" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2.5 rounded-xl outline-none focus:bg-white focus:border-indigo-500 cursor-pointer">
             ${shopsTelemetry.map(s => `<option value="${s.seller_id}" ${selectedSeller === s.seller_id ? 'selected' : ''}>${s.shop_name} (${s.seller_id})</option>`).join('')}
           </select>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">মডেল কোড *</label>
-            <input type="text" id="add_code" placeholder="যেমন: PROD-101" required class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-mono font-bold p-2 rounded-xl outline-none">
+            <label class="block text-xs font-bold text-slate-700 mb-1">মডেল কোড *</label>
+            <input type="text" id="add_code" placeholder="যেমন: PROD-101" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-mono font-bold p-2 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">বিক্রয় মূল্য *</label>
-            <input type="number" id="add_price" placeholder="যেমন: 1850" required class="w-full bg-slate-950 border border-slate-700 text-white text-xs font-bold p-2 rounded-xl outline-none">
+            <label class="block text-xs font-bold text-slate-700 mb-1">বিক্রয় মূল্য *</label>
+            <input type="number" id="add_price" placeholder="যেমন: 1850" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold p-2 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">প্রোডাক্টের নাম *</label>
-          <input type="text" id="add_name" required placeholder="প্রোডাক্ট নাম" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2 rounded-xl outline-none">
+          <label class="block text-xs font-bold text-slate-700 mb-1">প্রোডাক্টের নাম *</label>
+          <input type="text" id="add_name" required placeholder="প্রোডাক্ট নাম" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">কালারসমূহ (কমা দিয়ে)</label>
-          <input type="text" id="add_colors" placeholder="কালো, নীল, বাদামী" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2 rounded-xl outline-none">
+          <label class="block text-xs font-bold text-slate-700 mb-1">কালারসমূহ (কমা দিয়ে)</label>
+          <input type="text" id="add_colors" placeholder="কালো, নীল, বাদামী" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">ফেব্রিক / উপাদান</label>
-            <input type="text" id="add_fabric" placeholder="ফেব্রিক" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2 rounded-xl outline-none">
+            <label class="block text-xs font-bold text-slate-700 mb-1">ফেব্রিক / উপাদান</label>
+            <input type="text" id="add_fabric" placeholder="ফেব্রিক" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">সাইজসমূহ</label>
-            <input type="text" id="add_sizes" placeholder="সাইজ" class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2 rounded-xl outline-none">
+            <label class="block text-xs font-bold text-slate-700 mb-1">সাইজসমূহ</label>
+            <input type="text" id="add_sizes" placeholder="সাইজ" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2 rounded-xl outline-none focus:bg-white focus:border-indigo-500">
           </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">ছবির সরাসরি URL</label>
-          <input type="url" id="add_img" placeholder="https://..." class="w-full bg-slate-950 border border-slate-700 text-white text-xs p-2 rounded-xl font-mono outline-none">
+          <label class="block text-xs font-bold text-slate-700 mb-1">ছবির সরাসরি URL</label>
+          <input type="url" id="add_img" placeholder="https://..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs p-2 rounded-xl font-mono outline-none focus:bg-white focus:border-indigo-500">
         </div>
-        <button type="submit" id="addSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs py-2.5 rounded-xl transition cursor-pointer">
+        <button type="submit" id="addSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition cursor-pointer shadow-xs">
           + প্রোডাক্ট সেভ করুন
         </button>
       </form>
@@ -704,7 +703,7 @@ function createSuperAdminRouter({
     function showToast(msg) {
       const c = document.getElementById('toastContainer');
       const t = document.createElement('div');
-      t.className = 'bg-amber-500 text-slate-950 text-xs font-black px-4 py-3 rounded-2xl shadow-xl pointer-events-auto transition transform translate-y-2 opacity-0';
+      t.className = 'bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-xl pointer-events-auto transition transform translate-y-2 opacity-0';
       t.innerText = msg;
       c.appendChild(t);
       setTimeout(() => { t.classList.remove('translate-y-2', 'opacity-0'); }, 10);
@@ -719,10 +718,10 @@ function createSuperAdminRouter({
       document.getElementById('stab-' + tab)?.classList.remove('hidden');
 
       document.querySelectorAll('.stab-btn').forEach(b => {
-        b.className = 'stab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer bg-slate-900 border border-slate-800 text-slate-300 hover:text-white';
+        b.className = 'stab-btn px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100/60';
       });
       const activeBtn = document.getElementById('stab-btn-' + tab);
-      if (activeBtn) activeBtn.className = 'stab-btn px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition cursor-pointer bg-amber-500 text-slate-950 shadow-md';
+      if (activeBtn) activeBtn.className = 'stab-btn px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer bg-white text-indigo-700 shadow-xs border border-slate-200/80';
     }
 
     function openNewShopModal() { document.getElementById('newShopModal').classList.remove('hidden'); }
@@ -874,6 +873,34 @@ function createSuperAdminRouter({
         c.style.display = (!query || search.includes(query)) ? 'block' : 'none';
       });
     }
+
+    function openEditProductModalById(id) {
+      const p = (window.__ADMIN_PRODUCTS__ || []).find(x => x.id === id);
+      if (!p) return alert('প্রোডাক্ট পাওয়া যায়নি');
+      // Set values and open add modal in edit mode or direct alert
+      const newPrice = prompt('"' + p.name + '" এর নতুন মূল্য (টাকা):', p.price);
+      if (newPrice !== null && !isNaN(newPrice)) {
+        fetch('/api/products/' + id + '/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ ...p, price: Number(newPrice), ajax: true })
+        }).then(() => {
+          showToast('✅ মূল্য আপডেট হয়েছে');
+          setTimeout(() => window.location.reload(), 400);
+        });
+      }
+    }
+
+    async function deleteProductLive(id, code) {
+      if (!confirm('আপনি কি নিশ্চিত যে ' + code + ' মুছে ফেলতে চান?')) return;
+      try {
+        await fetch('/api/products/' + id + '/delete', { method: 'POST', headers: { 'Accept': 'application/json' } });
+        showToast('🗑️ প্রোডাক্ট মুছে ফেলা হয়েছে');
+        setTimeout(() => window.location.reload(), 400);
+      } catch (e) {
+        alert('মুছতে সমস্যা: ' + e.message);
+      }
+    }
   </script>
 </body>
 </html>
@@ -900,23 +927,27 @@ function createSuperAdminRouter({
       const token = 'inv_' + crypto.randomBytes(6).toString('hex');
 
       // 1. Insert into seller_invites
-      const { data: inv, error: invErr } = await supabase.from('seller_invites').insert({
-        invite_token: token,
-        seller_id: sellerId,
-        shop_name: cleanShop,
-        owner_name: cleanOwner,
-        phone: cleanPhone || null,
-        status: 'DISCONNECTED',
-        created_at: new Date().toISOString()
-      }).select().single();
+      const { data: newInvite, error: invError } = await supabase
+        .from('seller_invites')
+        .insert({
+          invite_token: token,
+          seller_id: sellerId,
+          shop_name: cleanShop,
+          owner_name: cleanOwner || cleanShop + ' ওনার',
+          phone: cleanPhone,
+          status: 'PENDING',
+          role: 'merchant'
+        })
+        .select('*')
+        .single();
 
-      if (invErr) {
-        return res.status(500).json({ error: invErr.message });
+      if (invError) {
+        return res.status(500).json({ error: invError.message });
       }
 
       // 2. Insert into store_settings with specified Category and Persona!
       const defaultReturn = cleanCategory === 'footwear' 
-        ? 'ডেলিভারি ম্যানের সামনে সাইজ ও কোয়ালিটি চেক করে ট্রায়াল দিয়ে নিতে পারবেন।'
+        ? 'ডেলিভারি ম্যানের সামনে সাইজ ও কোয়ালিটি চেক করে ট্রায়াল দিয়ে নিতে পারবেন।'
         : 'ডেলিভারি ম্যানের সামনে চেক করে রিসিভ করতে পারবেন। কোনো সমস্যা থাকলে তাৎক্ষণিক রিটার্ন।';
 
       await supabase.from('store_settings').insert({
