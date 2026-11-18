@@ -18,14 +18,16 @@ async function runLiveVerification() {
     return;
   }
 
-  console.log('\n--- 2. Testing Super Admin Matte-Slate Dashboard (/dashboard) ---');
+  console.log('\n--- 2. Testing Super Admin Apple Dark Mode Dashboard (/dashboard) ---');
   const dashRes = await fetch(`${BASE_URL}/dashboard`, {
     headers: { 'Cookie': cookie }
   });
   const dashHtml = await dashRes.text();
   console.log('Dashboard Status:', dashRes.status);
   console.log('Contains AutoDokan Engine OS?', dashHtml.includes('AutoDokan Engine OS'));
-  console.log('Contains Matte Slate Palette #0c0e14?', dashHtml.includes('#0c0e14'));
+  console.log('Contains Apple OLED background #000000?', dashHtml.includes('#000000'));
+  console.log('Contains Apple Card Surface #1C1C1E?', dashHtml.includes('#1C1C1E'));
+  console.log('Contains Apple System Blue #0A84FF?', dashHtml.includes('#0A84FF'));
   console.log('Contains stab-shops (Fleet Monitor)?', dashHtml.includes('id="stab-shops"'));
   console.log('Contains stab-orders (Global Orders Pipeline)?', dashHtml.includes('id="stab-orders"'));
   console.log('Contains stab-chats (Live AI Inspector)?', dashHtml.includes('id="stab-chats"'));

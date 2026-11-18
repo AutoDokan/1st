@@ -29,14 +29,14 @@ const server = app.listen(4899, async () => {
     const html = await res.text();
     console.log('Status code:', res.status);
     console.log('Contains AutoDokan Engine OS?', html.includes('AutoDokan Engine OS'));
-    console.log('Contains matte slate background #0c0e14?', html.includes('#0c0e14'));
+    console.log('Contains Apple OLED background #000000?', html.includes('#000000'));
+    console.log('Contains Apple card surface #1C1C1E?', html.includes('#1C1C1E'));
+    console.log('Contains Apple System Blue #0A84FF?', html.includes('#0A84FF'));
     console.log('Contains stab-shops?', html.includes('id="stab-shops"'));
     console.log('Contains stab-orders?', html.includes('id="stab-orders"'));
     console.log('Contains stab-chats?', html.includes('id="stab-chats"'));
     console.log('Contains stab-settings (should be false)?', html.includes('id="stab-settings"'));
     console.log('Contains addProductModal (should be false)?', html.includes('addProductModal'));
-    console.log('Contains Dawah Fashion?', html.includes('Dawah Fashion'));
-    console.log('Contains Bangla Juta?', html.includes('Bangla Juta'));
     server.close();
     process.exit(0);
   } catch (err) {
