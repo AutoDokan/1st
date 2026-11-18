@@ -2805,7 +2805,7 @@ async function isCustomerPaused(remoteJid) {
   try {
     const { data } = await supabase
       .from('chat_sessions')
-      .select('paused_until')
+      .select('paused_until, attention_reason, updated_at')
       .eq('seller_id', CURRENT_SELLER_ID)
       .eq('channel_type', 'WHATSAPP')
       .eq('customer_identifier', remoteJid)
@@ -2815,7 +2815,22 @@ async function isCustomerPaused(remoteJid) {
     if (data && data.paused_until) {
       const dbPaused = new Date(data.paused_until).getTime();
       if (dbPaused > now) {
-        isPaused = true;
+        // Self-Healing Auto-Resume:
+        // If pause was caused by HUMAN_TAKEOVER, but seller has been inactive for > 5 minutes,
+        // automatically heal and release the customer so they are NEVER locked out or ghosted!
+        const lastActivity = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+        const minutesInactive = (now - lastActivity) / (60 * 1000);
+        if (data.attention_reason === 'HUMAN_TAKEOVER' && minutesInactive > 5) {
+          console.log(`[Auto-Heal] Seller inactive for ${Math.round(minutesInactive)}m. Auto-releasing customer ${remoteJid}`);
+          supabase.from('chat_sessions')
+            .update({ paused_until: null, attention_reason: null })
+            .eq('seller_id', CURRENT_SELLER_ID)
+            .eq('customer_identifier', remoteJid)
+            .then(() => {});
+          isPaused = false;
+        } else {
+          isPaused = true;
+        }
       }
     }
 
@@ -2827,7 +2842,7 @@ async function isCustomerPaused(remoteJid) {
   }
 }
 
-async function pauseCustomerForHumanTakeover(remoteJid, minutes = 30, reason = 'HUMAN_TAKEOVER', ownerManualText = '') {
+async function pauseCustomerForHumanTakeover(remoteJid, minutes = 10, reason = 'HUMAN_TAKEOVER', ownerManualText = '') {
   const pausedTime = Date.now() + minutes * 60 * 1000;
   userPausedCache.set(remoteJid, { isPaused: true, expiresAt: pausedTime });
   try {
