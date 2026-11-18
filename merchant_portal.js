@@ -853,39 +853,50 @@ function createMerchantPortalRouter({
         </div>
 
         <!-- DIRECT PHOTO UPLOAD STUDIO: MIN 5, MAX 8 PHOTOS -->
-        <div class="bg-[#2C2C2E] p-5 rounded-[20px] border border-white/[0.08] space-y-4">
+        <div class="bg-[#2C2C2E] p-4 sm:p-5 rounded-[22px] border border-white/[0.08] space-y-4">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <div class="font-bold text-white text-sm flex items-center gap-2">
+              <div class="font-bold text-white text-sm sm:text-base flex items-center gap-2">
                 <span>📸</span><span>প্রোডাক্ট ফটো গ্যালারি</span>
               </div>
-              <div class="text-xs text-[rgba(235,235,245,0.50)] mt-0.5">নিয়ম: প্রতিটি প্রোডাক্টে **ন্যূনতম ৫টি** এবং **সর্বোচ্চ ৮টি** ছবি আপলোড আবশ্যক।</div>
+              <div class="text-xs text-[rgba(235,235,245,0.70)] mt-0.5">নিয়ম: প্রতিটি প্রোডাক্টে <b>ন্যূনতম ৫টি</b> এবং <b>সর্বোচ্চ ৮টি</b> ছবি আপলোড আবশ্যক।</div>
             </div>
-            <div id="photoCountBadge" class="text-xs px-3 py-1 rounded-full font-bold bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30">
+            <div id="photoCountBadge" class="text-xs px-3.5 py-1.5 rounded-full font-bold bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30">
               ০/৮ ছবি (কমপক্ষে আরও ৫টি ছবি দিন)
             </div>
           </div>
 
-          <!-- Drag & Drop / File Input Dropzone -->
-          <div onclick="document.getElementById('studio_file_input').click()" class="border-2 border-dashed border-white/[0.15] hover:border-white/40 bg-[#1C1C1E] p-6 rounded-[16px] text-center cursor-pointer transition space-y-2">
-            <div class="text-3xl">📤</div>
-            <div class="text-sm font-bold text-white">ছবি আপলোড করতে এখানে ক্লিক করুন (বা ফাইল ড্রপ করুন)</div>
-            <div class="text-xs text-[rgba(235,235,245,0.50)]">পিসি অথবা মোবাইল গ্যালারি থেকে একসাথে ৫ থেকে ৮টি ছবি সিলেক্ট করুন (JPG, PNG, WEBP)</div>
+          <!-- Compact, Sleek Upload Action Bar (User asked: upload option soto kore daw) -->
+          <div onclick="document.getElementById('studio_file_input').click()" class="border-2 border-dashed border-white/[0.15] hover:border-white/40 bg-[#1C1C1E] px-4 py-3 rounded-[16px] flex items-center justify-between gap-3 cursor-pointer transition active:scale-99 shadow-xs group">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-full bg-[#2C2C2E] group-hover:scale-105 transition flex items-center justify-center text-lg">📤</span>
+              <div>
+                <div class="text-xs sm:text-sm font-bold text-white">ছবি আপলোড করতে এখানে ক্লিক করুন (বা ফাইল ড্রপ করুন)</div>
+                <div class="text-[11px] text-[rgba(235,235,245,0.60)]">পিসি অথবা মোবাইল গ্যালারি থেকে একসাথে ৫-৮টি ছবি সিলেক্ট করুন</div>
+              </div>
+            </div>
+            <span class="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#2C2C2E] text-white border border-white/[0.08] shrink-0">ফাইল বাছুন</span>
           </div>
           <input type="file" id="studio_file_input" multiple accept="image/*" class="hidden" onchange="handleStudioFilesUpload(this.files)">
 
-          <!-- Live Thumbnails Grid (Slots 1 to 8) -->
-          <div id="studioPhotosGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
-            <!-- Dynamic thumbnails injected by JS -->
+          <!-- Large, Clear Photo Gallery Grid (User asked: pic gulo boro kore dekhaw) -->
+          <div>
+            <div class="text-xs text-[rgba(235,235,245,0.60)] mb-2 flex items-center justify-between">
+              <span>আপলোডকৃত ছবিসমূহ (বড় করে দেখতে ছবিতে ক্লিক করুন):</span>
+              <span class="font-mono text-[11px]">১ম ছবি = কভার ফটো</span>
+            </div>
+            <div id="studioPhotosGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <!-- Dynamic high-res photo cards injected by JS -->
+            </div>
           </div>
 
           <!-- Quick URL fallback if user prefers pasting -->
-          <div>
-            <button type="button" onclick="document.getElementById('manualUrlBox').classList.toggle('hidden')" class="text-xs text-[rgba(235,235,245,0.50)] hover:text-white underline font-medium cursor-pointer">
-              🔗 সরাসরি ছবির লিঙ্ক (URL) পেস্ট করতে চান?
+          <div class="pt-1 border-t border-white/[0.06]">
+            <button type="button" onclick="document.getElementById('manualUrlBox').classList.toggle('hidden')" class="text-xs text-[rgba(235,235,245,0.70)] hover:text-white underline font-medium cursor-pointer flex items-center gap-1.5">
+              <span>🔗 সরাসরি ছবির লিঙ্ক (URL) পেস্ট করতে চান?</span>
             </button>
             <div id="manualUrlBox" class="hidden mt-2 space-y-2">
-              <input type="url" id="studio_img_main" placeholder="মূল ছবির লিঙ্ক https://..." class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[10px] outline-none">
+              <input type="url" id="studio_img_main" placeholder="মূল ছবির লিঙ্ক https://..." class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none">
             </div>
           </div>
         </div>
@@ -896,6 +907,31 @@ function createMerchantPortalRouter({
       </form>
 
     </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- HIGH-RES PHOTO LIGHTBOX MODAL (Click to Enlarge)          -->
+  <!-- ======================================================== -->
+  <div id="imageLightboxModal" class="hidden fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4" onclick="closeLightboxModal(event)">
+    <!-- Top Bar with counter & close -->
+    <div class="max-w-2xl w-full flex items-center justify-between text-white pb-3 px-2" onclick="event.stopPropagation()">
+      <div class="flex items-center gap-2">
+        <span id="lightboxIndexBadge" class="bg-white/20 text-white font-mono text-xs px-3 py-1 rounded-full font-bold">ছবি ১ / ৫</span>
+        <span id="lightboxCoverBadge" class="text-xs bg-[#30D158]/20 text-[#30D158] border border-[#30D158]/30 px-2.5 py-0.5 rounded-full font-semibold hidden">⭐ মূল কভার ফটো</span>
+      </div>
+      <button type="button" onclick="closeLightboxModal()" class="w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center font-bold text-lg cursor-pointer transition">✕</button>
+    </div>
+
+    <!-- Large Image Box -->
+    <div class="relative max-w-2xl max-h-[78vh] flex items-center justify-center" onclick="event.stopPropagation()">
+      <img id="lightboxImg" src="" alt="Enlarged preview" class="max-w-full max-h-[76vh] object-contain rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-white/10">
+      
+      <!-- Prev / Next Navigation Arrows -->
+      <button type="button" id="lightboxPrevBtn" onclick="navigateLightbox(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center font-bold text-xl cursor-pointer transition border border-white/20 shadow-lg">‹</button>
+      <button type="button" id="lightboxNextBtn" onclick="navigateLightbox(1)" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center font-bold text-xl cursor-pointer transition border border-white/20 shadow-lg">›</button>
+    </div>
+    
+    <div class="text-xs text-[rgba(235,235,245,0.60)] mt-3">কিবোর্ডের ‹ ও › বাটন বা বাইরে ক্লিক করে বন্ধ করুন</div>
   </div>
 
   <!-- ======================================================== -->
@@ -1066,31 +1102,43 @@ function createMerchantPortalRouter({
     }
 
     // ==========================================
-    // MULTI-PHOTO UPLOAD HANDLING (MIN 5, MAX 8)
+    // MULTI-PHOTO UPLOAD & LIGHTBOX GALLERY
     // ==========================================
+    let currentLightboxIdx = 0;
+
     function renderStudioPhotos() {
       const grid = document.getElementById('studioPhotosGrid');
       const badge = document.getElementById('photoCountBadge');
-      const submitBtn = document.getElementById('studioSubmitBtn');
       grid.innerHTML = '';
 
+      if (studioUploadedImages.length === 0) {
+        grid.innerHTML = '<div class="col-span-full py-8 text-center text-xs text-[rgba(235,235,245,0.60)] border border-dashed border-white/[0.1] rounded-[16px]">' +
+          'এখনও কোনো ছবি আপলোড করা হয়নি। উপরে "ছবি আপলোড করতে এখানে ক্লিক করুন" বাটনে চাপ দিয়ে ৫ থেকে ৮টি ছবি সিলেক্ট করুন।' +
+          '</div>';
+      }
+
       studioUploadedImages.forEach((url, idx) => {
+        const isCover = (idx === 0);
         const slot = document.createElement('div');
-        slot.className = 'relative group aspect-square rounded-[14px] bg-[#1C1C1E] border border-white/[0.1] overflow-hidden';
-        slot.innerHTML = '<img src="' + url + '" alt="photo ' + (idx + 1) + '" class="w-full h-full object-cover">' +
-          '<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1">' +
-            '<button type="button" onclick="removeStudioPhoto(' + idx + ')" class="w-6 h-6 rounded-full bg-[#FF453A] text-white flex items-center justify-center font-bold text-xs cursor-pointer shadow-md" title="মুছে ফেলুন">✕</button>' +
+        slot.className = 'relative group aspect-[3/4] rounded-[16px] bg-[#1C1C1E] border border-white/[0.12] overflow-hidden shadow-sm hover:border-white/40 transition cursor-pointer';
+        
+        slot.innerHTML = '<img src="' + url + '" alt="photo ' + (idx + 1) + '" class="w-full h-full object-cover transition duration-200 group-hover:scale-105" onclick="openPhotoLightbox(' + idx + ')">' +
+          '<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">' +
+            '<span class="bg-black/80 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full border border-white/20 shadow-md">🔍 বড় করে দেখুন</span>' +
           '</div>' +
-          '<span class="absolute bottom-1 left-1 bg-black/70 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">#' + (idx + 1) + '</span>';
+          '<div class="absolute bottom-2 left-2 bg-black/80 text-white font-mono text-[10px] px-2 py-0.5 rounded-[6px] font-bold shadow pointer-events-none border border-white/10">' +
+            (isCover ? '⭐ কভার ফটো (#1)' : '#' + (idx + 1)) +
+          '</div>' +
+          '<button type="button" onclick="event.stopPropagation(); removeStudioPhoto(' + idx + ')" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#FF453A] hover:bg-[#D70015] text-white flex items-center justify-center font-bold text-xs cursor-pointer shadow-md transition active:scale-95" title="এই ছবি মুছে ফেলুন">✕</button>';
         grid.appendChild(slot);
       });
 
       const count = studioUploadedImages.length;
       if (count < 5) {
-        badge.className = 'text-xs px-3 py-1 rounded-full font-bold bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30';
+        badge.className = 'text-xs px-3.5 py-1.5 rounded-full font-bold bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30';
         badge.innerText = count + '/৮ ছবি (কমপক্ষে আরও ' + (5 - count) + 'টি ছবি দিন)';
       } else {
-        badge.className = 'text-xs px-3 py-1 rounded-full font-bold bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30';
+        badge.className = 'text-xs px-3.5 py-1.5 rounded-full font-bold bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30';
         badge.innerText = '✅ ' + count + '/৮ ছবি প্রস্তুত (অনুমোদিত)';
       }
     }
@@ -1099,6 +1147,56 @@ function createMerchantPortalRouter({
       studioUploadedImages.splice(idx, 1);
       renderStudioPhotos();
     }
+
+    // Photo Lightbox Functions (Click to Enlarge)
+    function openPhotoLightbox(idx) {
+      if (!studioUploadedImages || studioUploadedImages.length === 0) return;
+      currentLightboxIdx = idx;
+      updateLightboxDisplay();
+      document.getElementById('imageLightboxModal').classList.remove('hidden');
+    }
+
+    function updateLightboxDisplay() {
+      const total = studioUploadedImages.length;
+      if (total === 0) return;
+      const url = studioUploadedImages[currentLightboxIdx];
+      document.getElementById('lightboxImg').src = url;
+      document.getElementById('lightboxIndexBadge').innerText = 'ছবি ' + (currentLightboxIdx + 1) + ' / ' + total;
+      
+      const coverBadge = document.getElementById('lightboxCoverBadge');
+      if (currentLightboxIdx === 0) {
+        coverBadge.classList.remove('hidden');
+      } else {
+        coverBadge.classList.add('hidden');
+      }
+
+      document.getElementById('lightboxPrevBtn').style.display = total > 1 ? 'flex' : 'none';
+      document.getElementById('lightboxNextBtn').style.display = total > 1 ? 'flex' : 'none';
+    }
+
+    function navigateLightbox(step) {
+      const total = studioUploadedImages.length;
+      if (total <= 1) return;
+      currentLightboxIdx = (currentLightboxIdx + step + total) % total;
+      updateLightboxDisplay();
+    }
+
+    function closeLightboxModal(e) {
+      if (e && e.target && e.target.id !== 'imageLightboxModal' && !e.target.closest('button')) {
+        return;
+      }
+      document.getElementById('imageLightboxModal').classList.add('hidden');
+    }
+
+    // Keyboard navigation for Lightbox
+    window.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('imageLightboxModal');
+      if (modal && !modal.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLightboxModal();
+        if (e.key === 'ArrowLeft') navigateLightbox(-1);
+        if (e.key === 'ArrowRight') navigateLightbox(1);
+      }
+    });
 
     async function handleStudioFilesUpload(files) {
       if (!files || files.length === 0) return;
