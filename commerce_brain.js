@@ -210,6 +210,7 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
           p.fabric ? `ফেব্রিক: ${p.fabric}` : '',
           colorStr ? `কালার: ${colorStr}` : '',
           p.sizes ? `সাইজ: ${p.sizes}` : '',
+          p.short_description ? `নোট: ${p.short_description}` : '',
           p.hijab_included ? 'হিজাব ফ্রি' : ''
         ].filter(Boolean).join(', ');
         const stock = p.in_stock === false ? 'স্টক আউট' : 'স্টকে আছে';

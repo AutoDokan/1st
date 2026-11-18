@@ -125,7 +125,7 @@ function createSuperAdminRouter({
             <div class="flex items-center gap-2 flex-wrap">
               <h3 class="text-base font-semibold text-white tracking-tight">${s.shop_name}</h3>
               <span class="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] border border-white/[0.06]">${catLabel}</span>
-              <span id="plan-badge-${s.seller_id}" class="text-[10px] font-medium px-2 py-0.5 rounded-full ${s.plan === 'Enterprise' ? 'bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30' : (s.plan === 'Suspended' ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30' : 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30')}">
+              <span id="plan-badge-${s.seller_id}" class="text-[10px] font-medium px-2 py-0.5 rounded-full ${s.plan === 'Enterprise' ? 'bg-white/10 text-white border border-white/20' : (s.plan === 'Suspended' ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30' : 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30')}">
                 ${s.plan === 'Enterprise' ? '🏢 Enterprise' : (s.plan === 'Suspended' ? '⏸️ স্থগিত' : '💎 Pro Growth')}
               </span>
             </div>
@@ -176,7 +176,7 @@ function createSuperAdminRouter({
         <!-- Action Links & Dynamic Bot Fleet Controls -->
         <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
           <div class="flex items-center gap-2 flex-wrap">
-            <a href="${portalUrl}" target="_blank" class="bg-[#0A84FF] hover:bg-[#0071E3] text-white text-xs px-3 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1 shadow-[0_2px_8px_rgba(10,132,255,0.25)]">
+            <a href="${portalUrl}" target="_blank" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white border border-white/[0.12] text-xs px-3 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1 shadow-xs">
               <span>মার্চেন্ট পোর্টাল</span><span>↗</span>
             </a>
             <a href="${connectUrl}" target="_blank" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white/90 border border-white/[0.08] text-xs px-2.5 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1">
@@ -192,7 +192,7 @@ function createSuperAdminRouter({
             </button>
           </div>
           <div>
-            <a href="/dashboard?seller_id=${s.seller_id}&tab=orders" class="text-[#0A84FF] hover:underline text-xs font-medium px-2 py-1 transition flex items-center gap-1">
+            <a href="/dashboard?seller_id=${s.seller_id}&tab=orders" class="text-[rgba(235,235,245,0.85)] hover:text-white underline text-xs font-medium px-2 py-1 transition flex items-center gap-1">
               <span>অর্ডারস</span><span>→</span>
             </a>
           </div>
@@ -219,7 +219,7 @@ function createSuperAdminRouter({
         </td>
         <td class="p-3.5">
           <div class="font-medium text-white text-xs">${o.customer_name || 'কাস্টমার'}</div>
-          <a href="https://wa.me/${waPhone}" target="_blank" class="text-[#0A84FF] hover:underline text-xs font-mono font-medium flex items-center gap-1 mt-0.5">
+          <a href="https://wa.me/${waPhone}" target="_blank" class="text-[rgba(235,235,245,0.85)] hover:text-white underline text-xs font-mono font-medium flex items-center gap-1 mt-0.5">
             <span>💬</span>
             <span>${o.customer_phone || ''}</span>
           </a>
@@ -237,7 +237,7 @@ function createSuperAdminRouter({
         <td class="p-3.5">
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-medium ${
             o.status === 'Approved' ? 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30' :
-            o.status === 'Shipped' ? 'bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30' :
+            o.status === 'Shipped' ? 'bg-white/10 text-white border border-white/20' :
             o.status === 'Cancelled' ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30' :
             'bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30'
           }">
@@ -278,7 +278,7 @@ function createSuperAdminRouter({
         <!-- Outbound AI Bot Message (Apple Outgoing iMessage Bubble #0A84FF) -->
         ${lastBotMsg ? `
           <div class="flex justify-end">
-            <div class="max-w-[85%] bg-[#0A84FF] text-white p-3 rounded-[16px] rounded-tr-xs shadow-[0_2px_8px_rgba(10,132,255,0.25)]">
+            <div class="max-w-[85%] bg-[#2C2C2E] text-white p-3 rounded-[16px] rounded-tr-xs border border-white/[0.12] shadow-xs">
               <div class="text-[10px] text-white/70 font-medium mb-0.5 text-right">🤖 AutoDokan AI</div>
               <div class="leading-relaxed">${(lastBotMsg.content || lastBotMsg.text || '').substring(0, 180)}...</div>
             </div>
@@ -311,7 +311,7 @@ function createSuperAdminRouter({
     }
   </style>
 </head>
-<body class="bg-[#000000] text-[rgba(235,235,245,0.60)] min-h-screen pb-24 selection:bg-[#0A84FF]/30 selection:text-white">
+<body class="bg-[#000000] text-[rgba(235,235,245,0.60)] min-h-screen pb-24 selection:bg-white/20 selection:text-white">
 
   <!-- Apple Frosted Glass Top Navbar -->
   <header class="apple-glass border-b border-white/[0.08] sticky top-0 z-40 px-5 py-3.5">
@@ -319,7 +319,7 @@ function createSuperAdminRouter({
       
       <!-- Brand & Platform Fleet Indicator -->
       <div class="flex items-center gap-3.5">
-        <div class="w-10 h-10 rounded-[14px] bg-[#1C1C1E] border border-white/[0.12] text-[#0A84FF] flex items-center justify-center font-bold text-lg shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+        <div class="w-10 h-10 rounded-[14px] bg-[#1C1C1E] border border-white/[0.12] text-white flex items-center justify-center font-bold text-lg shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
           ⚡
         </div>
         <div>
@@ -364,7 +364,7 @@ function createSuperAdminRouter({
         </div>
 
         <!-- Add Shop Onboarding Button (Apple System Blue #0A84FF) -->
-        <button type="button" onclick="openNewShopModal()" class="bg-[#0A84FF] hover:bg-[#0071E3] active:scale-[0.98] text-white font-medium text-xs px-4 py-2 rounded-[14px] shadow-[0_2px_12px_rgba(10,132,255,0.3)] transition flex items-center gap-1.5 cursor-pointer">
+        <button type="button" onclick="openNewShopModal()" class="bg-white hover:bg-[#E5E5EA] active:scale-[0.98] text-black font-semibold text-xs px-4 py-2 rounded-[14px] shadow-[0_2px_12px_rgba(255,255,255,0.12)] transition flex items-center gap-1.5 cursor-pointer">
           <span>➕ নতুন শপ অনবোর্ডিং</span>
         </button>
 
@@ -490,23 +490,23 @@ function createSuperAdminRouter({
       <form id="newShopForm" onsubmit="handleDynamicShopCreation(event)" class="space-y-3.5">
         <div>
           <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">দোকানের নাম *</label>
-          <input type="text" id="onboard_shop_name" required placeholder="যেমন: Noor Fashion বা Smart Tech" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none focus:border-[#0A84FF] transition">
+          <input type="text" id="onboard_shop_name" required placeholder="যেমন: Noor Fashion বা Smart Tech" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none focus:border-white/30 transition">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">ওনারের নাম</label>
-            <input type="text" id="onboard_owner_name" placeholder="যেমন: তানভীর আহমেদ" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none focus:border-[#0A84FF] transition">
+            <input type="text" id="onboard_owner_name" placeholder="যেমন: তানভীর আহমেদ" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none focus:border-white/30 transition">
           </div>
           <div>
             <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">মোবাইল নম্বর</label>
-            <input type="text" id="onboard_phone" placeholder="যেমন: 017XXXXXXXX" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none focus:border-[#0A84FF] font-mono transition">
+            <input type="text" id="onboard_phone" placeholder="যেমন: 017XXXXXXXX" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none focus:border-white/30 font-mono transition">
           </div>
         </div>
 
         <div>
           <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🎯 বিজনেস ক্যাটাগরি (AI আর্কিটাইপ)</label>
-          <select id="onboard_category" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] outline-none focus:border-[#0A84FF] cursor-pointer transition">
+          <select id="onboard_category" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] outline-none focus:border-white/30 cursor-pointer transition">
             <option value="footwear">👞 জুতা ও ফুটওয়্যার (৩৯-৪৪ বাটা/এপেক্স ফিট, কুশন ও গ্রিপ)</option>
             <option value="modest_fashion">👗 মোডেস্ট ফ্যাশন ও আবায়া (৫০-৫৬ সাইজ, দুবাই চেরি)</option>
             <option value="gadgets">📱 গ্যাজেটস ও টেক (ওয়ারেন্টি, অরিজিনাল আনপ্যাক চেকিং)</option>
@@ -520,15 +520,15 @@ function createSuperAdminRouter({
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🤖 AI বট এজেন্টের নাম</label>
-            <input type="text" id="onboard_bot_name" value="সাকিব" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] outline-none focus:border-[#0A84FF] transition">
+            <input type="text" id="onboard_bot_name" value="সাকিব" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] outline-none focus:border-white/30 transition">
           </div>
           <div>
             <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🚚 ঢাকা ভেতরে চার্জ (টাকা)</label>
-            <input type="number" id="onboard_inside_fee" value="80" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] outline-none focus:border-[#0A84FF] transition">
+            <input type="number" id="onboard_inside_fee" value="80" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] outline-none focus:border-white/30 transition">
           </div>
         </div>
 
-        <button type="submit" id="onboardSubmitBtn" class="w-full bg-[#0A84FF] hover:bg-[#0071E3] active:scale-[0.98] text-white font-medium text-xs py-3 rounded-[14px] transition cursor-pointer shadow-[0_2px_12px_rgba(10,132,255,0.3)] mt-2">
+        <button type="submit" id="onboardSubmitBtn" class="w-full bg-white hover:bg-[#E5E5EA] active:scale-[0.98] text-black font-semibold text-xs py-3 rounded-[14px] transition cursor-pointer shadow-[0_2px_12px_rgba(255,255,255,0.12)] mt-2">
           🚀 শপ তৈরি করুন ও লিংক জেনারেট করুন
         </button>
       </form>
@@ -542,14 +542,14 @@ function createSuperAdminRouter({
           <label class="block text-[11px] text-[rgba(235,235,245,0.60)] font-medium mb-1">মার্চেন্ট পোর্টাল লিংক (সেলারকে এই লিংক দিন):</label>
           <div class="flex items-center gap-2">
             <input type="text" id="onboardResPortalUrl" readonly class="flex-1 bg-[#2C2C2E] border border-white/[0.08] text-[11px] p-2 rounded-[10px] text-white font-mono">
-            <button type="button" onclick="copyInputVal('onboardResPortalUrl')" class="bg-[#0A84FF] hover:bg-[#0071E3] text-white font-medium text-xs px-3.5 py-2 rounded-[10px] transition cursor-pointer">কপি</button>
+            <button type="button" onclick="copyInputVal('onboardResPortalUrl')" class="bg-white hover:bg-[#E5E5EA] text-black font-semibold text-xs px-3.5 py-2 rounded-[10px] transition cursor-pointer">কপি</button>
           </div>
         </div>
         <div>
           <label class="block text-[11px] text-[rgba(235,235,245,0.60)] font-medium mb-1">WhatsApp QR কানেক্ট লিংক:</label>
           <div class="flex items-center gap-2">
             <input type="text" id="onboardResConnectUrl" readonly class="flex-1 bg-[#2C2C2E] border border-white/[0.08] text-[11px] p-2 rounded-[10px] text-white font-mono">
-            <button type="button" onclick="copyInputVal('onboardResConnectUrl')" class="bg-[#0A84FF] hover:bg-[#0071E3] text-white font-medium text-xs px-3.5 py-2 rounded-[10px] transition cursor-pointer">কপি</button>
+            <button type="button" onclick="copyInputVal('onboardResConnectUrl')" class="bg-white hover:bg-[#E5E5EA] text-black font-semibold text-xs px-3.5 py-2 rounded-[10px] transition cursor-pointer">কপি</button>
           </div>
         </div>
       </div>
@@ -704,7 +704,7 @@ function createSuperAdminRouter({
               '<div class="text-[10px] text-[rgba(235,235,245,0.30)] mt-0.5">এখনই</div>' +
               '<div class="mt-1"><span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] text-[9px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">🏬 ' + newestOrder.shop_name + '</span></div>' +
               '</td>' +
-              '<td class="p-3.5"><div class="font-medium text-white text-xs">' + (newestOrder.customer_name || 'কাস্টমার') + '</div><div class="text-xs text-[#0A84FF] font-mono">' + (newestOrder.customer_phone || '') + '</div></td>' +
+              '<td class="p-3.5"><div class="font-medium text-white text-xs">' + (newestOrder.customer_name || 'কাস্টমার') + '</div><div class="text-xs text-white font-mono">' + (newestOrder.customer_phone || '') + '</div></td>' +
               '<td class="p-3.5"><div class="text-xs text-[rgba(235,235,245,0.60)]">' + (newestOrder.address || '') + '</div></td>' +
               '<td class="p-3.5"><span class="font-mono text-white text-xs">[' + (newestOrder.model_code || 'PROD') + ']</span></td>' +
               '<td class="p-3.5"><span class="font-semibold text-white text-xs">৳' + newestOrder.due_cod + '</span></td>' +
