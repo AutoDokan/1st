@@ -910,28 +910,31 @@ function createMerchantPortalRouter({
   </div>
 
   <!-- ======================================================== -->
-  <!-- HIGH-RES PHOTO LIGHTBOX MODAL (Click to Enlarge)          -->
+  <!-- HIGH-RES PHOTO LIGHTBOX MODAL (Always Pinned at Top)      -->
   <!-- ======================================================== -->
-  <div id="imageLightboxModal" class="hidden fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4" onclick="closeLightboxModal(event)">
-    <!-- Top Bar with counter & close -->
-    <div class="max-w-2xl w-full flex items-center justify-between text-white pb-3 px-2" onclick="event.stopPropagation()">
-      <div class="flex items-center gap-2">
-        <span id="lightboxIndexBadge" class="bg-white/20 text-white font-mono text-xs px-3 py-1 rounded-full font-bold">ছবি ১ / ৫</span>
-        <span id="lightboxCoverBadge" class="text-xs bg-[#30D158]/20 text-[#30D158] border border-[#30D158]/30 px-2.5 py-0.5 rounded-full font-semibold hidden">⭐ মূল কভার ফটো</span>
+  <div id="imageLightboxModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex flex-col justify-between items-center p-3 sm:p-5 select-none" style="z-index: 999999;" onclick="closeLightboxModal(event)">
+    <!-- Top Bar with counter & close (Always visible at the top, never pushed off-screen!) -->
+    <div class="w-full max-w-4xl flex items-center justify-between text-white shrink-0 py-2.5 px-4 bg-white/[0.08] backdrop-blur-md rounded-[18px] border border-white/[0.12] shadow-lg z-20" onclick="event.stopPropagation()">
+      <div class="flex items-center gap-2.5">
+        <span id="lightboxIndexBadge" class="bg-white/20 text-white font-mono text-xs sm:text-sm px-3.5 py-1.5 rounded-full font-bold shadow-xs">ছবি ১ / ৫</span>
+        <span id="lightboxCoverBadge" class="text-xs bg-[#30D158]/25 text-[#30D158] border border-[#30D158]/40 px-3 py-1 rounded-full font-bold hidden">⭐ মূল কভার ফটো</span>
       </div>
-      <button type="button" onclick="closeLightboxModal()" class="w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center font-bold text-lg cursor-pointer transition">✕</button>
+      <button type="button" onclick="closeLightboxModal()" class="w-9 h-9 rounded-full bg-white/15 hover:bg-[#FF453A] active:scale-95 text-white flex items-center justify-center font-bold text-base cursor-pointer transition shadow-md border border-white/20" title="বন্ধ করুন (Esc)">✕</button>
     </div>
 
-    <!-- Large Image Box -->
-    <div class="relative max-w-2xl max-h-[78vh] flex items-center justify-center" onclick="event.stopPropagation()">
-      <img id="lightboxImg" src="" alt="Enlarged preview" class="max-w-full max-h-[76vh] object-contain rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-white/10">
+    <!-- Large Image Box (Auto-scaled to fit viewport vertically and horizontally) -->
+    <div class="relative flex-1 w-full max-w-4xl flex items-center justify-center my-auto min-h-0 py-3" onclick="event.stopPropagation()">
+      <img id="lightboxImg" src="" alt="Enlarged preview" class="max-w-full max-h-[70vh] sm:max-h-[74vh] object-contain rounded-[18px] shadow-[0_20px_70px_rgba(0,0,0,0.9)] border border-white/15 select-none transition duration-150">
       
       <!-- Prev / Next Navigation Arrows -->
-      <button type="button" id="lightboxPrevBtn" onclick="navigateLightbox(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center font-bold text-xl cursor-pointer transition border border-white/20 shadow-lg">‹</button>
-      <button type="button" id="lightboxNextBtn" onclick="navigateLightbox(1)" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center font-bold text-xl cursor-pointer transition border border-white/20 shadow-lg">›</button>
+      <button type="button" id="lightboxPrevBtn" onclick="navigateLightbox(-1)" class="absolute left-1 sm:left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/70 hover:bg-black/95 active:scale-95 text-white flex items-center justify-center font-bold text-2xl cursor-pointer transition border border-white/25 shadow-xl select-none" title="পূর্ববর্তী ছবি (‹)">‹</button>
+      <button type="button" id="lightboxNextBtn" onclick="navigateLightbox(1)" class="absolute right-1 sm:right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/70 hover:bg-black/95 active:scale-95 text-white flex items-center justify-center font-bold text-2xl cursor-pointer transition border border-white/25 shadow-xl select-none" title="পরবর্তী ছবি (›)">›</button>
     </div>
     
-    <div class="text-xs text-[rgba(235,235,245,0.60)] mt-3">কিবোর্ডের ‹ ও › বাটন বা বাইরে ক্লিক করে বন্ধ করুন</div>
+    <!-- Bottom Hint Bar -->
+    <div class="shrink-0 text-center text-xs text-[rgba(235,235,245,0.70)] pb-1 select-none">
+      <span>কিবোর্ডের ‹ ও › অ্যারো বাটন দিয়ে পরিবর্তন করুন অথবা বাইরে ক্লিক করে বন্ধ করুন</span>
+    </div>
   </div>
 
   <!-- ======================================================== -->
@@ -1153,25 +1156,37 @@ function createMerchantPortalRouter({
       if (!studioUploadedImages || studioUploadedImages.length === 0) return;
       currentLightboxIdx = idx;
       updateLightboxDisplay();
-      document.getElementById('imageLightboxModal').classList.remove('hidden');
+      const modal = document.getElementById('imageLightboxModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.scrollTop = 0;
+      }
+      document.body.style.overflow = 'hidden';
     }
 
     function updateLightboxDisplay() {
       const total = studioUploadedImages.length;
       if (total === 0) return;
       const url = studioUploadedImages[currentLightboxIdx];
-      document.getElementById('lightboxImg').src = url;
-      document.getElementById('lightboxIndexBadge').innerText = 'ছবি ' + (currentLightboxIdx + 1) + ' / ' + total;
+      const img = document.getElementById('lightboxImg');
+      if (img) img.src = url;
+      
+      const badge = document.getElementById('lightboxIndexBadge');
+      if (badge) badge.innerText = 'ছবি ' + (currentLightboxIdx + 1) + ' / ' + total;
       
       const coverBadge = document.getElementById('lightboxCoverBadge');
-      if (currentLightboxIdx === 0) {
-        coverBadge.classList.remove('hidden');
-      } else {
-        coverBadge.classList.add('hidden');
+      if (coverBadge) {
+        if (currentLightboxIdx === 0) {
+          coverBadge.classList.remove('hidden');
+        } else {
+          coverBadge.classList.add('hidden');
+        }
       }
 
-      document.getElementById('lightboxPrevBtn').style.display = total > 1 ? 'flex' : 'none';
-      document.getElementById('lightboxNextBtn').style.display = total > 1 ? 'flex' : 'none';
+      const prevBtn = document.getElementById('lightboxPrevBtn');
+      const nextBtn = document.getElementById('lightboxNextBtn');
+      if (prevBtn) prevBtn.style.display = total > 1 ? 'flex' : 'none';
+      if (nextBtn) nextBtn.style.display = total > 1 ? 'flex' : 'none';
     }
 
     function navigateLightbox(step) {
@@ -1185,7 +1200,9 @@ function createMerchantPortalRouter({
       if (e && e.target && e.target.id !== 'imageLightboxModal' && !e.target.closest('button')) {
         return;
       }
-      document.getElementById('imageLightboxModal').classList.add('hidden');
+      const modal = document.getElementById('imageLightboxModal');
+      if (modal) modal.classList.add('hidden');
+      document.body.style.overflow = '';
     }
 
     // Keyboard navigation for Lightbox
