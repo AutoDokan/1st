@@ -170,6 +170,11 @@ function createMerchantPortalRouter({
       // Colors chips
       const colorChips = (p.colors || '').split(',').map(c => c.trim()).filter(Boolean);
 
+      // Dynamic Bundle & Offer Badges
+      const cAttr = p.custom_attributes || {};
+      const hasBundle = cAttr.bundle_active === true || cAttr.bundle_active === 'true';
+      const bundleBadge = hasBundle ? (cAttr.bundle_label || '🔥 বান্ডেল অফার') : '';
+
       return `
       <div class="prod-card bg-[#1C1C1E] rounded-[26px] border border-white/[0.08] hover:border-white/[0.18] p-6 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.6)] space-y-5 transition-all flex flex-col justify-between" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}" data-gallery="${encodeURIComponent(JSON.stringify(uniqueGallery))}">
         
@@ -177,7 +182,13 @@ function createMerchantPortalRouter({
           <!-- Card Header: Model Badge & Instant Stock Toggle Switch -->
           <div class="flex items-center justify-between gap-3 border-b border-white/[0.06] pb-3.5">
             <div class="flex items-center gap-2 flex-wrap">
+              <input type="checkbox" class="prod-select-cb w-4 h-4 rounded accent-[#30D158] cursor-pointer" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" onchange="updateSelectedCount()" title="প্রোডাক্ট নির্বাচন করুন">
               <span class="font-mono font-bold text-sm bg-[#2C2C2E] text-white px-3 py-1 rounded-[10px] border border-white/[0.1]">${p.model_code || 'PROD'}</span>
+              ${hasBundle ? `
+                <span class="inline-flex items-center gap-1 text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-[10px] shadow-xs">
+                  <span>🔥</span><span>${bundleBadge}</span>
+                </span>
+              ` : ''}
               
               <!-- 1-Click Inline Quick-Edit Stock Inventory -->
               <div class="inline-flex items-center">
@@ -322,8 +333,18 @@ function createMerchantPortalRouter({
       // Sizes chips
       const sizeChips = (p.sizes || 'স্ট্যান্ডার্ড').split(',').map(s => s.trim()).filter(Boolean);
 
+      // Dynamic Bundle & Offer Badges
+      const cAttr = p.custom_attributes || {};
+      const hasBundle = cAttr.bundle_active === true || cAttr.bundle_active === 'true';
+      const bundleBadge = hasBundle ? (cAttr.bundle_label || '🔥 বান্ডেল অফার') : '';
+
       return `
       <tr class="prod-table-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-sm" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}" data-gallery="${encodeURIComponent(JSON.stringify(uniqueGallery))}">
+        <!-- Col 0: Multi-Select Checkbox -->
+        <td class="p-4 text-center align-middle w-10">
+          <input type="checkbox" class="prod-select-cb w-4 h-4 rounded accent-[#30D158] cursor-pointer" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" onchange="updateSelectedCount()" title="প্রোডাক্ট নির্বাচন করুন">
+        </td>
+
         <!-- Col 1: Status & Quick Stock Switch -->
         <td class="p-4 align-middle">
           <div class="space-y-1">
@@ -370,6 +391,7 @@ function createMerchantPortalRouter({
         <td class="p-4 align-middle max-w-[280px]">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-mono font-bold text-xs bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[6px] border border-white/[0.1]">${p.model_code || 'PROD'}</span>
+            ${hasBundle ? `<span class="inline-flex items-center gap-1 text-[10px] text-amber-300 font-bold bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-[6px]">🔥 ${bundleBadge}</span>` : ''}
             ${hasDiscount ? `<span class="text-[10px] text-[#30D158] font-bold bg-[#30D158]/15 border border-[#30D158]/25 px-1.5 py-0.5 rounded-[4px]">অফার</span>` : ''}
           </div>
           <div class="font-bold text-white text-sm mt-1 truncate" title="${p.name.replace(/"/g, '&quot;')}">${p.name}</div>
@@ -857,6 +879,59 @@ function createMerchantPortalRouter({
     <section id="tab-products" class="space-y-6">
       <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
         
+        <!-- ======================================================== -->
+        <!-- Amazon Seller Central: Inventory Health Metric Strip -->
+        <!-- ======================================================== -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pb-2">
+          <!-- Metric 1: Active Products -->
+          <div class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-white/[0.15] p-4 sm:p-5 rounded-[20px] transition shadow-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium">সক্রিয় ক্যাটালগ</span>
+              <span class="w-8 h-8 rounded-full bg-[#30D158]/15 text-[#30D158] flex items-center justify-center text-sm font-bold">📦</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-extrabold text-white mt-2 font-mono">${inStockProducts} <span class="text-xs font-normal text-[rgba(235,235,245,0.50)]">/ ${totalProducts} টি</span></div>
+            <div class="text-[11px] text-[#30D158] mt-1 flex items-center gap-1 font-medium">
+              <span>●</span> ${totalProducts > 0 ? Math.round((inStockProducts / totalProducts) * 100) : 0}% পণ্য বিক্রয়যোগ্য
+            </div>
+          </div>
+
+          <!-- Metric 2: Low-Stock Alert -->
+          <div onclick="filterStock('LOW_STOCK')" class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-[#FF9F0A]/40 p-4 sm:p-5 rounded-[20px] transition shadow-xs cursor-pointer group/low" title="ক্লিক করে লো-স্টক প্রোডাক্ট ফিল্টার করুন">
+            <div class="flex items-center justify-between">
+              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium group-hover/low:text-[#FF9F0A] transition">লো-স্টক সতর্কতা</span>
+              <span class="w-8 h-8 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A] flex items-center justify-center text-sm font-bold animate-pulse">⚠️</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-extrabold text-[#FF9F0A] mt-2 font-mono">${lowStockProducts} <span class="text-xs font-normal text-[rgba(235,235,245,0.50)]">টি পণ্য</span></div>
+            <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
+              ৫ পিস বা কম (ক্লিক করে দেখুন)
+            </div>
+          </div>
+
+          <!-- Metric 3: Stock-Out Alert -->
+          <div onclick="filterStock('STOCK_OUT')" class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-[#FF453A]/40 p-4 sm:p-5 rounded-[20px] transition shadow-xs cursor-pointer group/out" title="ক্লিক করে স্টক-আউট প্রোডাক্ট ফিল্টার করুন">
+            <div class="flex items-center justify-between">
+              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium group-hover/out:text-[#FF453A] transition">স্টক-আউট পণ্য</span>
+              <span class="w-8 h-8 rounded-full bg-[#FF453A]/15 text-[#FF453A] flex items-center justify-center text-sm font-bold">❌</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-extrabold text-[#FF453A] mt-2 font-mono">${stockOutProducts} <span class="text-xs font-normal text-[rgba(235,235,245,0.50)]">টি পণ্য</span></div>
+            <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
+              বিক্রয় বন্ধ (ক্লিক করে দেখুন)
+            </div>
+          </div>
+
+          <!-- Metric 4: Total Inventory Asset Value -->
+          <div class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-cyan-500/40 p-4 sm:p-5 rounded-[20px] transition shadow-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium">ইনভেন্টরি অ্যাসেট ভ্যালু</span>
+              <span class="w-8 h-8 rounded-full bg-cyan-500/15 text-cyan-400 flex items-center justify-center text-sm font-bold">💎</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-extrabold text-cyan-400 mt-2 font-mono">৳${Number(Math.round(totalInventoryValue)).toLocaleString('en-IN')}</div>
+            <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
+              মোট মজুদ পণ্যের বাজারমূল্য
+            </div>
+          </div>
+        </div>
+
         <!-- Search, Stock Filters & Add Product Action Bar -->
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
           <div>
@@ -900,6 +975,9 @@ function createMerchantPortalRouter({
           <table class="w-full text-left text-[rgba(235,235,245,0.70)] text-sm">
             <thead class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] font-semibold border-b border-white/[0.06] text-xs uppercase tracking-wider">
               <tr>
+                <th class="p-4 w-10 text-center">
+                  <input type="checkbox" id="selectAllProds" onchange="toggleSelectAllProds(this.checked)" class="w-4 h-4 rounded accent-[#30D158] cursor-pointer" title="সবগুলো নির্বাচন করুন">
+                </th>
                 <th class="p-4">স্ট্যাটাস</th>
                 <th class="p-4">ছবি</th>
                 <th class="p-4">SKU / মডেল ও বিবরণ</th>
@@ -911,7 +989,7 @@ function createMerchantPortalRouter({
               </tr>
             </thead>
             <tbody id="productsTableBody">
-              ${productTableRowsHtml || '<tr><td colspan="8" class="p-12 text-center text-[rgba(235,235,245,0.35)] font-semibold">এখনও কোনো প্রোডাক্ট নেই। উপরে "+ নতুন প্রোডাক্ট যোগ করুন" বাটনে চাপ দিন।</td></tr>'}
+              ${productTableRowsHtml || '<tr><td colspan="9" class="p-12 text-center text-[rgba(235,235,245,0.35)] font-semibold">এখনও কোনো প্রোডাক্ট নেই। উপরে "+ নতুন প্রোডাক্ট যোগ করুন" বাটনে চাপ দিন।</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -1542,6 +1620,56 @@ function createMerchantPortalRouter({
             নিশ্চিত মুছুন (3s)
           </button>
         </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- Amazon Seller Central Style Floating Bulk Operations Dock -->
+  <!-- ======================================================== -->
+  <div id="bulkActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transform translate-y-32 opacity-0 pointer-events-none transition-all duration-300 w-[95%] max-w-3xl">
+    <div class="bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/[0.15] shadow-[0_20px_60px_rgba(0,0,0,0.85)] rounded-[22px] p-4 sm:p-5 flex items-center justify-between gap-3 flex-wrap">
+      
+      <!-- Selection Indicator -->
+      <div class="flex items-center gap-3">
+        <span id="bulkSelectedCountBadge" class="bg-[#30D158] text-black font-extrabold px-3 py-1 rounded-full text-xs font-mono shadow-xs">0</span>
+        <div>
+          <div class="font-bold text-white text-sm">টি প্রোডাক্ট সিলেক্টেড</div>
+          <div class="text-[11px] text-[rgba(235,235,245,0.50)]">বাল্ক অপারেশনের জন্য প্রস্তুত</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons Dock -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Restock Action -->
+        <button type="button" onclick="openBulkRestockPrompt()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold text-xs px-3.5 py-2 rounded-[12px] border border-white/[0.1] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+          <span>📦</span><span>স্টক যোগ করুন</span>
+        </button>
+
+        <!-- Bulk Discount Action -->
+        <button type="button" onclick="openBulkDiscountPrompt()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold text-xs px-3.5 py-2 rounded-[12px] border border-white/[0.1] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+          <span>🏷️</span><span>মূল্য ছাড় (% অফ)</span>
+        </button>
+
+        <!-- Bulk Toggle In-Stock / Out -->
+        <button type="button" onclick="bulkToggleStock(true)" class="bg-[#30D158]/15 hover:bg-[#30D158]/25 text-[#30D158] font-semibold text-xs px-3 py-2 rounded-[12px] border border-[#30D158]/30 transition flex items-center gap-1 cursor-pointer active:scale-95" title="নির্বাচিত সবগুলো ইন-স্টক করুন">
+          <span>✓</span><span>ইন-স্টক</span>
+        </button>
+
+        <button type="button" onclick="bulkToggleStock(false)" class="bg-[#FF9F0A]/15 hover:bg-[#FF9F0A]/25 text-[#FF9F0A] font-semibold text-xs px-3 py-2 rounded-[12px] border border-[#FF9F0A]/30 transition flex items-center gap-1 cursor-pointer active:scale-95" title="নির্বাচিত সবগুলো স্টক-আউট করুন">
+          <span>✕</span><span>স্টক-আউট</span>
+        </button>
+
+        <!-- Bulk Delete -->
+        <button type="button" onclick="bulkDeleteSelected()" class="bg-[#FF453A]/15 hover:bg-[#FF453A]/25 text-[#FF453A] font-semibold text-xs px-3 py-2 rounded-[12px] border border-[#FF453A]/30 transition flex items-center gap-1 cursor-pointer active:scale-95" title="নির্বাচিত পণ্য মুছে ফেলুন">
+          <span>🗑️</span>
+        </button>
+
+        <!-- Cancel Selection -->
+        <button type="button" onclick="clearProductSelection()" class="text-[rgba(235,235,245,0.40)] hover:text-white text-xs font-semibold px-2 py-2 transition cursor-pointer" title="বাছাই বাতিল">
+          ✕
+        </button>
       </div>
 
     </div>
@@ -2702,6 +2830,138 @@ function createMerchantPortalRouter({
       }
     }
 
+    // ========================================================
+    // Amazon Seller Central: Multi-Select & Bulk Operations
+    // ========================================================
+    const selectedProductIds = new Set();
+
+    function updateSelectedCount() {
+      const cbs = document.querySelectorAll('.prod-select-cb');
+      selectedProductIds.clear();
+      cbs.forEach(cb => {
+        if (cb.checked) {
+          selectedProductIds.add(Number(cb.getAttribute('data-id')));
+        }
+      });
+
+      const count = selectedProductIds.size;
+      const dock = document.getElementById('bulkActionBar');
+      const badge = document.getElementById('bulkSelectedCountBadge');
+      const masterCb = document.getElementById('selectAllProds');
+
+      if (badge) badge.innerText = count;
+
+      if (dock) {
+        if (count > 0) {
+          dock.classList.remove('translate-y-32', 'opacity-0', 'pointer-events-none');
+          dock.classList.add('translate-y-0', 'opacity-100');
+        } else {
+          dock.classList.add('translate-y-32', 'opacity-0', 'pointer-events-none');
+          dock.classList.remove('translate-y-0', 'opacity-100');
+        }
+      }
+
+      // Sync checkbox state across table and cards
+      cbs.forEach(cb => {
+        const id = Number(cb.getAttribute('data-id'));
+        cb.checked = selectedProductIds.has(id);
+      });
+
+      if (masterCb) {
+        const visibleRows = Array.from(document.querySelectorAll('.prod-table-row')).filter(r => r.style.display !== 'none');
+        masterCb.checked = (visibleRows.length > 0 && visibleRows.every(r => {
+          const cb = r.querySelector('.prod-select-cb');
+          return cb && cb.checked;
+        }));
+      }
+    }
+
+    function toggleSelectAllProds(checked) {
+      document.querySelectorAll('.prod-table-row').forEach(row => {
+        if (row.style.display !== 'none') {
+          const cb = row.querySelector('.prod-select-cb');
+          if (cb) cb.checked = checked;
+        }
+      });
+      document.querySelectorAll('.prod-card').forEach(card => {
+        if (card.style.display !== 'none') {
+          const cb = card.querySelector('.prod-select-cb');
+          if (cb) cb.checked = checked;
+        }
+      });
+      updateSelectedCount();
+    }
+
+    function clearProductSelection() {
+      document.querySelectorAll('.prod-select-cb').forEach(cb => cb.checked = false);
+      const masterCb = document.getElementById('selectAllProds');
+      if (masterCb) masterCb.checked = false;
+      updateSelectedCount();
+    }
+
+    function openBulkRestockPrompt() {
+      if (selectedProductIds.size === 0) return;
+      const input = prompt(selectedProductIds.size + 'টি নির্বাচিত প্রোডাক্টের স্টকে কত পিস যোগ করতে চান? (যেমন: 10 বা 20)', '10');
+      if (!input) return;
+      const qty = parseInt(input);
+      if (isNaN(qty) || qty <= 0) {
+        alert('দয়া করে সঠিক সংখ্যা লিখুন (যেমন: 5, 10)');
+        return;
+      }
+      executeBulkAction('restock', { quantity: qty });
+    }
+
+    function openBulkDiscountPrompt() {
+      if (selectedProductIds.size === 0) return;
+      const input = prompt(selectedProductIds.size + 'টি নির্বাচিত প্রোডাক্টে কত শতাংশ (%) ছাড় দিতে চান? (যেমন: 10 বা 15)', '10');
+      if (!input) return;
+      const pct = parseFloat(input);
+      if (isNaN(pct) || pct <= 0 || pct >= 100) {
+        alert('দয়া করে ১ থেকে ৯৯ এর মধ্যে সঠিক পার্সেন্টেজ লিখুন');
+        return;
+      }
+      executeBulkAction('discount', { percent: pct });
+    }
+
+    function bulkToggleStock(inStock) {
+      if (selectedProductIds.size === 0) return;
+      const confirmMsg = inStock 
+        ? selectedProductIds.size + 'টি প্রোডাক্ট কি সক্রিয় (ইন-স্টক) করতে চান?' 
+        : selectedProductIds.size + 'টি প্রোডাক্ট কি স্টক-আউট করতে চান? কাস্টমার আর কিনতে পারবে না।';
+      if (!confirm(confirmMsg)) return;
+      executeBulkAction('toggle_stock', { in_stock: inStock });
+    }
+
+    function bulkDeleteSelected() {
+      if (selectedProductIds.size === 0) return;
+      if (!confirm('⚠️ সতর্কতা: ' + selectedProductIds.size + 'টি প্রোডাক্ট ক্যাটালগ থেকে সম্পূর্ণ মুছে ফেলা হবে। আপনি কি নিশ্চিত?')) return;
+      executeBulkAction('delete', {});
+    }
+
+    async function executeBulkAction(action, payload) {
+      try {
+        showToast('⏳ বাল্ক অপারেশন চলছে...');
+        const res = await fetch('/api/portal/bulk-products-action?token=' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: action,
+            ids: Array.from(selectedProductIds),
+            payload: payload
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ ' + data.count + 'টি প্রোডাক্ট সফলভাবে আপডেট হয়েছে!');
+          setTimeout(function() { window.location.reload(); }, 600);
+        } else {
+          alert('বাল্ক অপারেশনে সমস্যা: ' + (data.error || 'ব্যর্থ হয়েছে'));
+        }
+      } catch (e) {
+        alert('কানেকশন সমস্যা: ' + e.message);
+      }
+    }
+
     // Initialize saved product view mode on page load
     (function initProductView() {
       try {
@@ -2851,6 +3111,89 @@ function createMerchantPortalRouter({
     if (error) return res.status(500).json({ error: error.message });
     await refreshProductsFromDB(inv.seller_id);
     return res.json({ success: true, id, ai_notes });
+  });
+
+  // ========================================================
+  // Amazon Seller Central: Bulk Products Action API
+  // ========================================================
+  router.post('/api/portal/bulk-products-action', async (req, res) => {
+    const token = req.query.token || req.body.token;
+    const inv = await authenticateMerchantToken(token);
+    if (!inv) return res.status(401).json({ error: 'Unauthorized token' });
+
+    const { action, ids, payload } = req.body;
+    if (!action || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Missing action or ids array' });
+    }
+
+    try {
+      if (action === 'toggle_stock') {
+        const isStock = Boolean(payload?.in_stock);
+        const { error } = await supabase
+          .from('products')
+          .update({ in_stock: isStock })
+          .in('id', ids)
+          .eq('seller_id', inv.seller_id);
+        if (error) throw error;
+      } else if (action === 'restock') {
+        const addQty = parseInt(payload?.quantity) || 0;
+        if (addQty <= 0) return res.status(400).json({ error: 'Invalid quantity' });
+
+        const { data: curProds, error: fetchErr } = await supabase
+          .from('products')
+          .select('id, stock_quantity')
+          .in('id', ids)
+          .eq('seller_id', inv.seller_id);
+        if (fetchErr) throw fetchErr;
+
+        for (const p of (curProds || [])) {
+          const nextStock = (Number(p.stock_quantity) || 0) + addQty;
+          await supabase
+            .from('products')
+            .update({ stock_quantity: nextStock, in_stock: true })
+            .eq('id', p.id)
+            .eq('seller_id', inv.seller_id);
+        }
+      } else if (action === 'discount') {
+        const pct = parseFloat(payload?.percent) || 0;
+        if (pct <= 0 || pct >= 100) return res.status(400).json({ error: 'Invalid discount percent' });
+
+        const { data: curProds, error: fetchErr } = await supabase
+          .from('products')
+          .select('id, price, regular_price')
+          .in('id', ids)
+          .eq('seller_id', inv.seller_id);
+        if (fetchErr) throw fetchErr;
+
+        for (const p of (curProds || [])) {
+          const curPrice = Number(p.price) || 0;
+          if (curPrice > 0) {
+            const originalPrice = p.regular_price ? Number(p.regular_price) : curPrice;
+            const discountedPrice = Math.round(curPrice * (1 - (pct / 100)));
+            await supabase
+              .from('products')
+              .update({ price: discountedPrice, regular_price: originalPrice })
+              .eq('id', p.id)
+              .eq('seller_id', inv.seller_id);
+          }
+        }
+      } else if (action === 'delete') {
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .in('id', ids)
+          .eq('seller_id', inv.seller_id);
+        if (error) throw error;
+      } else {
+        return res.status(400).json({ error: 'Unknown bulk action: ' + action });
+      }
+
+      await refreshProductsFromDB(inv.seller_id);
+      return res.json({ success: true, count: ids.length, action });
+    } catch (err) {
+      console.error('[Bulk Action Error]', err);
+      return res.status(500).json({ error: err.message });
+    }
   });
 
   // Add Product (With Multi-Photo Support 5 to 8 images & Structured Intelligence)
