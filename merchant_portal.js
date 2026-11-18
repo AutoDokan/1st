@@ -1866,6 +1866,124 @@ function createMerchantPortalRouter({
   </div>
 
   <!-- ======================================================== -->
+  <!-- ORDER DETAILS INSPECTION MODAL                           -->
+  <!-- ======================================================== -->
+  <div id="orderDetailsModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="modal-card bg-[#1C1C1E] border border-white/[0.12] rounded-[28px] max-w-2xl w-full p-6 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,0.8)] space-y-6 text-left max-h-[90vh] overflow-y-auto no-scrollbar">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-xl text-blue-400">
+            📦
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-extrabold text-white text-lg sm:text-xl font-mono" id="detailOrderNum">#000</h3>
+              <span id="detailOrderStatusBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30">স্ট্যাটাস</span>
+            </div>
+            <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5" id="detailOrderDate">তারিখ</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeOrderDetailsModal()" class="w-9 h-9 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[rgba(235,235,245,0.70)] hover:text-white flex items-center justify-center text-sm transition cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <!-- 2-Column Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        
+        <!-- Customer & Delivery Box -->
+        <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4 rounded-[20px] space-y-3">
+          <div class="text-xs font-bold text-[rgba(235,235,245,0.50)] uppercase tracking-wider flex items-center justify-between">
+            <span>👤 কাস্টমার ও ডেলিভারি</span>
+            <span id="detailSourceBadge" class="text-[10px] text-[#30D158] font-bold">WhatsApp AI</span>
+          </div>
+          <div>
+            <div class="font-bold text-white text-base" id="detailCustName">কাস্টমার নাম</div>
+            <div class="text-xs text-[rgba(235,235,245,0.60)] font-mono mt-0.5" id="detailCustPhone">017XXXXXXXX</div>
+          </div>
+          <div class="text-xs text-[rgba(235,235,245,0.85)] bg-[#1C1C1E] p-3 rounded-[12px] border border-white/[0.06]">
+            <span class="text-[rgba(235,235,245,0.45)] block text-[10px] font-semibold mb-1">ডেলিভারি ঠিকানা:</span>
+            <span id="detailCustAddress">ঢাকা</span>
+          </div>
+          <div class="pt-1">
+            <a id="detailWaLink" href="#" target="_blank" class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[12px] bg-[#30D158]/15 border border-[#30D158]/30 text-[#30D158] text-xs font-bold hover:bg-[#30D158]/25 transition">
+              <span>💬 সরাসরি WhatsApp-এ কথা বলুন</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Product & Financials Box -->
+        <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4 rounded-[20px] space-y-3">
+          <div class="text-xs font-bold text-[rgba(235,235,245,0.50)] uppercase tracking-wider">
+            💰 প্রোডাক্ট ও পেমেন্ট হিসাব
+          </div>
+          
+          <div class="bg-[#1C1C1E] p-3 rounded-[12px] border border-white/[0.06] space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white font-mono text-sm" id="detailModelCode">[PROD-101]</span>
+              <span class="text-xs text-white font-bold" id="detailItemPrice">৳০</span>
+            </div>
+            <div class="text-xs text-[rgba(235,235,245,0.60)]" id="detailSizeDesc">সাইজ: ৫০</div>
+          </div>
+
+          <div class="space-y-1.5 text-xs text-[rgba(235,235,245,0.70)]">
+            <div class="flex justify-between">
+              <span>ডেলিভারি চার্জ:</span>
+              <span class="font-mono text-white font-semibold" id="detailDeliveryFee">৳৮০</span>
+            </div>
+            <div class="flex justify-between text-emerald-400">
+              <span>অগ্রিম পেমেন্ট (Advance):</span>
+              <span class="font-mono font-semibold" id="detailAdvancePaid">৳০</span>
+            </div>
+            <div class="border-t border-white/[0.08] pt-1.5 flex justify-between items-baseline">
+              <span class="font-bold text-white">ক্যাশ কালেকশন (Due COD):</span>
+              <span class="font-mono font-black text-lg text-[#30D158]" id="detailDueCod">৳০</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Courier Partner Info -->
+      <div id="detailCourierBox" class="bg-[#2C2C2E]/40 border border-white/[0.06] p-3.5 rounded-[16px] text-xs flex items-center justify-between">
+        <div>
+          <span class="text-[rgba(235,235,245,0.45)] text-[10px] uppercase font-bold block">কুরিয়ার ট্র্যাকিং</span>
+          <span class="text-white font-semibold" id="detailCourierInfo">Steadfast Courier</span>
+        </div>
+        <button type="button" id="detailCopyCourierBtn" onclick="" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs px-3 py-1.5 rounded-[8px] border border-white/[0.08] transition cursor-pointer">
+          📋 কুরিয়ার টেক্সট কপি
+        </button>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="pt-2 border-t border-white/[0.08] flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-[rgba(235,235,245,0.60)] font-semibold">স্ট্যাটাস:</span>
+          <select id="detailStatusSelect" onchange="changeDetailModalStatus(this.value)" class="bg-[#2C2C2E] border border-white/[0.1] text-white text-xs font-semibold px-3 py-1.5 rounded-[10px] outline-none cursor-pointer">
+            <option value="Booked">📦 Booked</option>
+            <option value="Approved">✅ Confirmed</option>
+            <option value="Shipped">🚚 Shipped</option>
+            <option value="Delivered">🎉 Delivered</option>
+            <option value="Returned">↩️ Returned</option>
+            <option value="Cancelled">❌ Cancelled</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="detailPrintMemoBtn" onclick="" class="bg-white hover:bg-[#E5E5EA] text-black font-bold text-xs px-4 py-2 rounded-[12px] transition cursor-pointer flex items-center gap-1.5 shadow-xs">
+            <span>🖨️ মেমো প্রিন্ট</span>
+          </button>
+          <button type="button" onclick="closeOrderDetailsModal()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold px-4 py-2 rounded-[12px] text-xs transition cursor-pointer">
+            বন্ধ করুন
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
   <!-- DYNAMIC SIZE & QUANTITY MATRIX MODAL                      -->
   <!-- ======================================================== -->
   <div id="sizeStockModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -2922,9 +3040,28 @@ function createMerchantPortalRouter({
 
     function applyOrderFilters() {
       const q = (document.getElementById('orderSearch')?.value || '').toLowerCase().trim();
-      document.querySelectorAll('.order-row').forEach(r => {
+      const skuFilter = (document.getElementById('orderSkuFilter')?.value || 'ALL');
+      const dateFilter = (document.getElementById('orderDateFilter')?.value || 'ALL');
+
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const yesterdayStart = todayStart - (24 * 60 * 60 * 1000);
+      const sevenDaysAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = now.getTime() - (30 * 24 * 60 * 60 * 1000);
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+      let visibleCount = 0;
+      let visibleSum = 0;
+
+      document.querySelectorAll('.order-row').forEach(function(r) {
         const search = r.getAttribute('data-search') || '';
         const status = r.getAttribute('data-status') || '';
+        const model = r.getAttribute('data-model') || '';
+        const createdAt = r.getAttribute('data-created') || '';
+        const createdMs = createdAt ? new Date(createdAt).getTime() : 0;
+        const dueCod = parseFloat(r.getAttribute('data-due') || '0');
+
+        // Status Match
         let matchStatus = false;
         if (currentOrderFilter === 'ALL') {
           matchStatus = true;
@@ -2941,9 +3078,284 @@ function createMerchantPortalRouter({
         } else {
           matchStatus = (status === currentOrderFilter);
         }
+
+        // SKU Match
+        const matchSku = (skuFilter === 'ALL') || (model.toUpperCase() === skuFilter.toUpperCase());
+
+        // Date Match
+        let matchDate = true;
+        if (dateFilter === 'TODAY') {
+          matchDate = createdMs >= todayStart;
+        } else if (dateFilter === 'YESTERDAY') {
+          matchDate = createdMs >= yesterdayStart && createdMs < todayStart;
+        } else if (dateFilter === 'LAST_7_DAYS') {
+          matchDate = createdMs >= sevenDaysAgo;
+        } else if (dateFilter === 'THIS_MONTH') {
+          matchDate = createdMs >= firstDayOfMonth;
+        } else if (dateFilter === 'LAST_30_DAYS') {
+          matchDate = createdMs >= thirtyDaysAgo;
+        }
+
         const matchSearch = !q || search.includes(q);
-        r.style.display = (matchStatus && matchSearch) ? '' : 'none';
+        const isVisible = matchStatus && matchSku && matchDate && matchSearch;
+        r.style.display = isVisible ? '' : 'none';
+
+        if (isVisible) {
+          visibleCount++;
+          visibleSum += dueCod;
+        }
       });
+
+      const countEl = document.getElementById('filteredOrderCountDisplay');
+      if (countEl) {
+        countEl.innerText = visibleCount + 'টি অর্ডার পাওয়া গেছে (মোট COD: ৳' + visibleSum.toLocaleString('en-IN') + ')';
+      }
+    }
+
+    // ==========================================
+    // ORDER DETAILS INSPECTION MODAL ENGINE
+    // ==========================================
+    let currentInspectingOrderId = null;
+
+    function openOrderDetailsModal(orderId) {
+      currentInspectingOrderId = orderId;
+      const allOrders = window.portalOrders || [];
+      const o = allOrders.find(function(x) { return x.id === orderId; });
+      if (!o) return;
+
+      const numEl = document.getElementById('detailOrderNum');
+      if (numEl) numEl.innerText = '#' + o.id;
+
+      const badge = document.getElementById('detailOrderStatusBadge');
+      if (badge) {
+        badge.innerText = o.status || 'Pending';
+        if (o.status === 'Approved' || o.status === 'Confirmed') {
+          badge.className = 'text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30';
+        } else if (o.status === 'Shipped' || o.status === 'In Transit') {
+          badge.className = 'text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30';
+        } else if (o.status === 'Delivered' || o.status === 'Completed') {
+          badge.className = 'text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30';
+        } else if (o.status === 'Cancelled' || o.status === 'Returned') {
+          badge.className = 'text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30';
+        } else {
+          badge.className = 'text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30';
+        }
+      }
+
+      const dateStr = o.created_at ? new Date(o.created_at).toLocaleString('bn-BD', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'তারিখ নেই';
+      const dateEl = document.getElementById('detailOrderDate');
+      if (dateEl) dateEl.innerText = 'তারিখ: ' + dateStr;
+
+      const custNameEl = document.getElementById('detailCustName');
+      if (custNameEl) custNameEl.innerText = o.customer_name || 'কাস্টমার';
+
+      const custPhoneEl = document.getElementById('detailCustPhone');
+      if (custPhoneEl) custPhoneEl.innerText = o.customer_phone ? '📞 ' + o.customer_phone : '';
+
+      const custAddrEl = document.getElementById('detailCustAddress');
+      if (custAddrEl) custAddrEl.innerText = o.address || 'ঠিকানা দেওয়া হয়নি';
+
+      const cleanPhone = (o.customer_phone || '').replace(/[^0-9]/g, '');
+      const waPhone = cleanPhone.startsWith('880') ? cleanPhone : (cleanPhone.startsWith('0') ? '88' + cleanPhone : '880' + cleanPhone);
+      const waLink = document.getElementById('detailWaLink');
+      if (waLink) waLink.href = 'https://wa.me/' + waPhone;
+
+      const isManual = (o.order_notes || '').toLowerCase().includes('manual') || o.source_channel === 'MANUAL';
+      const sourceBadge = document.getElementById('detailSourceBadge');
+      if (sourceBadge) sourceBadge.innerText = isManual ? '👤 মার্চেন্ট নিজে' : '🤖 WhatsApp AI';
+
+      const modelCodeEl = document.getElementById('detailModelCode');
+      if (modelCodeEl) modelCodeEl.innerText = '[' + (o.model_code || 'PROD') + ']';
+
+      const totalBdt = Number(o.total_bdt) || 0;
+      const dueCod = Number(o.due_cod) || totalBdt;
+      const deliveryFee = Number(o.delivery_fee) || 0;
+      const advancePaid = Number(o.advance_paid) || 0;
+      const itemPrice = totalBdt - deliveryFee + Number(o.discount_applied || 0);
+
+      const itemPriceEl = document.getElementById('detailItemPrice');
+      if (itemPriceEl) itemPriceEl.innerText = '৳' + itemPrice.toLocaleString('en-IN');
+
+      const sizeDescEl = document.getElementById('detailSizeDesc');
+      if (sizeDescEl) sizeDescEl.innerText = 'সাইজ: ' + (o.length_size || 'স্ট্যান্ডার্ড') + (o.body_size ? ' • ফিট: ' + o.body_size : '');
+
+      const delFeeEl = document.getElementById('detailDeliveryFee');
+      if (delFeeEl) delFeeEl.innerText = '৳' + deliveryFee.toLocaleString('en-IN');
+
+      const advEl = document.getElementById('detailAdvancePaid');
+      if (advEl) advEl.innerText = '৳' + advancePaid.toLocaleString('en-IN') + (o.trx_id_or_last4 ? ' (' + o.trx_id_or_last4 + ')' : '');
+
+      const dueCodEl = document.getElementById('detailDueCod');
+      if (dueCodEl) dueCodEl.innerText = '৳' + dueCod.toLocaleString('en-IN');
+
+      const courierName = o.courier_name || 'Steadfast Courier';
+      const trackingId = o.courier_tracking_id || o.unique_tracking_code || 'জেনারেট হচ্ছে';
+      const courierEl = document.getElementById('detailCourierInfo');
+      if (courierEl) courierEl.innerText = courierName + ' • ট্র্যাকিং: ' + trackingId;
+
+      const copyBtn = document.getElementById('detailCopyCourierBtn');
+      if (copyBtn) copyBtn.onclick = function() { copyCourierFormat(orderId); };
+
+      const printBtn = document.getElementById('detailPrintMemoBtn');
+      if (printBtn) printBtn.onclick = function() { printOrderMemo(orderId); };
+
+      const sel = document.getElementById('detailStatusSelect');
+      if (sel) sel.value = o.status || 'Pending';
+
+      const modal = document.getElementById('orderDetailsModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeOrderDetailsModal() {
+      currentInspectingOrderId = null;
+      const modal = document.getElementById('orderDetailsModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function changeDetailModalStatus(newStatus) {
+      if (!currentInspectingOrderId) return;
+      await updateOrderStatusLive(currentInspectingOrderId, newStatus);
+      const allOrders = window.portalOrders || [];
+      const o = allOrders.find(function(x) { return x.id === currentInspectingOrderId; });
+      if (o) o.status = newStatus;
+      openOrderDetailsModal(currentInspectingOrderId);
+    }
+
+    // ==========================================
+    // EXPORT TO CSV (EXCEL UTF-8 BOM SUPPORT)
+    // ==========================================
+    function exportOrdersCSV() {
+      const allOrders = window.portalOrders || [];
+      const visibleIds = new Set();
+      document.querySelectorAll('.order-row').forEach(function(r) {
+        if (r.style.display !== 'none') {
+          visibleIds.add(Number(r.getAttribute('data-order-id')));
+        }
+      });
+
+      const targetOrders = allOrders.filter(function(o) { return visibleIds.has(Number(o.id)); });
+      if (targetOrders.length === 0) {
+        alert('এক্সপোর্ট করার মতো কোনো অর্ডার পাওয়া যায়নি। ফিল্টার পরিবর্তন করে চেষ্টা করুন।');
+        return;
+      }
+
+      const headers = [
+        'Order ID',
+        'Date',
+        'Customer Name',
+        'Phone',
+        'Delivery Address',
+        'SKU / Model',
+        'Size',
+        'Total BDT',
+        'Due COD BDT',
+        'Advance Paid',
+        'Status',
+        'Courier Name',
+        'Tracking Code',
+        'Notes'
+      ];
+
+      function escapeCsv(val) {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return '"' + str + '"';
+      }
+
+      const rows = targetOrders.map(function(o) {
+        const dStr = o.created_at ? new Date(o.created_at).toISOString().slice(0, 10) : '';
+        return [
+          o.id,
+          dStr,
+          escapeCsv(o.customer_name || 'Customer'),
+          escapeCsv(o.customer_phone || ''),
+          escapeCsv(o.address || ''),
+          escapeCsv(o.model_code || 'PROD'),
+          escapeCsv(o.length_size || 'Standard'),
+          o.total_bdt || 0,
+          o.due_cod || o.total_bdt || 0,
+          o.advance_paid || 0,
+          escapeCsv(o.status || 'Pending'),
+          escapeCsv(o.courier_name || 'Steadfast'),
+          escapeCsv(o.courier_tracking_id || o.unique_tracking_code || ''),
+          escapeCsv(o.order_notes || '')
+        ].join(',');
+      });
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = 'autodokan_orders_' + dateStr + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('📥 ' + targetOrders.length + 'টি অর্ডারের CSV ফাইল ডাউনলোড হয়েছে!');
+    }
+
+    // ==========================================
+    // COURIER HANDOVER DISPATCH MANIFEST PRINT
+    // ==========================================
+    function printOrdersManifest() {
+      const allOrders = window.portalOrders || [];
+      const visibleIds = new Set();
+      document.querySelectorAll('.order-row').forEach(function(r) {
+        if (r.style.display !== 'none') {
+          visibleIds.add(Number(r.getAttribute('data-order-id')));
+        }
+      });
+      const targetOrders = allOrders.filter(function(o) { return visibleIds.has(Number(o.id)); });
+      if (targetOrders.length === 0) {
+        alert('প্রিন্ট করার জন্য কোনো অর্ডার পাওয়া যায়নি');
+        return;
+      }
+
+      let totalCod = 0;
+      let rowsHtml = '';
+      targetOrders.forEach(function(o, idx) {
+        const cod = Number(o.due_cod) || Number(o.total_bdt) || 0;
+        totalCod += cod;
+        rowsHtml += '<tr>' +
+          '<td style="padding:8px;border:1px solid #ddd;text-align:center;">' + (idx + 1) + '</td>' +
+          '<td style="padding:8px;border:1px solid #ddd;font-family:monospace;font-weight:bold;">#' + o.id + '</td>' +
+          '<td style="padding:8px;border:1px solid #ddd;">' + (o.customer_name || 'কাস্টমার') + '<br><small style="color:#666;">' + (o.customer_phone || '') + '</small></td>' +
+          '<td style="padding:8px;border:1px solid #ddd;max-width:200px;">' + (o.address || '') + '</td>' +
+          '<td style="padding:8px;border:1px solid #ddd;font-family:monospace;font-weight:bold;">[' + (o.model_code || 'PROD') + '] ' + (o.length_size || '') + '</td>' +
+          '<td style="padding:8px;border:1px solid #ddd;font-weight:bold;text-align:right;">৳' + cod.toLocaleString('en-IN') + '</td>' +
+          '<td style="padding:8px;border:1px solid #ddd;text-align:center;">' + (o.status || 'Pending') + '</td>' +
+          '<td style="padding:8px;border:1px solid #ddd;width:80px;"></td>' +
+          '</tr>';
+      });
+
+      const printWin = window.open('', '_blank');
+      printWin.document.write('<!DOCTYPE html><html><head><title>কুরিয়ার ডেলিভারি হ্যান্ডওভার ম্যানিফেস্ট</title>' +
+        '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:24px;color:#111;}' +
+        'table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px;}' +
+        '@media print{@page{margin:15mm;}}</style></head><body>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #222;padding-bottom:12px;">' +
+        '<div><h2 style="margin:0;">📦 কুরিয়ার পার্সেল হ্যান্ডওভার ম্যানিফেস্ট</h2><p style="margin:4px 0 0;font-size:13px;color:#555;">তারিখ: ' + new Date().toLocaleDateString('bn-BD', { year:'numeric', month:'long', day:'numeric' }) + '</p></div>' +
+        '<div style="text-align:right;"><span style="font-size:16px;font-weight:bold;">মোট পার্সেল: ' + targetOrders.length + 'টি</span><br><span style="font-size:14px;color:#0b8457;font-weight:bold;">মোট COD: ৳' + totalCod.toLocaleString('en-IN') + '</span></div>' +
+        '</div>' +
+        '<table><thead><tr style="background:#f4f4f4;">' +
+        '<th style="padding:8px;border:1px solid #ddd;">ক্রম</th>' +
+        '<th style="padding:8px;border:1px solid #ddd;">অর্ডার নং</th>' +
+        '<th style="padding:8px;border:1px solid #ddd;">প্রাপক ও ফোন</th>' +
+        '<th style="padding:8px;border:1px solid #ddd;">ঠিকানা</th>' +
+        '<th style="padding:8px;border:1px solid #ddd;">মডেল ও সাইজ</th>' +
+        '<th style="padding:8px;border:1px solid #ddd;text-align:right;">Due COD</th>' +
+        '<th style="padding:8px;border:1px solid #ddd;">স্ট্যাটাস</th>' +
+        '<th style="padding:8px;border:1px solid #ddd;">রাইডার সাক্ষর</th>' +
+        '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+        '<div style="margin-top:40px;display:flex;justify-content:space-between;padding:0 20px;font-size:13px;">' +
+        '<div>____________________<br>মার্চেন্ট প্রতিনিধি</div>' +
+        '<div>____________________<br>কুরিয়ার ডেলিভারি রাইডার</div>' +
+        '</div>' +
+        '<script>window.onload=function(){window.print();};<\\/script>' +
+        '</body></html>');
+      printWin.document.close();
     }
 
     async function updateOrderStatusLive(id, status) {
