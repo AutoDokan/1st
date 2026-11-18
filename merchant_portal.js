@@ -185,8 +185,16 @@ function createMerchantPortalRouter({
       ].filter(u => typeof u === 'string' && u.trim());
       const uniqueGallery = Array.from(new Set(gallery)).slice(0, 8);
 
-      // Sizes chips
-      const sizeChips = (p.sizes || 'স্ট্যান্ডার্ড').split(',').map(s => s.trim()).filter(Boolean);
+      // Sizes chips with clean tokens and separate extra notes
+      const rawSizeTokens = (p.sizes || 'স্ট্যান্ডার্ড').split(',').map(s => s.trim()).filter(Boolean);
+      let extraSizeNotes = [];
+      const cleanSizes = rawSizeTokens.map(tok => {
+        const parenMatch = tok.match(/\(([^)]+)\)/);
+        if (parenMatch) {
+          extraSizeNotes.push(parenMatch[1].trim());
+        }
+        return tok.replace(/\([^)]+\)/g, '').trim();
+      }).filter(Boolean);
       // Colors chips
       const colorChips = (p.colors || '').split(',').map(c => c.trim()).filter(Boolean);
 
@@ -283,22 +291,20 @@ function createMerchantPortalRouter({
                 <span class="truncate">${p.fabric || 'স্ট্যান্ডার্ড প্রিমিয়াম কোয়ালিটি'}</span>
               </div>
 
-              <!-- Available Sizes Chips with 1-Click Interactive Modal -->
-              <div class="cursor-pointer group/cardsizematrix pt-1" onclick="openSizeStockModal(${p.id})" title="ক্লিক করে সাইজভিত্তিক স্টক পরিবর্তন করুন">
+              <!-- Available Sizes Chips -->
+              <div class="cursor-pointer group/cardsizematrix pt-1" onclick="openSizeStockModal(${p.id})" title="ক্লিক করে সাইজ ও সাইজভিত্তিক স্টক দেখুন বা পরিবর্তন করুন">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  ${sizeChips.map(sz => {
-                    const qty = (cAttr.size_stock && cAttr.size_stock[sz] !== undefined) ? cAttr.size_stock[sz] : null;
-                    const isOutOfStock = qty !== null && Number(qty) === 0;
-                    return `
-                      <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] ${isOutOfStock ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 line-through' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]'}">
-                        ${sz}${qty !== null ? ` (${qty}টি)` : ''}
-                      </span>
-                    `;
-                  }).join('')}
-                  <span class="text-xs text-[#30D158] font-semibold bg-[#30D158]/10 hover:bg-[#30D158]/20 border border-[#30D158]/25 px-2 py-0.5 rounded-[6px] flex items-center gap-1 transition">
-                    <span>✎ সাইজ-স্টক</span>
-                  </span>
+                  ${cleanSizes.map(sz => `
+                    <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] group-hover/cardsizematrix:bg-[#3A3A3C] text-[rgba(235,235,245,0.9)] border border-white/[0.08] transition shadow-xs">
+                      ${sz}
+                    </span>
+                  `).join('')}
                 </div>
+                ${extraSizeNotes.length > 0 ? `
+                  <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1">
+                    💡 ${extraSizeNotes.join(', ')}
+                  </div>
+                ` : ''}
               </div>
             </div>
           </div>
@@ -363,8 +369,16 @@ function createMerchantPortalRouter({
       ].filter(u => typeof u === 'string' && u.trim());
       const uniqueGallery = Array.from(new Set(gallery)).slice(0, 8);
 
-      // Sizes chips
-      const sizeChips = (p.sizes || 'স্ট্যান্ডার্ড').split(',').map(s => s.trim()).filter(Boolean);
+      // Sizes chips with clean tokens and separate extra notes
+      const rawSizeTokens = (p.sizes || 'স্ট্যান্ডার্ড').split(',').map(s => s.trim()).filter(Boolean);
+      let extraSizeNotes = [];
+      const cleanSizes = rawSizeTokens.map(tok => {
+        const parenMatch = tok.match(/\(([^)]+)\)/);
+        if (parenMatch) {
+          extraSizeNotes.push(parenMatch[1].trim());
+        }
+        return tok.replace(/\([^)]+\)/g, '').trim();
+      }).filter(Boolean);
 
       // Dynamic Bundle & Offer Badges
       const cAttr = p.custom_attributes || {};
@@ -400,23 +414,27 @@ function createMerchantPortalRouter({
           </div>
         </td>
 
-        <!-- Col 2: Image Thumbnail with Lightbox Enlarge -->
+        <!-- Col 2: Image Thumbnail with Mini Gallery Preview -->
         <td class="p-4 align-middle">
           <div class="flex items-center gap-2">
-            <div class="relative group/tblimg cursor-pointer shrink-0 rounded-[12px] overflow-hidden" onclick="openCatalogLightbox(${p.id})" title="বড় করে দেখতে ক্লিক করুন">
-              <img id="tbl-img-preview-${p.id}" src="${mainImg}" alt="${p.model_code}" class="w-12 h-16 sm:w-14 sm:h-18 object-cover rounded-[12px] bg-[#2C2C2E] border border-white/[0.1] shadow-xs group-hover/tblimg:scale-105 transition">
+            <div class="relative group/tblimg cursor-pointer shrink-0 rounded-[14px] overflow-hidden shadow-xs border border-white/[0.1] bg-[#2C2C2E]" onclick="openCatalogLightbox(${p.id})" title="বড় করে দেখতে ক্লিক করুন">
+              <img id="tbl-img-preview-${p.id}" src="${mainImg}" alt="${p.model_code}" class="w-12 h-16 sm:w-14 sm:h-18 object-cover group-hover/tblimg:scale-105 transition duration-200">
+              ${uniqueGallery.length > 1 ? `
+                <span class="absolute bottom-1 right-1 bg-black/80 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-[5px] border border-white/20">
+                  ${uniqueGallery.length}
+                </span>
+              ` : ''}
               <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/tblimg:opacity-100 transition flex items-center justify-center pointer-events-none">
-                <span class="text-white text-[10px]">🔍</span>
+                <span class="text-white text-xs">🔍</span>
               </div>
             </div>
-            <div class="text-[10px] text-[rgba(235,235,245,0.50)] font-mono">
-              <div>📸 ${uniqueGallery.length} ছবি</div>
-              ${uniqueGallery.length > 1 ? `
-                <div class="flex gap-1 mt-1">
-                  ${uniqueGallery.slice(0, 3).map(g => `<img src="${g}" class="w-3.5 h-4.5 rounded-[3px] object-cover border border-white/20">`).join('')}
-                </div>
-              ` : ''}
-            </div>
+            ${uniqueGallery.length > 1 ? `
+              <div class="flex flex-col gap-1">
+                ${uniqueGallery.slice(0, 3).map((g, gIdx) => `
+                  <img src="${g}" onclick="event.stopPropagation(); document.getElementById('tbl-img-preview-${p.id}').src='${g}';" class="w-4 h-5 rounded-[4px] object-cover border border-white/15 hover:border-white cursor-pointer hover:scale-110 transition shadow-xs" title="ছবি ${gIdx+1}">
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
         </td>
 
@@ -431,23 +449,21 @@ function createMerchantPortalRouter({
           <div class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5 truncate" title="${(p.fabric || 'স্ট্যান্ডার্ড').replace(/"/g, '&quot;')}">✨ ${p.fabric || 'স্ট্যান্ডার্ড প্রিমিয়াম কোয়ালিটি'}</div>
         </td>
 
-        <!-- Col 4: Sizes & Per-Size Quantity Matrix -->
+        <!-- Col 4: Sizes -->
         <td class="p-4 align-middle">
-          <div class="cursor-pointer group/sizematrix" onclick="openSizeStockModal(${p.id})" title="ক্লিক করে সাইজ ও সাইজভিত্তিক স্টক এডিট করুন">
-            <div class="flex items-center gap-1 flex-wrap max-w-[150px]">
-              ${sizeChips.map(sz => {
-                const qty = (cAttr.size_stock && cAttr.size_stock[sz] !== undefined) ? cAttr.size_stock[sz] : null;
-                const isOutOfStock = qty !== null && Number(qty) === 0;
-                return `
-                  <span class="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-[6px] ${isOutOfStock ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 line-through' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]'}">
-                    ${sz}${qty !== null ? ` <span class="text-[9px] opacity-75">(${qty})</span>` : ''}
-                  </span>
-                `;
-              }).join('')}
+          <div class="cursor-pointer group/sizematrix inline-block" onclick="openSizeStockModal(${p.id})" title="ক্লিক করে সাইজ ও সাইজভিত্তিক স্টক দেখুন বা পরিবর্তন করুন">
+            <div class="flex items-center gap-1.5 flex-wrap max-w-[150px]">
+              ${cleanSizes.map(sz => `
+                <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] group-hover/sizematrix:bg-[#3A3A3C] text-[rgba(235,235,245,0.9)] border border-white/[0.08] transition shadow-xs">
+                  ${sz}
+                </span>
+              `).join('')}
             </div>
-            <div class="text-[10px] text-[#30D158] font-medium mt-1 flex items-center gap-1 group-hover/sizematrix:underline">
-              <span>⚙️ সাইজ-স্টক</span>
-            </div>
+            ${extraSizeNotes.length > 0 ? `
+              <div class="text-[10px] text-[rgba(235,235,245,0.45)] mt-1 truncate max-w-[150px]" title="${extraSizeNotes.join(', ')}">
+                💡 ${extraSizeNotes[0]}
+              </div>
+            ` : ''}
           </div>
         </td>
 
@@ -2108,6 +2124,14 @@ function createMerchantPortalRouter({
         });
         const data = await res.json();
         if (data.success) {
+          const pLocal = (window.portalProducts || []).find(p => p.id === id);
+          if (pLocal) {
+            pLocal.stock_quantity = data.value;
+            if (data.size_stock) {
+              pLocal.custom_attributes = pLocal.custom_attributes || {};
+              pLocal.custom_attributes.size_stock = data.size_stock;
+            }
+          }
           const valEl = document.getElementById('stock-val-' + id);
           if (valEl) valEl.innerText = newStock;
           const tblValEl = document.getElementById('tbl-stock-val-' + id);
@@ -3010,6 +3034,14 @@ function createMerchantPortalRouter({
         });
         const data = await res.json();
         if (data.success) {
+          const pLocal = (window.portalProducts || []).find(p => p.id === id);
+          if (pLocal) {
+            pLocal.stock_quantity = data.value;
+            if (data.size_stock) {
+              pLocal.custom_attributes = pLocal.custom_attributes || {};
+              pLocal.custom_attributes.size_stock = data.size_stock;
+            }
+          }
           showToast('✅ ইনভেন্টরি স্টক ' + nextVal + ' পিস আপডেট হয়েছে!');
           if (nextVal === 0) {
             setTimeout(function() { window.location.reload(); }, 600);
@@ -3243,10 +3275,10 @@ function createMerchantPortalRouter({
         }
         html += '  </div>';
         html += '  <div class="flex items-center gap-1.5">';
-        html += '    <button type="button" onclick="stepSizeQty(\'' + sz + '\', -1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">-</button>';
-        html += '    <input type="number" min="0" value="' + qty + '" onchange="changeSizeQtyDirect(\'' + sz + '\', this.value)" class="w-14 text-center font-mono font-bold bg-[#1C1C1E] text-white px-1.5 py-1 rounded-[8px] border border-white/[0.08] focus:outline-hidden focus:border-[#30D158] text-xs">';
-        html += '    <button type="button" onclick="stepSizeQty(\'' + sz + '\', 1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">+</button>';
-        html += '    <button type="button" onclick="removeSizeItem(\'' + sz + '\')" class="w-7 h-7 rounded-[8px] bg-[#FF453A]/15 hover:bg-[#FF453A]/25 text-[#FF453A] font-bold flex items-center justify-center border border-[#FF453A]/30 cursor-pointer ml-1" title="মুছে ফেলুন">🗑️</button>';
+        html += '    <button type="button" data-sz="' + sz + '" onclick="stepSizeQty(this.getAttribute(\'data-sz\'), -1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">-</button>';
+        html += '    <input type="number" min="0" value="' + qty + '" data-sz="' + sz + '" onchange="changeSizeQtyDirect(this.getAttribute(\'data-sz\'), this.value)" class="w-14 text-center font-mono font-bold bg-[#1C1C1E] text-white px-1.5 py-1 rounded-[8px] border border-white/[0.08] focus:outline-hidden focus:border-[#30D158] text-xs">';
+        html += '    <button type="button" data-sz="' + sz + '" onclick="stepSizeQty(this.getAttribute(\'data-sz\'), 1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">+</button>';
+        html += '    <button type="button" data-sz="' + sz + '" onclick="removeSizeItem(this.getAttribute(\'data-sz\'))" class="w-7 h-7 rounded-[8px] bg-[#FF453A]/15 hover:bg-[#FF453A]/25 text-[#FF453A] font-bold flex items-center justify-center border border-[#FF453A]/30 cursor-pointer ml-1" title="মুছে ফেলুন">🗑️</button>';
         html += '  </div>';
         html += '</div>';
       });
@@ -3447,6 +3479,41 @@ function createMerchantPortalRouter({
 
     const numVal = field === 'stock_quantity' ? (parseInt(value) || 0) : (parseFloat(value) || 0);
     const updateObj = { [field]: numVal };
+    let updatedSizeStock = null;
+
+    if (field === 'stock_quantity') {
+      updateObj.in_stock = numVal > 0;
+      try {
+        const { data: curProd } = await supabase
+          .from('products')
+          .select('sizes, custom_attributes')
+          .eq('id', id)
+          .eq('seller_id', inv.seller_id)
+          .maybeSingle();
+
+        if (curProd && curProd.sizes) {
+          const rawSizes = curProd.sizes
+            .split(',')
+            .map(s => s.replace(/\([^)]+\)/g, '').trim())
+            .filter(Boolean);
+
+          if (rawSizes.length > 0) {
+            const perSize = Math.floor(numVal / rawSizes.length);
+            const remainder = numVal % rawSizes.length;
+            updatedSizeStock = {};
+            rawSizes.forEach((sz, idx) => {
+              updatedSizeStock[sz] = perSize + (idx < remainder ? 1 : 0);
+            });
+            const existingAttr = (curProd.custom_attributes && typeof curProd.custom_attributes === 'object')
+              ? curProd.custom_attributes
+              : {};
+            updateObj.custom_attributes = { ...existingAttr, size_stock: updatedSizeStock };
+          }
+        }
+      } catch (syncErr) {
+        console.warn('[QuickEdit Stock Sync Warning]', syncErr.message);
+      }
+    }
 
     const { error } = await supabase
       .from('products')
@@ -3456,7 +3523,7 @@ function createMerchantPortalRouter({
 
     if (error) return res.status(500).json({ error: error.message });
     await refreshProductsFromDB(inv.seller_id);
-    return res.json({ success: true, id, field, value: numVal });
+    return res.json({ success: true, id, field, value: numVal, size_stock: updatedSizeStock });
   });
 
   // Quick Save AI Notes
