@@ -2230,7 +2230,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             if (data.success) {
               showToast('🎉 নতুন সেলার ইনভাইট লিংক তৈরি হয়েছে!');
               document.getElementById('newInviteUrl').value = data.invite_url;
-              document.getElementById('newInviteWaBtn').href = 'https://wa.me/?text=' + encodeURIComponent('আসসালামু আলাইকুম! AutoDokan AI সেলার টেস্টে আপনাকে স্বাগতম। আপনার হোয়াটসঅ্যাপ কানেক্ট করতে নিচের লিংকে ক্লিক করে QR কোড স্ক্যান করুন:\n' + data.invite_url);
+              document.getElementById('newInviteWaBtn').href = 'https://wa.me/?text=' + encodeURIComponent('আসসালামু আলাইকুম! AutoDokan AI সেলার টেস্টে আপনাকে স্বাগতম। আপনার হোয়াটসঅ্যাপ কানেক্ট করতে নিচের লিংকে ক্লিক করে QR কোড স্ক্যান করুন: ') + encodeURIComponent(data.invite_url);
               document.getElementById('newInviteBox').classList.remove('hidden');
               document.getElementById('inv_shop_name').value = '';
               document.getElementById('inv_owner_name').value = '';
@@ -2533,9 +2533,14 @@ async function startSellerSession(sellerId) {
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         sellerStatuses.set(sellerId, 'disconnected');
         sellerQRs.delete(sellerId);
+        sellerSockets.delete(sellerId);
         console.log(`[Multi-Seller] ${sellerId} connection closed (${statusCode}). Reconnecting: ${shouldReconnect}`);
         if (shouldReconnect) {
-          setTimeout(() => startSellerSession(sellerId), 5000);
+          setTimeout(() => startSellerSession(sellerId), 3000);
+        } else {
+          try {
+            await supabase.from('seller_invites').update({ status: 'DISCONNECTED' }).eq('seller_id', sellerId);
+          } catch (e) {}
         }
       } else if (connection === 'open') {
         sellerStatuses.set(sellerId, 'connected');
@@ -2779,7 +2784,9 @@ app.get('/connect', async (req, res) => {
         const qrImg = document.getElementById('qrImage');
         const placeholder = document.getElementById('qrPlaceholder');
 
-        if (data.status === 'connected') {
+        const curStatus = (data.status || '').toLowerCase();
+
+        if (curStatus === 'connected') {
           banner.className = 'bg-emerald-50 border border-emerald-300 text-emerald-900 p-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2';
           statusText.innerText = '🎉 হোয়াটসঅ্যাপ সফলভাবে কানেক্ট হয়েছে! নম্বর: ' + (data.number || '');
           qrImg.classList.add('hidden');
@@ -2787,10 +2794,15 @@ app.get('/connect', async (req, res) => {
           placeholder.innerHTML = '<span class="text-4xl">✅</span><span class="text-emerald-800 font-black text-sm mt-1">কানেকশন সক্রিয় আছে</span>';
           if (pollInterval) clearInterval(pollInterval);
         } else if (data.has_qr) {
+          banner.className = 'bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2';
           statusText.innerText = '📱 আপনার ফোন দিয়ে নিচের QR কোডটি স্ক্যান করুন';
           qrImg.src = '/api/connect/qr?token=' + token + '&t=' + Date.now();
           qrImg.classList.remove('hidden');
           placeholder.classList.add('hidden');
+        } else if (curStatus === 'waiting_for_qr_scan') {
+          statusText.innerText = '📱 কিউআর কোড তৈরি হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...';
+        } else if (curStatus === 'connecting') {
+          statusText.innerText = '⏳ হোয়াটসঅ্যাপ সার্ভারের সাথে সংযোগ স্থাপন করা হচ্ছে...';
         }
       } catch (e) {}
     }
@@ -2826,7 +2838,13 @@ app.get('/api/connect/status', async (req, res) => {
   const { data: inv } = await supabase.from('seller_invites').select('*').eq('invite_token', token).maybeSingle();
   if (!inv) return res.status(404).json({ error: 'Invalid token' });
 
-  const liveStatus = sellerStatuses.get(inv.seller_id) || inv.status;
+  // Auto-start session if not active in memory and not logged out
+  if (!sellerSockets.has(inv.seller_id) && inv.status !== 'DISCONNECTED') {
+    startSellerSession(inv.seller_id);
+  }
+
+  const rawStatus = sellerStatuses.get(inv.seller_id) || inv.status || 'disconnected';
+  const liveStatus = rawStatus.toLowerCase();
   const liveNum = sellerNumbers.get(inv.seller_id) || inv.phone;
   const hasQR = !!sellerQRs.get(inv.seller_id);
 
@@ -3802,7 +3820,26 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+async function restoreAllConnectedSellers() {
+  try {
+    const { data: connectedSellers, error } = await supabase
+      .from('seller_invites')
+      .select('seller_id, shop_name, status')
+      .eq('status', 'CONNECTED');
+
+    if (!error && connectedSellers && connectedSellers.length > 0) {
+      console.log(`[Multi-Seller Boot] Restoring ${connectedSellers.length} connected seller(s)...`);
+      for (const s of connectedSellers) {
+        startSellerSession(s.seller_id);
+      }
+    }
+  } catch (err) {
+    console.error('[Multi-Seller Boot Error]:', err.message);
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`[AutoDokan Engine] Server listening on port ${PORT}`);
   connectToWhatsApp();
+  restoreAllConnectedSellers();
 });
