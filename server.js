@@ -3458,10 +3458,15 @@ async function connectToWhatsApp() {
         if (botSentMessageIds.has(msg.key.id)) {
           return; // Ignore message sent by our bot
         }
-        // Seller typed manually from phone/web WhatsApp!
-        const ownerText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || '';
-        console.log(`[Human Takeover] Seller manually sent a message to ${remoteJid}: "${ownerText}". Pausing bot for 30 minutes.`);
-        await pauseCustomerForHumanTakeover(remoteJid, 30, 'HUMAN_TAKEOVER', ownerText);
+        // Extract substantive text typed by merchant
+        const ownerText = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || '').trim();
+        // CRITICAL GUARD: WhatsApp emits protocol packets, read receipts, libsignal session syncs,
+        // and empty echoes with fromMe=true. NEVER trigger human takeover unless merchant actually typed substantive text!
+        if (!ownerText || ownerText.length < 2) {
+          return;
+        }
+        console.log(`[Human Takeover] Seller manually sent a message to ${remoteJid}: "${ownerText}". Pausing bot for 15 minutes.`);
+        await pauseCustomerForHumanTakeover(remoteJid, 15, 'HUMAN_TAKEOVER', ownerText);
         return;
       }
 
