@@ -3411,9 +3411,47 @@ function createMerchantPortalRouter({
       }
     }
 
-    // Handle Studio Submit (Enforces Min 5, Max 8 Photos)
+    // Handle Studio Submit (Enforces Strict Required Fields & Min 5 Photos)
     async function handleProductStudioSubmit(e) {
       e.preventDefault();
+
+      const codeVal = document.getElementById('studio_code')?.value?.trim();
+      const nameVal = document.getElementById('studio_name')?.value?.trim();
+      const category = document.getElementById('studio_category')?.value;
+      const priceVal = parseFloat(document.getElementById('studio_price')?.value);
+      const stockVal = parseInt(document.getElementById('studio_stock_qty')?.value);
+      const sizesVal = document.getElementById('studio_sizes')?.value?.trim();
+
+      if (!codeVal || codeVal.length < 2) {
+        alert('⚠️ প্রোডাক্ট কোড বা মডেল নম্বর দিন (যেমন: DF-105)!');
+        document.getElementById('studio_code')?.focus();
+        return;
+      }
+      if (!nameVal || nameVal.length < 3) {
+        alert('⚠️ প্রোডাক্টের সঠিক নাম দিন (ন্যূনতম ৩ অক্ষর)!');
+        document.getElementById('studio_name')?.focus();
+        return;
+      }
+      if (!category) {
+        alert('⚠️ প্রোডাক্টের ক্যাটাগরি নির্ধারণ করুন!');
+        document.getElementById('studio_category')?.focus();
+        return;
+      }
+      if (isNaN(priceVal) || priceVal <= 0) {
+        alert('⚠️ প্রোডাক্টের সঠিক বিক্রয় মূল্য দিন (০ এর বেশি)!');
+        document.getElementById('studio_price')?.focus();
+        return;
+      }
+      if (isNaN(stockVal) || stockVal < 1) {
+        alert('⚠️ ইনভেন্টরি স্টক সংখ্যা দিন (ন্যূনতম ১ পিস)!');
+        document.getElementById('studio_stock_qty')?.focus();
+        return;
+      }
+      if ((category === 'fashion' || category === 'footwear') && (!sizesVal || sizesVal.length < 1)) {
+        alert(category === 'footwear' ? '⚠️ জুতার সাইজ নম্বর উল্লেখ করুন (যেমন: 39, 40, 41, 42, 43)!' : '⚠️ পোশাকের সাইজ উল্লেখ করুন (যেমন: 50, 52, 54, 56)!');
+        document.getElementById('studio_sizes')?.focus();
+        return;
+      }
 
       // Check URL fallback if any
       const manualUrl = document.getElementById('studio_img_main')?.value?.trim();
@@ -3422,7 +3460,7 @@ function createMerchantPortalRouter({
       }
 
       if (studioUploadedImages.length < 5) {
-        alert('⚠️ প্রোডাক্ট সেভ করতে ন্যূনতম ৫টি ছবি আপলোড করা আবশ্যক! বর্তমানে আছে: ' + studioUploadedImages.length + 'টি ছবি। দয়া করে আরও ' + (5 - studioUploadedImages.length) + 'টি ছবি আপলোড করুন।');
+        alert('⚠️ প্রোডাক্ট সেভ করতে ন্যূনতম ৫টি বিভিন্ন অ্যাঙ্গেলের ছবি আপলোড করা আবশ্যক! বর্তমানে আছে: ' + studioUploadedImages.length + 'টি ছবি। দয়া করে আরও ' + (5 - studioUploadedImages.length) + 'টি ছবি যুক্ত করুন।');
         return;
       }
 
@@ -3432,12 +3470,10 @@ function createMerchantPortalRouter({
       const prodId = document.getElementById('studio_prod_id').value;
       const isEdit = !!prodId;
       const isHijabInc = document.getElementById('studio_hijab_included').value === 'true';
-      const category = document.getElementById('studio_category').value;
       const isBundle = document.getElementById('studio_bundle_active').checked;
       const bundleQty = parseInt(document.getElementById('studio_bundle_qty').value) || 2;
       const bundleType = document.getElementById('studio_bundle_type').value;
       const bundleVal = parseFloat(document.getElementById('studio_bundle_value').value) || 0;
-      const priceVal = parseFloat(document.getElementById('studio_price').value) || 0;
 
       let bundleLabel = '';
       if (isBundle) {
@@ -4803,16 +4839,35 @@ function createMerchantPortalRouter({
       custom_attributes
     } = req.body;
 
-    if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
+    if (!model_code || model_code.trim().length < 2) {
+      return res.status(400).json({ error: 'প্রোডাক্ট কোড বা মডেল নম্বর আবশ্যক (যেমন: DF-105)!' });
+    }
+    if (!name || name.trim().length < 3) {
+      return res.status(400).json({ error: 'প্রোডাক্টের নাম আবশ্যক (ন্যূনতম ৩ অক্ষর)!' });
+    }
+    if (!category || category.trim().length < 2) {
+      return res.status(400).json({ error: 'প্রোডাক্ট ক্যাটাগরি নির্ধারণ আবশ্যক!' });
+    }
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      return res.status(400).json({ error: 'সঠিক বিক্রয় মূল্য আবশ্যক (০ এর বেশি)!' });
+    }
+    const parsedStock = parseInt(stock_quantity);
+    if (isNaN(parsedStock) || parsedStock < 1) {
+      return res.status(400).json({ error: 'ইনভেন্টরি স্টক সংখ্যা আবশ্যক (ন্যূনতম ১ পিস)!' });
+    }
+    const catLower = category.toLowerCase().trim();
+    if ((catLower.includes('fashion') || catLower.includes('abaya') || catLower.includes('clothing') || catLower.includes('footwear') || catLower.includes('shoe')) && (!sizes || sizes.trim().length < 1)) {
+      return res.status(400).json({ error: 'সাইজ তথ্য আবশ্যক (পোশাকের জন্য যেমন: ৫০, ৫২, ৫৪, ৫৬ অথবা জুতার জন্য: ৩৯-৪৩)!' });
+    }
 
     const gallery = Array.isArray(gallery_images) ? gallery_images.filter(Boolean).slice(0, 8) : [];
     if (gallery.length < 5) {
-      return res.status(400).json({ error: 'ন্যূনতম ৫টি ছবি আপলোড করা আবশ্যক!' });
+      return res.status(400).json({ error: 'ন্যূনতম ৫টি বিভিন্ন অ্যাঙ্গেলের ছবি আপলোড করা আবশ্যক!' });
     }
 
-    const parsedPrice = parseFloat(price);
     const regPrice = regular_price ? parseFloat(regular_price) : parsedPrice;
-    const cleanCode = model_code ? model_code.toUpperCase().trim() : 'PROD-' + Math.floor(Math.random() * 899 + 100);
+    const cleanCode = model_code.toUpperCase().trim();
 
     const catVal = category ? category.trim() : 'fashion';
     const mergedCustomAttributes = {
@@ -4872,7 +4927,27 @@ function createMerchantPortalRouter({
       custom_attributes
     } = req.body;
 
-    if (!id) return res.status(400).json({ error: 'ID is required' });
+    if (!id) return res.status(400).json({ error: 'প্রোডাক্ট আইডি আবশ্যক!' });
+    if (model_code !== undefined && model_code.trim().length < 2) {
+      return res.status(400).json({ error: 'প্রোডাক্ট কোড বা মডেল নম্বর খালি রাখা যাবে না (যেমন: DF-105)!' });
+    }
+    if (name !== undefined && name.trim().length < 3) {
+      return res.status(400).json({ error: 'প্রোডাক্টের নাম খালি রাখা যাবে না (ন্যূনতম ৩ অক্ষর)!' });
+    }
+    if (price !== undefined) {
+      const p = parseFloat(price);
+      if (isNaN(p) || p <= 0) return res.status(400).json({ error: 'সঠিক বিক্রয় মূল্য আবশ্যক (০ এর বেশি)!' });
+    }
+    if (stock_quantity !== undefined) {
+      const s = parseInt(stock_quantity);
+      if (isNaN(s) || s < 0) return res.status(400).json({ error: 'ইনভেন্টরি স্টক সংখ্যা ০ বা তার বেশি হতে হবে!' });
+    }
+    if (gallery_images !== undefined) {
+      const gallery = Array.isArray(gallery_images) ? gallery_images.filter(Boolean) : [];
+      if (gallery.length < 5) {
+        return res.status(400).json({ error: 'ন্যূনতম ৫টি বিভিন্ন অ্যাঙ্গেলের ছবি থাকা আবশ্যক!' });
+      }
+    }
 
     // Fetch existing product to cleanly merge custom_attributes
     let existingAttrs = {};

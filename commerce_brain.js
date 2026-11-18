@@ -762,15 +762,19 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 
   if (category.includes('footwear') || category.includes('shoe') || category.includes('juta')) {
     productDomain = 'জুতা ও ফুটওয়্যার';
-    sizeGuideline = `কাস্টমার জুতার সাইজ জানতে চাইলে বা পরামর্শ চাইলে:
-     - ডাটাবেসে যে যে সাইজ দেওয়া আছে (যেমন ৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪) তা দেখে বলো স্টকে কী কী সাইজ আছে।
-     - জুতার ক্ষেত্রে সাধারণ বাটা/এপেক্স স্ট্যান্ডার্ড সাইজের সমান ফিটিং হবে এবং পায়ে একদম পারফেক্ট কমফোর্ট দেবে তা জানিয়ে কনফিডেন্টলি পরামর্শ দাও।`;
+    sizeGuideline = `জুতা ও ফুটওয়্যারের সাইজ সংক্রান্ত কঠোর নিয়ম:
+     - জুতোর কখনো কোনো উচ্চতা বা হাইট থাকে না! কাস্টমারকে ভুলেও উচ্চতা জিজ্ঞেস করবে না।
+     - শুরুতে সরাসরি জুতার সাইজ নম্বর জানতে চাও (যেমন: "আপনার জুতার সাইজ কত নম্বর লাগবে? আমাদের ৩৯, ৪০, ৪১, ৪২ ও ৪৩ সাইজ ইন-স্টকে আছে।")।
+     - কাস্টমার যদি সাইজ বুঝতে না পারে বা দ্বিধায় থাকে, তবে স্থানীয় বাটা/এপেক্স রেফারেন্স দিয়ে বলো: "আপনি সাধারণত বাটা (Bata) বা এপেক্স (Apex) এর কত নম্বর জুতো পরেন? আমাদের জুতার সাইজ একদম বাটা/এপেক্স স্ট্যান্ডার্ড সমান হবে।"`;
     qualityPitch = `বাজারে কমদামে সাধারণ কপি জুতা পাওয়া যেতে পারে, কিন্তু আমাদের জুতোর প্রিমিয়াম ফিনিশিং, আরামদায়ক কুশন ইনসোল এবং টেকসই গ্রিপ সোল হাতে নিলেই প্রিমিয়াম কোয়ালিটি বুঝতে পারবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
   } else if (category.includes('fashion') || category.includes('clothing') || category.includes('abaya') || category.includes('burqa') || category.includes('dress') || category.includes('panjabi') || category.includes('sharee')) {
     productDomain = 'পোশাক ও ফ্যাশন';
-    sizeGuideline = `সাইজ নির্বাচন চার্ট (বাধ্যতামূলক):
-     - কাস্টমার উচ্চতা জানালে (যেমন "আমার হাইট ৫'৩"", "5 fut 5"): ৫'০"-৫'১" হলে ৫০ সাইজ, ৫'২"-৫'৩" হলে ৫২ সাইজ, ৫'৪"-৫'৫" হলে ৫৪ সাইজ, ৫'৬"-৫'৮" হলে ৫৬ সাইজ সাজেস্ট করো।
-     - অন্যান্য পোশাকের ক্ষেত্রে ডাটাবেজের সাইজ (M, L, XL, XXL) অনুযায়ী ফিটিং নিশ্চিত করো।`;
+    sizeGuideline = `সাইজ নির্ধারণ ও পরামর্শের বাংলাদেশি লোকাল নিয়ম:
+     - ভুল প্রশ্ন সম্পূর্ণ নিষিদ্ধ: "আপনার উচ্চতা কত অথবা কোন সাইজটি লাগবে?" — সাইজ ও উচ্চতা ভুলেও এক সাথে জানতে চাইবে না! শুরুতে কাস্টমারকে উচ্চতা জিজ্ঞেস করা সম্পূর্ণ নিষেধ।
+     - ধাপ ১ (সরাসরি সাইজ জানা): কাস্টমার কোনো পোশাক বা আবায়া পছন্দ করলে প্রথমে সরাসরি স্ট্যান্ডার্ড সাইজ জানতে চাও (যেমন: "আপনার কোন সাইজটি লাগবে? আমাদের ৫০, ৫২, ৫৪ এবং ৫৬ সাইজ ইন-স্টকে আছে।")।
+     - ধাপ ২ (কেবলমাত্র কাস্টমার সাইজ বলতে না পারলে বা বুঝতে না পারলে): কাস্টমার যদি বলে "সাইজ জানি না / বুঝি না / কোনটা লাগবে বলে দিন", কেবল তখনই ঝুল নির্ধারণের জন্য ব্রেন খাটিয়ে উচ্চতা জানতে চাও: "আপনার উচ্চতা কত ফিট কত ইঞ্চি জানালে আমি সঠিক ঝুল সাইজটি বলে দিচ্ছি।"
+       * রেফারেন্স চার্ট: ৫'০"-৫'১" হলে ৫০ সাইজ, ৫'২"-৫'৩" হলে ৫২ সাইজ, ৫'৪"-৫'৫" হলে ৫৪ সাইজ, ৫'৬"-৫'৮" হলে ৫৬ সাইজ পারফেক্ট ঝুল হয়।
+     - পাঞ্জাবি বা অন্যান্য সাধারণ পোশাকের ক্ষেত্রে: কাস্টমার সাইজ না বুঝলে তাদের রেগুলার টি-শার্ট সাইজ (M, L, XL, XXL) অথবা বডি চেস্ট সাইজ জানতে চাও।`;
     qualityPitch = `বাজারে কমদামে অনেক কপি পাওয়া যেতে পারে, কিন্তু আমাদের কাপড়ের প্রিমিয়াম ফেব্রিক ফিনিশিং, নিখুঁত সেলাই এবং কালার গ্যারান্টি হাতে নিলেই প্রিমিয়াম ফিল পাবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
   } else if (category.includes('gadget') || category.includes('electronic') || category.includes('mobile') || category.includes('tech')) {
     productDomain = 'গ্যাজেট ও ইলেকট্রনিক্স';
@@ -833,12 +837,17 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
    - কাস্টমার নির্দিষ্ট কোনো একটি মডেল পছন্দ করলে বা সেটির ছবি দেখতে চাইলে (যেমন কোড বা নাম উল্লেখ করে, বা ছবিতে সোয়াইপ/কোট রিপ্লাই দিলে): অবশ্যই শুধুমাত্র সেই ১টি মডেলের অ্যালবাম ট্যাগ পাঠাও: [SEND_ALL_IMAGES:MODEL_CODE]। ভুলেও বলবে না "১টি ছবিই আছে"। বলবে: "এই মডেলটির সুন্দর কিছু ছবি পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:MODEL_CODE], দেখে জানান কেমন লাগছে।"
    - এক টার্নে কখনোই একের অধিক মডেলের অ্যালবাম ট্যাগ পাঠাবে না।
    - কাস্টমার নির্দিষ্ট মডেল উল্লেখ না করে যদি বলে "Eta koto" বা "এটার দাম কত": ActiveModel জানা থাকলে সরাসরি সেটির দাম ও অফার বলো; আর জানা না থাকলে বলো: "কোন মডেলটির দাম জানতে চাচ্ছেন একটু নাম বা কোড বলুন, আমি এখনই দাম জানিয়ে দিচ্ছি।"
-৩. সাইজ পরামর্শ (কনসালটেটিভ গাইড):
-   - মডেল পছন্দ হওয়ার পর কাস্টমার সাইজ জানতে চাইলে বা নির্দিষ্ট সাইজ চাইলে তবেই কথা বলবে।
-   - সাইজ নির্বাচন চার্ট ও পরামর্শ:
+৩. সাইজ নির্ধারণ ও পরামর্শ (কঠোর সেলস প্রটোকল):
+   - ভুল প্রশ্ন সম্পূর্ণ নিষিদ্ধ: "আপনার উচ্চতা কত অথবা কোন সাইজটি লাগবে?" — সাইজ ও উচ্চতা ভুলেও একসাথে জানতে চাইবে না! শুরুতে বা আগ বাড়িয়ে উচ্চতা জিজ্ঞেস করা সম্পূর্ণ নিষেধ।
+   - ধাপ ১ (সরাসরি সাইজ জানা): কাস্টমার কোনো মডেল পছন্দ করলে প্রথমে সরাসরি স্ট্যান্ডার্ড সাইজ জানতে চাও (যেমন: "আপনার কোন সাইজটি লাগবে? আমাদের ৫০, ৫২, ৫৪ ও ৫৬ সাইজ এভেইলবল আছে।")।
+   - ধাপ ২ (যদি কাস্টমার সাইজ বলতে না পারে / কনফিউজড থাকে):
+     * আবায়া/বোরকা: কাস্টমার সাইজ না বুঝলে তবেই স্থানীয় নিয়মে উচ্চতা জানতে চাও (যেমন: "আপনার উচ্চতা কত ফিট কত ইঞ্চি জানালে সঠিক ঝুল সাইজটি বলে দিচ্ছি। সাধারণত ৫'০"-৫'১" হলে ৫০, ৫'২"-৫'৩" হলে ৫২, ৫'৪"-৫'৫" হলে ৫৪, ৫'৬"-৫'৮" হলে ৫৬ সাইজ পারফেক্ট হয়)।"
+     * জুতা/স্যান্ডেল: জুতোর কখনো কোনো উচ্চতা হয় না! কাস্টমার সাইজ বুঝতে না পারলে বাটা বা এপেক্স এর স্ট্যান্ডার্ড সাইজ জানতে চাও: "আপনি সাধারণত বাটা (Bata) বা এপেক্স (Apex) এর কত নম্বর জুতো পরেন? আমাদের জুতার সাইজ একদম বাটা/এপেক্স স্ট্যান্ডার্ড ফিটিং হবে।"
+     * পাঞ্জাবি/শার্ট: কাস্টমার সাইজ না জানলে তাদের সাধারণ শার্ট/টি-শার্ট সাইজ (M, L, XL, XXL) অথবা চেস্ট সাইজ জানতে চাও।
      ${sizeGuideline}
-৪. অর্ডার বুকিং ও ডাবল-কনফার্মেশন (২ ধাপের স্মার্ট ফ্লো):
+৪. অর্ডার বুকিং ও চূড়ান্তকরণ (কঠোর অর্ডার গার্ড):
    - কঠোর নিয়ম: কাস্টমার নির্দিষ্ট কোনো মডেল ও সাইজ চূড়ান্ত করে বুকিং বা কেনার স্পষ্ট ইচ্ছা প্রকাশ না করা পর্যন্ত কখনোই আগ বাড়িয়ে নাম, ঠিকানা বা মোবাইল নম্বর চাইবে না! আর প্রোডাক্ট ও সাইজ নিশ্চিত হওয়ার পূর্বে ভুলেও অগ্রিম ডেলিভারি চার্জ বা পেমেন্টের কথা বলবে না। সাধারণ কথা, গল্প, সাইজ পরামর্শ বা কালেকশন দেখার সময় শুধুই স্বাভাবিক পরামর্শ দেবে; উত্তরের শেষে অযাচিতভাবে 'আপনার ঠিকানা দিন' বা পেমেন্ট চেয়ে কাস্টমারকে বিরক্ত করবে না।
+   - সাইজ গার্ড: সাইজ বা ভ্যারিয়েন্ট নিশ্চিত না হওয়া পর্যন্ত অর্ডার কখনই কনফার্ম করবে না! কাস্টমার ঠিকানা দিয়ে ফেললেও সাইজ জানা না থাকলে আগে সাইজ নিশ্চিত করবে, তারপর সামারি দিয়ে কনফার্ম করবে। সাইজ ছাড়া ভুলেও বলবে না "অর্ডার কনফার্ম হয়েছে"।
    - ধাপ ১: মডেল এবং সাইজ উভয়ই নিশ্চিত হওয়ার পর (অথবা কাস্টমার সরাসরি "অর্ডার করব / নিতে চাই" বললে) বুকিংয়ের জন্য কাস্টমারের নাম, সম্পূর্ণ ডেলিভারি ঠিকানা ও মোবাইল নম্বর চাও।
    - ধাপ ২: কাস্টমার ঠিকানা পাঠালে সাথে সাথে একটি সুন্দর সামারি দিয়ে কাস্টমারকে কনফার্ম করতে বলো:
      "অর্ডার সামারি:
@@ -1128,6 +1137,7 @@ function generateSmartFallback(userText, isFirstMessage, session = null, recentO
   const t = (userText || '').toLowerCase().trim();
   const sSettings = sellerSettingsCache.get(sellerId) || storeSettings;
   const shopName = sSettings.shop_name || 'আমাদের শপ';
+  const category = (sSettings?.business_category || '').toLowerCase();
   const insideFee = sSettings.inside_dhaka_fee || 80;
   const outsideFee = sSettings.outside_dhaka_fee || 150;
   const greeting = (isFirstMessage && (!session || !session.hasGreeted)) ? `আসসালামু আলাইকুম! ${shopName}-এ স্বাগতম। ` : 'জি, ';
@@ -1171,21 +1181,38 @@ function generateSmartFallback(userText, isFirstMessage, session = null, recentO
     return `${greeting}আলহামদুলিল্লাহ, আল্লাহর রহমতে আমরা ভালো আছি। আপনি কেমন আছেন? আপনাকে কীভাবে সহযোগিতা করতে পারি?`;
   }
 
-  // 2. Height & Size inquiries
-  if (/উচ্চতা|হাইট|height|fut|ফুট|ইঞ্চি|inch/i.test(t) || /\d\s*(?:fut|ফুট|ft)/i.test(t)) {
-    if (/4\s*(?:fut|ফুট|ft)\s*4|৪\s*ফুট\s*৪/i.test(t)) {
-      return `${greeting}আপনার উচ্চতা অনুযায়ী (৪ ফুট ৪ ইঞ্চি) আমাদের রেগুলার ঝুল কিছুটা বড় হতে পারে। তবে আপনি চাইলে ৪৪ বা ৪৬ সাইজে বিশেষ কাস্টমাইজ করে দেওয়া যাবে।`;
+  // 2. Height & Size inquiries (Local Bangladeshi Intelligence & Zero-Height Shoe Guard)
+  const isShoeDomain = category.includes('footwear') || category.includes('shoe') || category.includes('juta');
+  const mentionsHeight = /(?:উচ্চতা|হাইট|height|fut|ফুট|ফিট|ইঞ্চি|inch|\b\d\s*(?:fut|ফুট|ft)\b)/i.test(t);
+  const mentionsSizeConfused = /(?:সাইজ\s*(?:জানি\s*না|বুঝি\s*না|বুঝতে\s*পারছি\s*না|কোনটা|কত|বলুন|লাগবে|হবে|দিব)|kon\s*size|size\s*jani\s*na|size\s*bujhi\s*na)/i.test(t);
+  const asksAvailableSizes = /(?:কী\s*কী|কি\s*কি|কোন\s*কোন)\s*সাইজ|সাইজ\s*(?:কী\s*কী|কি\s*কি|আছে|এভেইলবল)|size\s*available/i.test(t);
+
+  if (isShoeDomain) {
+    if (mentionsHeight || mentionsSizeConfused || asksAvailableSizes || /(?:জুতার|জুতোর|পায়ের)\s*সাইজ/i.test(t)) {
+      return `${greeting}আমাদের জুতার সাইজগুলো বাটা (Bata) ও এপেক্স (Apex) স্ট্যান্ডার্ড অনুযায়ী ৩৯, ৪০, ৪১, ৪২ এবং ৪৩ নম্বরে ইন-স্টকে আছে। আপনি সাধারণত কত নম্বর পরেন জানালে আমরা সে অনুযায়ী পাঠিয়ে দেব ইনশাআল্লাহ।`;
     }
-    if (/5\s*(?:fut|ফুট|ft)\s*8|৫\s*ফুট\s*৮|হিল/i.test(t)) {
-      return `${greeting}৫ ফুট ৮ ইঞ্চি উচ্চতা এবং হিল পরার ক্ষেত্রে আপনার জন্য ৫৬ বা স্পেশাল ৫৮ ইঞ্চি সাইজটি একদম মানানসই হবে।`;
+  } else {
+    if (mentionsHeight) {
+      if (/4\s*(?:fut|ফুট|ft)\s*4|৪\s*ফুট\s*৪/i.test(t)) {
+        return `${greeting}আপনার উচ্চতা অনুযায়ী (৪ ফুট ৪ ইঞ্চি) আমাদের রেগুলার ঝুল কিছুটা বড় হতে পারে। তবে আপনি চাইলে ৪৪ বা ৪৬ সাইজে বিশেষ কাস্টমাইজ করে দেওয়া যাবে।`;
+      }
+      if (/5\s*(?:fut|ফুট|ft)\s*8|৫\s*ফুট\s*৮|হিল/i.test(t)) {
+        return `${greeting}৫ ফুট ৮ ইঞ্চি উচ্চতা এবং হিল পরার ক্ষেত্রে আপনার জন্য ৫৬ বা স্পেশাল ৫৮ ইঞ্চি সাইজটি একদম মানানসই হবে।`;
+      }
+      if (/5\s*(?:fut|ফুট|ft)\s*5|৫\s*ফুট\s*৫|5\s*fut\s*5/i.test(t)) {
+        return `${greeting}৫ ফুট ৫ ইঞ্চি উচ্চতার জন্য ৫৪ ইঞ্চি সাইজটি পারফেক্ট ঝুল হবে।`;
+      }
+      if (/5\s*(?:fut|ফুট|ft)\s*[23]|৫\s*ফুট\s*[২৩]|5['’]3/i.test(t)) {
+        return `${greeting}৫ ফুট ৩ ইঞ্চি উচ্চতার জন্য ৫২ ইঞ্চি সাইজটি একদম পারফেক্ট ঝুল হবে।`;
+      }
+      return `${greeting}সাধারণত ৫ ফুট থেকে ৫ ফুট ১ ইঞ্চি হলে ৫০ সাইজ, ৫ ফুট ২ থেকে ৫ ফুট ৩ হলে ৫২ সাইজ, ৫ ফুট ৪ থেকে ৫ ফুট ৫ হলে ৫৪ সাইজ এবং ৫ ফুট ৬ বা তার বেশি হলে ৫৬ সাইজ পারফেক্ট হয়।`;
     }
-    if (/5\s*(?:fut|ফুট|ft)\s*5|৫\s*ফুট\s*৫|5\s*fut\s*5/i.test(t)) {
-      return `${greeting}৫ ফুট ৫ ইঞ্চি উচ্চতার জন্য ৫৪ ইঞ্চি সাইজটি পারফেক্ট ঝুল হবে।`;
+    if (mentionsSizeConfused) {
+      return `${greeting}আপনার উচ্চতা কত ফিট কত ইঞ্চি জানালে আমি সঠিক ঝুল সাইজটি বলে দিচ্ছি। (সাধারণত ৫'০"-৫'১" হলে ৫০ সাইজ, ৫'২"-৫'৩" হলে ৫২ সাইজ, ৫'৪"-৫'৫" হলে ৫৪ সাইজ এবং ৫'৬"-৫'৮" হলে ৫৬ সাইজ পারফেক্ট ঝুল হয়)।`;
     }
-    if (/5\s*(?:fut|ফুট|ft)\s*[23]|৫\s*ফুট\s*[২৩]|5['’]3/i.test(t)) {
-      return `${greeting}৫ ফুট ৩ ইঞ্চি উচ্চতার জন্য ৫২ ইঞ্চি সাইজটি একদম পারফেক্ট ঝুল হবে।`;
+    if (asksAvailableSizes) {
+      return `${greeting}আমাদের এই পোশাকে ৫০, ৫২, ৫৪ এবং ৫৬ সাইজ ইন-স্টকে এভেইলবল আছে। আপনার কোন সাইজের ঝুলটি লাগবে?`;
     }
-    return `${greeting}সাধারণত ৫ ফুট থেকে ৫ ফুট ১ ইঞ্চি হলে ৫০ সাইজ, ৫ ফুট ২ থেকে ৫ ফুট ৩ হলে ৫২ সাইজ, ৫ ফুট ৪ থেকে ৫ ফুট ৫ হলে ৫৪ সাইজ এবং ৫ ফুট ৬ বা তার বেশি হলে ৫৬ সাইজ পারফেক্ট হয়।`;
   }
 
   // 3. Payment submission verification (Checked FIRST to avoid being swallowed by delivery keywords)
@@ -1375,16 +1402,46 @@ JSON Format:
         }
       }
 
+      // Resolve Product Name with 3-tier fallback (NEVER dump raw customer message or address)
+      let resolvedProductName = null;
+      if (parsed.product_name && parsed.product_name.length > 2 && !/(?:রোড|বাসা|থানা|জেলা|মিরপুর|উত্তরা|ধানমন্ডি|বিকাশ|নগদ)/i.test(parsed.product_name)) {
+        resolvedProductName = parsed.product_name.trim();
+      } else if (matchedProd && matchedProd.name) {
+        resolvedProductName = matchedProd.name;
+      } else if (session?.lastViewedModel) {
+        const lastProd = getProductByCode(session.lastViewedModel, activeSellerId);
+        if (lastProd && lastProd.name) resolvedProductName = lastProd.name;
+      }
+
+      if (!resolvedProductName) {
+        const sProds = sellerProductsCache.get(activeSellerId) || cachedProductList;
+        if (Array.isArray(sProds) && sProds.length > 0) {
+          resolvedProductName = sProds[0].name;
+        } else {
+          resolvedProductName = 'প্রিমিয়াম কালেকশন';
+        }
+      }
+
+      // Resolve Size with 2-tier fallback
+      let resolvedSize = parsed.length_size || null;
+      if (!resolvedSize) {
+        const sizeMatch = fullText.match(/\b(50|52|54|56|39|40|41|42|43|44)\b/i) || fullText.match(/\b(M|L|XL|XXL)\b/i);
+        if (sizeMatch) resolvedSize = sizeMatch[1];
+      }
+
+      const safeProductDetails = `${resolvedProductName} (Size: ${resolvedSize || 'Standard'})`;
+
       // Check existing order in orders table
       const { data: existing } = await supabase
         .from('orders')
-        .select('id, status, model_code, customer_name, address, product_details')
+        .select('id, status, model_code, customer_name, address, product_details, length_size')
         .eq('customer_phone', targetPhone)
         .order('id', { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (existing) {
+        const shouldSanitizeDetails = !existing.product_details || /(?:রোড|বাসা|থানা|জেলা|মিরপুর|উত্তরা|ধানমন্ডি|বিকাশ|নগদ)/i.test(existing.product_details);
         await supabase.from('orders').update({
           seller_id: activeSellerId,
           source_channel: 'WHATSAPP',
@@ -1392,8 +1449,8 @@ JSON Format:
           model_code: detectedCode || existing.model_code,
           customer_name: parsed.customer_name || existing.customer_name,
           address: parsed.address || existing.address,
-          product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : existing.product_details,
-          length_size: parsed.length_size || null,
+          product_details: shouldSanitizeDetails ? safeProductDetails : (parsed.product_name ? safeProductDetails : existing.product_details),
+          length_size: resolvedSize || existing.length_size,
           total_bdt: prodPrice,
           delivery_fee: deliveryFee,
           advance_paid: advancePaid,
@@ -1410,8 +1467,8 @@ JSON Format:
           model_code: detectedCode || null,
           customer_name: parsed.customer_name || null,
           address: parsed.address || null,
-          product_details: parsed.product_name ? `${parsed.product_name} (Size: ${parsed.length_size || 'Standard'})` : fullText.substring(0, 180),
-          length_size: parsed.length_size || null,
+          product_details: safeProductDetails,
+          length_size: resolvedSize,
           total_bdt: prodPrice,
           delivery_fee: deliveryFee,
           advance_paid: advancePaid,
@@ -1531,6 +1588,13 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
     .replace(/ধন্যবাদ\s*আপনার\s*মতামতের\s*জন্য[।.]?/gi, '')
     .replace(/আপনার\s*বার্তার\s*জন্য\s*ধন্যবাদ[।.]?/gi, '')
     .trim();
+
+  // Truncation & Quality Guard (Eliminates broken fragments like 'ডিএফ', 'স্বাগ', etc.)
+  const isTruncatedFragment = !aiReply || aiReply.length < 15 || (/^(?:ডিএফ|স্বাগ|ঢাকার|আমাদের|জি|হ্যালো)$/i.test(aiReply.trim())) || (!/[.!?।…]$/.test(aiReply.trim()) && aiReply.length < 35);
+  if (isTruncatedFragment) {
+    console.warn(`[AI Guard] AI output was truncated or incomplete ('${aiReply}'). Applying robust smart fallback...`);
+    aiReply = generateSmartFallback(userText, isFirstMessage, session, latestOrder, sellerId);
+  }
 
   // Smart Dynamic Photo Safety:
   // ONLY if AI text explicitly says it is sending a photo right now

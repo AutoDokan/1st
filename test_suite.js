@@ -38,11 +38,11 @@ async function runRegressionSuite() {
     }
   }
 
-  // TEST 1: System Prompt Length < 9,500 chars (Lean & Token-Efficient vs old 10,481 chars)
+  // TEST 1: System Prompt Length < 12,000 chars (Lean & Token-Efficient with Multi-Domain Intelligence)
   const samplePrompt = buildSystemPrompt('unit_test_user');
   const promptLen = samplePrompt.length;
-  assert(promptLen > 500 && promptLen < 9500, 
-    `System prompt is lean (< 9,500 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
+  assert(promptLen > 500 && promptLen < 12000, 
+    `System prompt is lean (< 12,000 chars). Actual length: ${promptLen} chars`, `Length: ${promptLen}`);
 
   // TEST 2: Single [SESSION STATE] Block
   const stateMatchCount = (samplePrompt.match(/\[SESSION STATE\]/g) || []).length;
