@@ -3513,8 +3513,8 @@ function createMerchantPortalRouter({
         studioUploadedImages.push(manualUrl);
       }
 
-      if (studioUploadedImages.length < 5) {
-        alert('⚠️ প্রোডাক্ট সেভ করতে ন্যূনতম ৫টি বিভিন্ন অ্যাঙ্গেলের ছবি আপলোড করা আবশ্যক! বর্তমানে আছে: ' + studioUploadedImages.length + 'টি ছবি। দয়া করে আরও ' + (5 - studioUploadedImages.length) + 'টি ছবি যুক্ত করুন।');
+      if (studioUploadedImages.length === 0) {
+        alert('⚠️ প্রোডাক্ট সেভ করতে অন্তত ১টি ছবি আপলোড করা আবশ্যক! ছবি ছাড়া কোনো প্রোডাক্ট সেভ হবে না।');
         return;
       }
 

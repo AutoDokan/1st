@@ -968,9 +968,7 @@ async function callGroqEngine(messages, systemPrompt) {
   const candidateModels = [
     'qwen/qwen3.8-27b',
     'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
-    'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant'
+    'openai/gpt-oss-20b'
   ];
 
   const chatMessages = [
@@ -1388,7 +1386,7 @@ JSON Format:
     }
 
     if (!rawJson && groqClients.length > 0) {
-      for (const m of ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile']) {
+      for (const m of ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b']) {
         try {
           const completion = await groqClients[0].chat.completions.create({
             model: m,
