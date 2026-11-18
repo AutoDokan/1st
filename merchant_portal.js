@@ -3275,10 +3275,10 @@ function createMerchantPortalRouter({
         }
         html += '  </div>';
         html += '  <div class="flex items-center gap-1.5">';
-        html += '    <button type="button" data-sz="' + sz + '" onclick="stepSizeQty(this.getAttribute(\'data-sz\'), -1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">-</button>';
-        html += '    <input type="number" min="0" value="' + qty + '" data-sz="' + sz + '" onchange="changeSizeQtyDirect(this.getAttribute(\'data-sz\'), this.value)" class="w-14 text-center font-mono font-bold bg-[#1C1C1E] text-white px-1.5 py-1 rounded-[8px] border border-white/[0.08] focus:outline-hidden focus:border-[#30D158] text-xs">';
-        html += '    <button type="button" data-sz="' + sz + '" onclick="stepSizeQty(this.getAttribute(\'data-sz\'), 1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">+</button>';
-        html += '    <button type="button" data-sz="' + sz + '" onclick="removeSizeItem(this.getAttribute(\'data-sz\'))" class="w-7 h-7 rounded-[8px] bg-[#FF453A]/15 hover:bg-[#FF453A]/25 text-[#FF453A] font-bold flex items-center justify-center border border-[#FF453A]/30 cursor-pointer ml-1" title="মুছে ফেলুন">🗑️</button>';
+        html += '    <button type="button" data-sz="' + sz + '" onclick="stepSizeQty(this.dataset.sz, -1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">-</button>';
+        html += '    <input type="number" min="0" value="' + qty + '" data-sz="' + sz + '" onchange="changeSizeQtyDirect(this.dataset.sz, this.value)" class="w-14 text-center font-mono font-bold bg-[#1C1C1E] text-white px-1.5 py-1 rounded-[8px] border border-white/[0.08] focus:outline-hidden focus:border-[#30D158] text-xs">';
+        html += '    <button type="button" data-sz="' + sz + '" onclick="stepSizeQty(this.dataset.sz, 1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">+</button>';
+        html += '    <button type="button" data-sz="' + sz + '" onclick="removeSizeItem(this.dataset.sz)" class="w-7 h-7 rounded-[8px] bg-[#FF453A]/15 hover:bg-[#FF453A]/25 text-[#FF453A] font-bold flex items-center justify-center border border-[#FF453A]/30 cursor-pointer ml-1" title="মুছে ফেলুন">🗑️</button>';
         html += '  </div>';
         html += '</div>';
       });
