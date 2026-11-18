@@ -218,6 +218,16 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
 
         const bundleStr = cAttr.bundle_label || (cAttr.bundle_active ? `${cAttr.bundle_qty || 2}টি নিলে বিশেষ বান্ডেল ছাড়` : '');
 
+        const sizeStockMap = cAttr.size_stock;
+        let sizeStockDesc = p.sizes ? `সাইজ: ${p.sizes}` : '';
+        if (sizeStockMap && typeof sizeStockMap === 'object' && Object.keys(sizeStockMap).length > 0) {
+          const sEntries = Object.entries(sizeStockMap).map(([sz, qty]) => {
+            const q = parseInt(qty) || 0;
+            return q > 0 ? `${sz}(${q}টি)` : `${sz}(স্টক শেষ)`;
+          }).join(', ');
+          sizeStockDesc = `সাইজ-স্টক: [${sEntries}]`;
+        }
+
         const details = [
           p.category && p.category !== 'general' ? `ক্যাটাগরি: ${p.category}` : '',
           p.fabric ? `উপাদান: ${p.fabric}` : (cAttr.material ? `উপাদান: ${cAttr.material}` : ''),
@@ -226,7 +236,7 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
           cAttr.inclusions ? `থাকছে: ${cAttr.inclusions}` : '',
           (p.hijab_included || cAttr.hijab_included || cAttr.hijab_details) ? `হিজাব: ${cAttr.hijab_details || 'হিজাব অন্তর্ভুক্ত'}` : '',
           colorStr ? `কালার: ${colorStr}` : '',
-          p.sizes ? `সাইজ: ${p.sizes}` : '',
+          sizeStockDesc,
           cAttr.body_fit ? `ফিটিং: ${cAttr.body_fit}` : '',
           cAttr.flare_inches ? `ঘের: ${cAttr.flare_inches}` : '',
           cAttr.comfort ? `কমফোর্ট: ${cAttr.comfort}` : '',

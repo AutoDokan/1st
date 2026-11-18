@@ -143,6 +143,26 @@ function createMerchantPortalRouter({
     const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
     const totalRevenue = orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
 
+    // Dynamic Sales Velocity (Today vs Last 7 Days)
+    const nowMs = Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartMs = todayStart.getTime();
+    const sevenDaysAgoMs = nowMs - (7 * 24 * 60 * 60 * 1000);
+
+    const validOrders = orders.filter(o => o.status !== 'Cancelled');
+    const todayOrders = validOrders.filter(o => {
+      const t = new Date(o.created_at || o.order_date || 0).getTime();
+      return t >= todayStartMs;
+    });
+    const todayRevenue = todayOrders.reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
+
+    const last7DaysOrders = validOrders.filter(o => {
+      const t = new Date(o.created_at || o.order_date || 0).getTime();
+      return t >= sevenDaysAgoMs;
+    });
+    const last7DaysRevenue = last7DaysOrders.reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
+
     // ========================================================
     // Render Advanced Product Cards (Apple HIG Pro Dark Theme - Spacious & Large Font)
     // ========================================================
@@ -263,9 +283,22 @@ function createMerchantPortalRouter({
                 <span class="truncate">${p.fabric || 'স্ট্যান্ডার্ড প্রিমিয়াম কোয়ালিটি'}</span>
               </div>
 
-              <!-- Available Sizes Chips -->
-              <div class="flex items-center gap-1.5 flex-wrap pt-1.5">
-                ${sizeChips.map(sz => `<span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]">${sz}</span>`).join('')}
+              <!-- Available Sizes Chips with 1-Click Interactive Modal -->
+              <div class="cursor-pointer group/cardsizematrix pt-1" onclick="openSizeStockModal(${p.id})" title="ক্লিক করে সাইজভিত্তিক স্টক পরিবর্তন করুন">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  ${sizeChips.map(sz => {
+                    const qty = (cAttr.size_stock && cAttr.size_stock[sz] !== undefined) ? cAttr.size_stock[sz] : null;
+                    const isOutOfStock = qty !== null && Number(qty) === 0;
+                    return `
+                      <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] ${isOutOfStock ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 line-through' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]'}">
+                        ${sz}${qty !== null ? ` (${qty}টি)` : ''}
+                      </span>
+                    `;
+                  }).join('')}
+                  <span class="text-xs text-[#30D158] font-semibold bg-[#30D158]/10 hover:bg-[#30D158]/20 border border-[#30D158]/25 px-2 py-0.5 rounded-[6px] flex items-center gap-1 transition">
+                    <span>✎ সাইজ-স্টক</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -398,10 +431,23 @@ function createMerchantPortalRouter({
           <div class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5 truncate" title="${(p.fabric || 'স্ট্যান্ডার্ড').replace(/"/g, '&quot;')}">✨ ${p.fabric || 'স্ট্যান্ডার্ড প্রিমিয়াম কোয়ালিটি'}</div>
         </td>
 
-        <!-- Col 4: Sizes -->
+        <!-- Col 4: Sizes & Per-Size Quantity Matrix -->
         <td class="p-4 align-middle">
-          <div class="flex items-center gap-1 flex-wrap max-w-[140px]">
-            ${sizeChips.map(sz => `<span class="text-xs font-mono font-semibold px-2 py-0.5 rounded-[6px] bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]">${sz}</span>`).join('')}
+          <div class="cursor-pointer group/sizematrix" onclick="openSizeStockModal(${p.id})" title="ক্লিক করে সাইজ ও সাইজভিত্তিক স্টক এডিট করুন">
+            <div class="flex items-center gap-1 flex-wrap max-w-[150px]">
+              ${sizeChips.map(sz => {
+                const qty = (cAttr.size_stock && cAttr.size_stock[sz] !== undefined) ? cAttr.size_stock[sz] : null;
+                const isOutOfStock = qty !== null && Number(qty) === 0;
+                return `
+                  <span class="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-[6px] ${isOutOfStock ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 line-through' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]'}">
+                    ${sz}${qty !== null ? ` <span class="text-[9px] opacity-75">(${qty})</span>` : ''}
+                  </span>
+                `;
+              }).join('')}
+            </div>
+            <div class="text-[10px] text-[#30D158] font-medium mt-1 flex items-center gap-1 group-hover/sizematrix:underline">
+              <span>⚙️ সাইজ-স্টক</span>
+            </div>
           </div>
         </td>
 
@@ -838,24 +884,64 @@ function createMerchantPortalRouter({
 
   <main class="max-w-7xl mx-auto px-5 sm:px-8 py-8 space-y-8">
 
-    <!-- 4 Platform Metric Telemetry Cards (Large PC-friendly numbers) -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-5">
-      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
-        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট প্রোডাক্ট ক্যাটালগ</div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${totalProducts}টি <span class="text-xs sm:text-sm text-[#30D158] font-semibold">(${inStockProducts} স্টকে)</span></div>
+    <!-- 4 Platform Metric Telemetry Cards (Dynamic, Unified & Zero Duplication) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      
+      <!-- Card 1: Catalog & Stock Inventory -->
+      <div onclick="switchTab('products')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer transition group/c1">
+        <div class="flex items-center justify-between">
+          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">ক্যাটালগ ও স্টক</span>
+          <span class="w-8 h-8 rounded-full bg-[#30D158]/15 text-[#30D158] flex items-center justify-center text-sm">📦</span>
+        </div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalProducts}টি <span class="text-xs sm:text-sm font-sans text-[#30D158] font-bold">(${inStockProducts} স্টকে)</span></div>
+        <div class="flex items-center gap-2 mt-2 flex-wrap text-[11px]">
+          <span class="text-[#30D158] font-medium">${lowStockProducts > 0 ? `⚠️ ${lowStockProducts}টি লো-স্টক` : '✅ সব স্টকে'}</span>
+          ${stockOutProducts > 0 ? `<span class="text-[#FF453A] font-bold">● ${stockOutProducts}টি শেষ</span>` : ''}
+        </div>
       </div>
-      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
-        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">স্টক আউট আইটেম</div>
-        <div class="text-2xl sm:text-3xl font-extrabold ${stockOutProducts > 0 ? 'text-[#FF453A]' : 'text-white'} mt-2 tracking-tight">${stockOutProducts}টি</div>
+
+      <!-- Card 2: Orders & Pipeline -->
+      <div onclick="switchTab('orders')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer transition group/c2">
+        <div class="flex items-center justify-between">
+          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">গ্রাহক অর্ডারস</span>
+          <span class="w-8 h-8 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center text-sm">📋</span>
+        </div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalOrders}টি <span class="text-xs sm:text-sm font-sans text-[#FF9F0A] font-bold">(${pendingOrders} পেন্ডিং)</span></div>
+        <div class="flex items-center gap-2 mt-2 flex-wrap text-[11px] text-[rgba(235,235,245,0.50)]">
+          <span>✓ ${approvedOrders + shippedOrders} কনফার্মড</span>
+          ${cancelledOrders > 0 ? `<span class="text-[rgba(235,235,245,0.40)]">● ${cancelledOrders} বাতিল</span>` : ''}
+        </div>
       </div>
-      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
-        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট গ্রাহক অর্ডারস</div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${totalOrders}টি <span class="text-xs sm:text-sm text-[#FF9F0A] font-semibold">(${pendingOrders} পেন্ডিং)</span></div>
+
+      <!-- Card 3: Sales Revenue (Interactive Today / 7-Day History) -->
+      <div onclick="openSalesHistoryModal()" class="metric-card bg-[#1C1C1E] border border-emerald-500/30 hover:border-emerald-500/60 p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(48,209,88,0.15)] cursor-pointer transition group/c3 relative overflow-hidden" title="ক্লিক করে আজকের ও গত ৭ দিনের সেলস হিস্ট্রি দেখুন">
+        <div class="flex items-center justify-between">
+          <span class="text-emerald-400 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <span>💰</span><span>মোট বিক্রয় রেভিনিউ</span>
+          </span>
+          <span class="text-[10px] bg-[#30D158]/20 text-[#30D158] font-bold px-2 py-0.5 rounded-full border border-[#30D158]/30 flex items-center gap-1 group-hover/c3:bg-[#30D158] group-hover/c3:text-black transition">
+            <span>📊 হিস্ট্রি</span>
+          </span>
+        </div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">৳${formatMoney(totalRevenue)}</div>
+        <div class="flex items-center justify-between gap-1 mt-2 text-[11px] flex-wrap">
+          <span class="text-emerald-400 font-semibold">আজকে: ৳${Number(todayRevenue).toLocaleString('en-IN')} (${todayOrders.length})</span>
+          <span class="text-[rgba(235,235,245,0.45)]">৭ দিনে: ৳${Number(last7DaysRevenue).toLocaleString('en-IN')}</span>
+        </div>
       </div>
-      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
-        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট ইনভেন্টরি মূল্য</div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${formatMoney(totalInventoryValue)}</div>
+
+      <!-- Card 4: Inventory Asset Value -->
+      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-cyan-500/30 p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition">
+        <div class="flex items-center justify-between">
+          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">ইনভেন্টরি সম্পদ</span>
+          <span class="w-8 h-8 rounded-full bg-cyan-500/15 text-cyan-400 flex items-center justify-center text-sm">💎</span>
+        </div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-cyan-400 mt-2 tracking-tight font-mono">৳${formatMoney(totalInventoryValue)}</div>
+        <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-2 truncate">
+          ওয়্যারহাউজের বর্তমান পণ্যের বাজারমূল্য
+        </div>
       </div>
+
     </div>
 
     <!-- Navigation Tabs (Apple Segmented Control Style - Larger Font) -->
@@ -879,59 +965,6 @@ function createMerchantPortalRouter({
     <section id="tab-products" class="space-y-6">
       <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
         
-        <!-- ======================================================== -->
-        <!-- Amazon Seller Central: Inventory Health Metric Strip -->
-        <!-- ======================================================== -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pb-2">
-          <!-- Metric 1: Active Products -->
-          <div class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-white/[0.15] p-4 sm:p-5 rounded-[20px] transition shadow-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium">সক্রিয় ক্যাটালগ</span>
-              <span class="w-8 h-8 rounded-full bg-[#30D158]/15 text-[#30D158] flex items-center justify-center text-sm font-bold">📦</span>
-            </div>
-            <div class="text-xl sm:text-2xl font-extrabold text-white mt-2 font-mono">${inStockProducts} <span class="text-xs font-normal text-[rgba(235,235,245,0.50)]">/ ${totalProducts} টি</span></div>
-            <div class="text-[11px] text-[#30D158] mt-1 flex items-center gap-1 font-medium">
-              <span>●</span> ${totalProducts > 0 ? Math.round((inStockProducts / totalProducts) * 100) : 0}% পণ্য বিক্রয়যোগ্য
-            </div>
-          </div>
-
-          <!-- Metric 2: Low-Stock Alert -->
-          <div onclick="filterStock('LOW_STOCK')" class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-[#FF9F0A]/40 p-4 sm:p-5 rounded-[20px] transition shadow-xs cursor-pointer group/low" title="ক্লিক করে লো-স্টক প্রোডাক্ট ফিল্টার করুন">
-            <div class="flex items-center justify-between">
-              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium group-hover/low:text-[#FF9F0A] transition">লো-স্টক সতর্কতা</span>
-              <span class="w-8 h-8 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A] flex items-center justify-center text-sm font-bold animate-pulse">⚠️</span>
-            </div>
-            <div class="text-xl sm:text-2xl font-extrabold text-[#FF9F0A] mt-2 font-mono">${lowStockProducts} <span class="text-xs font-normal text-[rgba(235,235,245,0.50)]">টি পণ্য</span></div>
-            <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
-              ৫ পিস বা কম (ক্লিক করে দেখুন)
-            </div>
-          </div>
-
-          <!-- Metric 3: Stock-Out Alert -->
-          <div onclick="filterStock('STOCK_OUT')" class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-[#FF453A]/40 p-4 sm:p-5 rounded-[20px] transition shadow-xs cursor-pointer group/out" title="ক্লিক করে স্টক-আউট প্রোডাক্ট ফিল্টার করুন">
-            <div class="flex items-center justify-between">
-              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium group-hover/out:text-[#FF453A] transition">স্টক-আউট পণ্য</span>
-              <span class="w-8 h-8 rounded-full bg-[#FF453A]/15 text-[#FF453A] flex items-center justify-center text-sm font-bold">❌</span>
-            </div>
-            <div class="text-xl sm:text-2xl font-extrabold text-[#FF453A] mt-2 font-mono">${stockOutProducts} <span class="text-xs font-normal text-[rgba(235,235,245,0.50)]">টি পণ্য</span></div>
-            <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
-              বিক্রয় বন্ধ (ক্লিক করে দেখুন)
-            </div>
-          </div>
-
-          <!-- Metric 4: Total Inventory Asset Value -->
-          <div class="bg-[#2C2C2E]/70 border border-white/[0.08] hover:border-cyan-500/40 p-4 sm:p-5 rounded-[20px] transition shadow-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] font-medium">ইনভেন্টরি অ্যাসেট ভ্যালু</span>
-              <span class="w-8 h-8 rounded-full bg-cyan-500/15 text-cyan-400 flex items-center justify-center text-sm font-bold">💎</span>
-            </div>
-            <div class="text-xl sm:text-2xl font-extrabold text-cyan-400 mt-2 font-mono">৳${Number(Math.round(totalInventoryValue)).toLocaleString('en-IN')}</div>
-            <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
-              মোট মজুদ পণ্যের বাজারমূল্য
-            </div>
-          </div>
-        </div>
-
         <!-- Search, Stock Filters & Add Product Action Bar -->
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
           <div>
@@ -1626,6 +1659,168 @@ function createMerchantPortalRouter({
   </div>
 
   <!-- ======================================================== -->
+  <!-- DYNAMIC SALES REVENUE & HISTORY MODAL                     -->
+  <!-- ======================================================== -->
+  <div id="salesHistoryModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="modal-card bg-[#1C1C1E] border border-white/[0.12] rounded-[28px] max-w-2xl w-full p-6 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,0.8)] space-y-6 text-left max-h-[90vh] overflow-y-auto no-scrollbar">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xl text-emerald-400">
+            📊
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-lg sm:text-xl">বিক্রয় অ্যানালিটিক্স ও সেলস হিস্ট্রি</h3>
+            <p class="text-xs text-[rgba(235,235,245,0.60)]">রিয়েল-টাইম কনফার্মড সেলস ট্র্যাকিং ও ট্রেন্ডস</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeSalesHistoryModal()" class="w-9 h-9 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[rgba(235,235,245,0.70)] hover:text-white flex items-center justify-center text-sm transition cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <!-- 3 Velocity Cards: Today / 7 Days / Lifetime -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4 rounded-[18px]">
+          <div class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">📅 আজকের বিক্রয়</div>
+          <div class="text-xl font-extrabold text-white font-mono mt-1">৳${Number(todayRevenue).toLocaleString('en-IN')}</div>
+          <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-0.5">${todayOrders.length}টি সফল অর্ডার</div>
+        </div>
+
+        <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4 rounded-[18px]">
+          <div class="text-[11px] font-bold text-blue-400 uppercase tracking-wider">📈 গত ৭ দিনের বিক্রয়</div>
+          <div class="text-xl font-extrabold text-white font-mono mt-1">৳${Number(last7DaysRevenue).toLocaleString('en-IN')}</div>
+          <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-0.5">${last7DaysOrders.length}টি সফল অর্ডার</div>
+        </div>
+
+        <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4 rounded-[18px]">
+          <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">🏆 সর্বমোট লাইফটাইম</div>
+          <div class="text-xl font-extrabold text-white font-mono mt-1">৳${Number(totalRevenue).toLocaleString('en-IN')}</div>
+          <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-0.5">${validOrders.length}টি মোট ডেলিভারি</div>
+        </div>
+      </div>
+
+      <!-- Recent Orders List in this Modal -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-[rgba(235,235,245,0.70)] uppercase tracking-wider">সর্বশেষ সফল অর্ডার তালিকা</span>
+          <button type="button" onclick="closeSalesHistoryModal(); switchTab('orders');" class="text-xs text-[#30D158] hover:underline font-semibold cursor-pointer">
+            সবগুলো অর্ডার পরিচালনা করুন →
+          </button>
+        </div>
+
+        <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+          ${validOrders.slice(0, 10).map(o => {
+            const dateStr = o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'আজকে';
+            return `
+              <div class="bg-[#2C2C2E]/40 border border-white/[0.06] p-3 rounded-[14px] flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <div class="font-bold text-white flex items-center gap-1.5">
+                    <span>${o.customer_name || 'গ্রাহক'}</span>
+                    <span class="font-mono text-[10px] text-[rgba(235,235,245,0.50)]">${o.customer_phone || ''}</span>
+                  </div>
+                  <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-0.5">${o.model_code || 'আইটেম'} • ${dateStr}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-white font-mono text-sm">৳${Number(o.total_bdt || 0).toLocaleString('en-IN')}</div>
+                  <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${o.status === 'Approved' ? 'bg-[#30D158]/15 text-[#30D158]' : (o.status === 'Shipped' ? 'bg-blue-500/15 text-blue-400' : 'bg-[#FF9F0A]/15 text-[#FF9F0A]')}">${o.status}</span>
+                </div>
+              </div>
+            `;
+          }).join('') || '<div class="text-center py-6 text-xs text-[rgba(235,235,245,0.40)]">এখনও কোনো অর্ডার সম্পন্ন হয়নি</div>'}
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-white/[0.08] flex justify-end">
+        <button type="button" onclick="closeSalesHistoryModal()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold px-5 py-2.5 rounded-[12px] text-xs transition cursor-pointer">
+          বন্ধ করুন
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- DYNAMIC SIZE & QUANTITY MATRIX MODAL                      -->
+  <!-- ======================================================== -->
+  <div id="sizeStockModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="modal-card bg-[#1C1C1E] border border-white/[0.12] rounded-[28px] max-w-lg w-full p-6 sm:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.85)] space-y-5 text-left max-h-[90vh] overflow-y-auto no-scrollbar">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="sizeModalProdCode" class="font-mono font-bold text-xs bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[6px] border border-white/[0.1]">PROD</span>
+            <h3 class="font-extrabold text-white text-base sm:text-lg">সাইজ ও ইনভেন্টরি স্টক ম্যাট্রিক্স</h3>
+          </div>
+          <p id="sizeModalProdName" class="text-xs text-[rgba(235,235,245,0.60)] mt-1 truncate max-w-sm"></p>
+        </div>
+        <button type="button" onclick="closeSizeStockModal()" class="w-8 h-8 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[rgba(235,235,245,0.70)] hover:text-white flex items-center justify-center text-sm transition cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <!-- Quick Preset Add Chips -->
+      <div class="space-y-2 bg-[#2C2C2E]/40 p-3.5 rounded-[18px] border border-white/[0.06]">
+        <div class="text-[11px] font-semibold text-[rgba(235,235,245,0.50)] uppercase tracking-wider flex items-center justify-between">
+          <span>⚡ কুইক সাইজ প্রিসেট (ক্লিক করলেই যুক্ত হবে):</span>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button type="button" onclick="quickAddSizeItem('50')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+50</button>
+          <button type="button" onclick="quickAddSizeItem('52')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+52</button>
+          <button type="button" onclick="quickAddSizeItem('54')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+54</button>
+          <button type="button" onclick="quickAddSizeItem('56')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+56</button>
+          <button type="button" onclick="quickAddSizeItem('58')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+58</button>
+          <span class="text-[rgba(235,235,245,0.25)]">|</span>
+          <button type="button" onclick="quickAddSizeItem('S')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+S</button>
+          <button type="button" onclick="quickAddSizeItem('M')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+M</button>
+          <button type="button" onclick="quickAddSizeItem('L')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+L</button>
+          <button type="button" onclick="quickAddSizeItem('XL')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+XL</button>
+          <button type="button" onclick="quickAddSizeItem('XXL')" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] hover:bg-white hover:text-black text-white border border-white/[0.1] transition cursor-pointer">+XXL</button>
+        </div>
+      </div>
+
+      <!-- Add Custom Size Row -->
+      <div class="flex items-center gap-2">
+        <input type="text" id="newCustomSizeName" placeholder="কাস্টম সাইজ (যেমন: 42, 60 বা Free)" class="flex-1 bg-[#2C2C2E] border border-white/[0.08] text-white text-xs px-3.5 py-2.5 rounded-[12px] focus:outline-none focus:border-white/40">
+        <input type="number" id="newCustomSizeQty" placeholder="স্টক" min="0" value="5" class="w-20 bg-[#2C2C2E] border border-white/[0.08] text-white text-xs px-3 py-2.5 rounded-[12px] focus:outline-none focus:border-white/40 font-mono">
+        <button type="button" onclick="addCustomSizeFromInput()" class="bg-white hover:bg-[#E5E5EA] text-black font-bold text-xs px-4 py-2.5 rounded-[12px] transition cursor-pointer shrink-0">
+          + সাইজ যোগ করুন
+        </button>
+      </div>
+
+      <!-- Size Items Table / List -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-[11px] font-semibold text-[rgba(235,235,245,0.50)] uppercase tracking-wider px-1">
+          <span>সাইজ তালিকা</span>
+          <span>স্টক সংখ্যা (পিস)</span>
+        </div>
+        <div id="sizeStockListContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+          <!-- Dynamically Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Total Computed Stock Banner -->
+      <div class="bg-[#2C2C2E] p-3.5 rounded-[16px] border border-white/[0.08] flex items-center justify-between text-xs sm:text-sm">
+        <span class="text-[rgba(235,235,245,0.70)]">সবগুলো সাইজ মিলিয়ে মোট স্টক:</span>
+        <span class="font-extrabold text-[#30D158] font-mono text-base"><span id="sizeModalTotalStockVal">0</span> পিস</span>
+      </div>
+
+      <!-- Save & Action Buttons -->
+      <div class="pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3">
+        <button type="button" onclick="closeSizeStockModal()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold px-5 py-2.5 rounded-[14px] text-xs transition cursor-pointer">
+          ✕ বাতিল
+        </button>
+        <button type="button" id="saveSizeStockBtn" onclick="saveSizeStockToServer()" class="bg-[#30D158] hover:bg-[#34C759] text-black font-extrabold px-6 py-2.5 rounded-[14px] text-xs sm:text-sm transition cursor-pointer shadow-[0_2px_12px_rgba(48,209,88,0.3)]">
+          💾 সাইজ ও স্টক সেভ করুন
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
   <!-- Amazon Seller Central Style Floating Bulk Operations Dock -->
   <!-- ======================================================== -->
   <div id="bulkActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transform translate-y-32 opacity-0 pointer-events-none transition-all duration-300 w-[95%] max-w-3xl">
@@ -1680,6 +1875,7 @@ function createMerchantPortalRouter({
   <script>
     const token = '${token}';
     window.portalOrders = ${JSON.stringify(orders)};
+    window.portalProducts = ${JSON.stringify(products)};
     let currentStockFilter = 'ALL';
     let currentOrderFilter = 'ALL';
 
@@ -2962,6 +3158,174 @@ function createMerchantPortalRouter({
       }
     }
 
+    // ========================================================
+    // SALES REVENUE HISTORY MODAL
+    // ========================================================
+    function openSalesHistoryModal() {
+      const modal = document.getElementById('salesHistoryModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeSalesHistoryModal() {
+      const modal = document.getElementById('salesHistoryModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // ========================================================
+    // INTERACTIVE SIZE & STOCK MATRIX MODAL
+    // ========================================================
+    let currentEditingSizeProdId = null;
+    let currentSizeStockMap = {};
+
+    function openSizeStockModal(prodId) {
+      currentEditingSizeProdId = prodId;
+      const allProds = window.portalProducts || [];
+      const prod = allProds.find(function(p) { return p.id === prodId; });
+      if (!prod) return;
+
+      const codeEl = document.getElementById('sizeModalProdCode');
+      const nameEl = document.getElementById('sizeModalProdName');
+      if (codeEl) codeEl.innerText = prod.model_code || 'PROD';
+      if (nameEl) nameEl.innerText = prod.name || '';
+
+      const cAttr = prod.custom_attributes || {};
+      currentSizeStockMap = {};
+
+      if (cAttr.size_stock && typeof cAttr.size_stock === 'object' && Object.keys(cAttr.size_stock).length > 0) {
+        currentSizeStockMap = JSON.parse(JSON.stringify(cAttr.size_stock));
+      } else {
+        const sizeList = (prod.sizes || 'স্ট্যান্ডার্ড').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        const totalQ = Number(prod.stock_quantity) || 5;
+        const defQty = Math.max(1, Math.floor(totalQ / (sizeList.length || 1)));
+        sizeList.forEach(function(s) {
+          currentSizeStockMap[s] = defQty;
+        });
+      }
+
+      renderSizeStockList();
+      const modal = document.getElementById('sizeStockModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeSizeStockModal() {
+      currentEditingSizeProdId = null;
+      currentSizeStockMap = {};
+      const modal = document.getElementById('sizeStockModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function renderSizeStockList() {
+      const container = document.getElementById('sizeStockListContainer');
+      if (!container) return;
+
+      const keys = Object.keys(currentSizeStockMap);
+      if (keys.length === 0) {
+        container.innerHTML = '<div class="text-center py-6 text-xs text-[rgba(235,235,245,0.40)]">কোনো সাইজ যুক্ত নেই। উপরের প্রিসেট থেকে সাইজ যোগ করুন।</div>';
+        const totalEl = document.getElementById('sizeModalTotalStockVal');
+        if (totalEl) totalEl.innerText = '0';
+        return;
+      }
+
+      let totalStock = 0;
+      let html = '';
+      keys.forEach(function(sz) {
+        const qty = parseInt(currentSizeStockMap[sz]) || 0;
+        totalStock += qty;
+        const isOut = qty === 0;
+
+        html += '<div class="bg-[#2C2C2E] border border-white/[0.06] p-3 rounded-[14px] flex items-center justify-between gap-3 text-xs">';
+        html += '  <div class="flex items-center gap-2">';
+        html += '    <span class="font-mono font-bold text-sm text-white px-2.5 py-1 bg-[#1C1C1E] rounded-[8px] border border-white/[0.08]">' + sz + '</span>';
+        if (isOut) {
+          html += '    <span class="text-[10px] font-bold text-[#FF453A] bg-[#FF453A]/15 border border-[#FF453A]/30 px-2 py-0.5 rounded-[6px]">স্টক-আউট</span>';
+        } else {
+          html += '    <span class="text-[10px] font-bold text-[#30D158] bg-[#30D158]/15 border border-[#30D158]/30 px-2 py-0.5 rounded-[6px]">ইন-স্টক (' + qty + ')</span>';
+        }
+        html += '  </div>';
+        html += '  <div class="flex items-center gap-1.5">';
+        html += '    <button type="button" onclick="stepSizeQty(\'' + sz + '\', -1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">-</button>';
+        html += '    <input type="number" min="0" value="' + qty + '" onchange="changeSizeQtyDirect(\'' + sz + '\', this.value)" class="w-14 text-center font-mono font-bold bg-[#1C1C1E] text-white px-1.5 py-1 rounded-[8px] border border-white/[0.08] focus:outline-hidden focus:border-[#30D158] text-xs">';
+        html += '    <button type="button" onclick="stepSizeQty(\'' + sz + '\', 1)" class="w-7 h-7 rounded-[8px] bg-[#1C1C1E] hover:bg-[#3A3A3C] text-white font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer">+</button>';
+        html += '    <button type="button" onclick="removeSizeItem(\'' + sz + '\')" class="w-7 h-7 rounded-[8px] bg-[#FF453A]/15 hover:bg-[#FF453A]/25 text-[#FF453A] font-bold flex items-center justify-center border border-[#FF453A]/30 cursor-pointer ml-1" title="মুছে ফেলুন">🗑️</button>';
+        html += '  </div>';
+        html += '</div>';
+      });
+
+      container.innerHTML = html;
+      const totalEl = document.getElementById('sizeModalTotalStockVal');
+      if (totalEl) totalEl.innerText = totalStock;
+    }
+
+    function stepSizeQty(sz, delta) {
+      const cur = parseInt(currentSizeStockMap[sz]) || 0;
+      currentSizeStockMap[sz] = Math.max(0, cur + delta);
+      renderSizeStockList();
+    }
+
+    function changeSizeQtyDirect(sz, val) {
+      const parsed = Math.max(0, parseInt(val) || 0);
+      currentSizeStockMap[sz] = parsed;
+      renderSizeStockList();
+    }
+
+    function quickAddSizeItem(sz) {
+      if (currentSizeStockMap[sz] === undefined) {
+        currentSizeStockMap[sz] = 5;
+      } else {
+        currentSizeStockMap[sz] = (parseInt(currentSizeStockMap[sz]) || 0) + 1;
+      }
+      renderSizeStockList();
+    }
+
+    function addCustomSizeFromInput() {
+      const inputName = document.getElementById('newCustomSizeName');
+      const inputQty = document.getElementById('newCustomSizeQty');
+      const name = (inputName?.value || '').trim();
+      const qty = parseInt(inputQty?.value) || 5;
+
+      if (!name) {
+        alert('দয়া করে সাইজের নাম লিখুন (যেমন: 42 বা XL)');
+        return;
+      }
+
+      currentSizeStockMap[name] = Math.max(0, qty);
+      if (inputName) inputName.value = '';
+      renderSizeStockList();
+    }
+
+    function removeSizeItem(sz) {
+      delete currentSizeStockMap[sz];
+      renderSizeStockList();
+    }
+
+    async function saveSizeStockToServer() {
+      if (!currentEditingSizeProdId) return;
+      const btn = document.getElementById('saveSizeStockBtn');
+      if (btn) { btn.innerText = 'সংরক্ষণ হচ্ছে...'; btn.disabled = true; }
+
+      try {
+        const res = await fetch('/api/portal/save-size-stock?token=' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: currentEditingSizeProdId,
+            size_stock: currentSizeStockMap
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ সাইজ ও স্টক ম্যাট্রিক্স সফলভাবে সংরক্ষিত হয়েছে!');
+          setTimeout(function() { window.location.reload(); }, 600);
+        } else {
+          alert('সেভ করতে সমস্যা: ' + (data.error || 'ব্যর্থ হয়েছে'));
+          if (btn) { btn.innerText = '💾 সাইজ ও স্টক সেভ করুন'; btn.disabled = false; }
+        }
+      } catch (e) {
+        alert('কানেকশন সমস্যা: ' + e.message);
+        if (btn) { btn.innerText = '💾 সাইজ ও স্টক সেভ করুন'; btn.disabled = false; }
+      }
+    }
+
     // Initialize saved product view mode on page load
     (function initProductView() {
       try {
@@ -3192,6 +3556,57 @@ function createMerchantPortalRouter({
       return res.json({ success: true, count: ids.length, action });
     } catch (err) {
       console.error('[Bulk Action Error]', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ========================================================
+  // Amazon Seller Central: Save Size & Stock Matrix API
+  // ========================================================
+  router.post('/api/portal/save-size-stock', async (req, res) => {
+    const token = req.query.token || req.body.token;
+    const inv = await authenticateMerchantToken(token);
+    if (!inv) return res.status(401).json({ error: 'Unauthorized token' });
+
+    const { id, size_stock } = req.body;
+    if (!id || typeof size_stock !== 'object') {
+      return res.status(400).json({ error: 'Missing product id or size_stock map' });
+    }
+
+    try {
+      // Fetch product to merge custom_attributes safely
+      const { data: curProd, error: fetchErr } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .eq('seller_id', inv.seller_id)
+        .single();
+      if (fetchErr || !curProd) return res.status(404).json({ error: 'Product not found' });
+
+      const curAttr = curProd.custom_attributes || {};
+      const updatedAttr = { ...curAttr, size_stock: size_stock };
+
+      const sizeKeys = Object.keys(size_stock);
+      const totalStock = sizeKeys.reduce((sum, k) => sum + (parseInt(size_stock[k]) || 0), 0);
+      const sizesStr = sizeKeys.join(', ');
+
+      const { error: updateErr } = await supabase
+        .from('products')
+        .update({
+          custom_attributes: updatedAttr,
+          sizes: sizesStr || 'স্ট্যান্ডার্ড',
+          stock_quantity: totalStock,
+          in_stock: totalStock > 0
+        })
+        .eq('id', id)
+        .eq('seller_id', inv.seller_id);
+
+      if (updateErr) throw updateErr;
+
+      await refreshProductsFromDB(inv.seller_id);
+      return res.json({ success: true, id, stock_quantity: totalStock, sizes: sizesStr });
+    } catch (err) {
+      console.error('[Save Size Stock Error]', err);
       return res.status(500).json({ error: err.message });
     }
   });
