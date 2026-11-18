@@ -29,12 +29,12 @@ const server = app.listen(4899, async () => {
     const html = await res.text();
     console.log('Status code:', res.status);
     console.log('Contains AutoDokan Engine OS?', html.includes('AutoDokan Engine OS'));
+    console.log('Contains deep soothing background #0d1117?', html.includes('#0d1117'));
     console.log('Contains stab-shops?', html.includes('id="stab-shops"'));
-    console.log('Contains stab-products?', html.includes('id="stab-products"'));
     console.log('Contains stab-orders?', html.includes('id="stab-orders"'));
     console.log('Contains stab-chats?', html.includes('id="stab-chats"'));
     console.log('Contains stab-settings?', html.includes('id="stab-settings"'));
-    console.log('Contains new shop onboarding modal?', html.includes('modal-onboard-shop'));
+    console.log('Contains addProductModal (should be false)?', html.includes('addProductModal'));
     console.log('Contains Dawah Fashion?', html.includes('Dawah Fashion'));
     console.log('Contains Bangla Juta?', html.includes('Bangla Juta'));
     server.close();

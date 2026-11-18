@@ -2,7 +2,6 @@ const BASE_URL = 'https://autodokan-engine.onrender.com';
 
 async function runLiveVerification() {
   console.log('--- 1. Testing Super Admin Multi-Identifier Login ---');
-  // Login with admin / 01613129192
   const loginRes = await fetch(`${BASE_URL}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -19,19 +18,19 @@ async function runLiveVerification() {
     return;
   }
 
-  console.log('\n--- 2. Testing Super Admin Executive Dashboard (/dashboard) ---');
+  console.log('\n--- 2. Testing Super Admin Deep-Calm Dashboard (/dashboard) ---');
   const dashRes = await fetch(`${BASE_URL}/dashboard`, {
     headers: { 'Cookie': cookie }
   });
   const dashHtml = await dashRes.text();
   console.log('Dashboard Status:', dashRes.status);
   console.log('Contains AutoDokan Engine OS?', dashHtml.includes('AutoDokan Engine OS'));
+  console.log('Contains Deep Calm Palette #0d1117?', dashHtml.includes('#0d1117'));
   console.log('Contains stab-shops (Fleet Monitor)?', dashHtml.includes('id="stab-shops"'));
-  console.log('Contains stab-products (Master Product Matrix)?', dashHtml.includes('id="stab-products"'));
   console.log('Contains stab-orders (Global Orders Pipeline)?', dashHtml.includes('id="stab-orders"'));
   console.log('Contains stab-chats (Live AI Inspector)?', dashHtml.includes('id="stab-chats"'));
   console.log('Contains stab-settings (Store Settings)?', dashHtml.includes('id="stab-settings"'));
-  console.log('Contains newShopModal (Dynamic Onboarding)?', dashHtml.includes('id="newShopModal"'));
+  console.log('Has addProductModal (should be false)?', dashHtml.includes('addProductModal'));
   console.log('WhatsApp QR in Super Admin Header?', dashHtml.includes('/qr') || dashHtml.includes('WhatsApp Connect'));
 
   console.log('\n--- 3. Testing Tenant Portal Isolation ---');
