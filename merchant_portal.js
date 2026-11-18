@@ -3282,7 +3282,7 @@ function createMerchantPortalRouter({
         ].join(',');
       });
 
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join(String.fromCharCode(13, 10));
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
