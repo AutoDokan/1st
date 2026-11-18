@@ -423,9 +423,9 @@ app.post('/api/settings/update', requireAuth, async (req, res) => {
   if (auto_payment_verify !== undefined) currentExtra.auto_payment_verify = (auto_payment_verify === 'true' || auto_payment_verify === true);
   if (auto_courier_on_confirm !== undefined) currentExtra.auto_courier_on_confirm = (auto_courier_on_confirm === 'true' || auto_courier_on_confirm === true);
 
+  const targetSeller = req.body.seller_id || CURRENT_SELLER_ID;
   const updatePayload = {
-    id: 1,
-    seller_id: CURRENT_SELLER_ID,
+    seller_id: targetSeller,
     inside_dhaka_fee: Number(inside_dhaka_fee) || 80,
     outside_dhaka_fee: Number(outside_dhaka_fee) || 120,
     bkash_number: (bkash_number || '01613-129192').trim(),
@@ -439,9 +439,15 @@ app.post('/api/settings/update', requireAuth, async (req, res) => {
   if (return_policy !== undefined) updatePayload.return_policy = return_policy.trim();
   if (free_delivery_min_amount !== undefined) updatePayload.free_delivery_min_amount = Number(free_delivery_min_amount) || 0;
 
-  await supabase.from('store_settings').upsert(updatePayload);
-  await refreshSettingsFromDB();
-  await refreshProductsFromDB();
+  const { data: existSetting } = await supabase.from('store_settings').select('id').eq('seller_id', targetSeller).maybeSingle();
+  if (existSetting?.id) {
+    updatePayload.id = existSetting.id;
+    await supabase.from('store_settings').update(updatePayload).eq('id', existSetting.id);
+  } else {
+    await supabase.from('store_settings').insert(updatePayload);
+  }
+  await refreshSettingsFromDB(targetSeller);
+  await refreshProductsFromDB(targetSeller);
   if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
     return res.json({ success: true, auto_followup_enabled: autoFollowupEnabled, settings: updatePayload });
   }
@@ -790,8 +796,9 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
     const discPrice = discount_price !== undefined && discount_price !== '' ? parseFloat(discount_price) : parsedPrice;
     const stockQty = stock_quantity !== undefined && stock_quantity !== '' ? parseInt(stock_quantity, 10) : 10;
 
+    const targetSeller = req.body.seller_id || CURRENT_SELLER_ID;
     const { data, error } = await supabase.from('products').insert({
-      seller_id: CURRENT_SELLER_ID,
+      seller_id: targetSeller,
       model_code: cleanCode,
       name: name.trim(),
       fabric: fabric || 'দুবাই চেরি',
@@ -812,7 +819,7 @@ app.post('/api/add-product', requireAuth, async (req, res) => {
       in_stock: in_stock === undefined ? true : (in_stock === true || in_stock === 'true')
     }).select();
     if (!error && data && data.length > 0) insertedItem = data[0];
-    await refreshProductsFromDB();
+    await refreshProductsFromDB(targetSeller);
   }
   if (req.headers['accept']?.includes('application/json') || req.body.ajax) {
     return res.json({ success: true, product: insertedItem });
@@ -1314,9 +1321,53 @@ setInterval(checkAndSendAbandonedLeadFollowups, 25 * 60 * 1000);
 // Unified Master Dashboard (Executive F-Commerce Command Center for Dawah Fashion)
 // Unified Master Dashboard (Executive Mobile-First F-Commerce Command Center for Dawah Fashion)
 app.get('/dashboard', requireAuth, async (req, res) => {
-  const { data: orders } = await supabase.from('orders').select('*').order('id', { ascending: false });
-  const { data: products } = await supabase.from('products').select('*').order('id', { ascending: true });
-  const { data: storeSettings } = await supabase.from('store_settings').select('*').eq('id', 1).single();
+  const selectedSeller = req.query.seller_id || 'ALL';
+
+  // Fetch distinct shops for switcher dropdown
+  const [settingsRes, invitesRes] = await Promise.all([
+    supabase.from('store_settings').select('seller_id, shop_name'),
+    supabase.from('seller_invites').select('seller_id, shop_name')
+  ]);
+
+  const shopMap = new Map();
+  shopMap.set('autodokan_seller_1', 'Dawah Fashion');
+  (settingsRes.data || []).forEach(s => {
+    if (s.seller_id) shopMap.set(s.seller_id, s.shop_name || s.seller_id);
+  });
+  (invitesRes.data || []).forEach(i => {
+    if (i.seller_id) shopMap.set(i.seller_id, i.shop_name || i.seller_id);
+  });
+
+  const storeOptions = [
+    { id: 'ALL', name: '🌐 সবগুলো শপ একসাথে (All Stores)' },
+    ...Array.from(shopMap.entries()).map(([id, name]) => ({
+      id,
+      name: id === 'autodokan_seller_1' ? name + ' (মাস্টার শপ)' : name
+    }))
+  ];
+
+  let ordersQuery = supabase.from('orders').select('*').order('id', { ascending: false });
+  let productsQuery = supabase.from('products').select('*').order('id', { ascending: true });
+
+  if (selectedSeller !== 'ALL') {
+    ordersQuery = ordersQuery.eq('seller_id', selectedSeller);
+    productsQuery = productsQuery.eq('seller_id', selectedSeller);
+  }
+
+  const [{ data: orders }, { data: products }] = await Promise.all([
+    ordersQuery,
+    productsQuery
+  ]);
+
+  let storeSettings = null;
+  if (selectedSeller !== 'ALL') {
+    const { data: s } = await supabase.from('store_settings').select('*').eq('seller_id', selectedSeller).maybeSingle();
+    storeSettings = s;
+  }
+  if (!storeSettings) {
+    const { data: s1 } = await supabase.from('store_settings').select('*').eq('id', 1).maybeSingle();
+    storeSettings = s1;
+  }
   const curSettings = storeSettings || { inside_dhaka_fee: 80, outside_dhaka_fee: 150, bkash_number: '01613-129192', nagad_number: '01677-557292' };
 
   const phoneCountMap = {};
@@ -1364,6 +1415,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
               ${p.in_stock ? '● ইন-স্টক' : '✕ স্টক আউট'}
             </button>
           </div>
+          ${selectedSeller === 'ALL' ? '<div class="mt-1"><span class="bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-md inline-block">🏪 ' + (shopMap.get(p.seller_id) || p.seller_id || 'Dawah Fashion') + '</span></div>' : ''}
           <h3 class="font-black text-stone-900 text-sm mt-1 truncate" title="${p.name}">${p.name}</h3>
           <div class="flex items-center gap-2 mt-0.5">
             <span class="font-black text-stone-900 text-base">৳${p.price}</span>
@@ -1413,6 +1465,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       <td class="p-3">
         <div class="font-mono font-black text-xs text-stone-900">#${o.id}</div>
         <div class="text-[10px] text-stone-400 mt-0.5">${o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) : ''}</div>
+        ${selectedSeller === 'ALL' ? '<div class="mt-1"><span class="bg-indigo-50 border border-indigo-200 text-indigo-800 text-[9px] font-bold px-1.5 py-0.5 rounded">🏪 ' + (shopMap.get(o.seller_id) || o.seller_id || 'Dawah Fashion') + '</span></div>' : ''}
       </td>
       <td class="p-3">
         <div class="font-black text-stone-900 text-xs flex items-center gap-1">
@@ -1480,30 +1533,35 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     </head>
     <body class="bg-[#faf8f5] text-stone-800 min-h-screen pb-20">
       
-      <!-- Top Sticky Dark Navbar -->
+      <!-- Top Sticky Dark Navbar with Shop Switcher -->
       <header class="bg-stone-900 text-white sticky top-0 z-40 px-4 py-3 shadow-md border-b border-stone-800">
-        <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+        <div class="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 flex items-center justify-center font-black text-white text-base shadow-sm ring-2 ring-amber-400/30">
-              DF
+              ⚡
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h1 class="font-black text-base text-white leading-none">Dawah Fashion</h1>
-                <span class="bg-amber-400/20 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded border border-amber-400/30">AI 2.0</span>
+                <h1 class="font-black text-base text-white leading-none">AutoDokan Master Admin</h1>
+                <span class="bg-amber-400/20 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded border border-amber-400/30">Super Admin</span>
               </div>
               <div class="flex items-center gap-2 mt-1">
-                <div class="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] px-2.5 py-0.5 rounded-full font-bold">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>+${connectedNumber || '8801968718838'}</span>
-                  <span class="text-[10px] text-emerald-300/80 border-l border-emerald-500/30 pl-1.5">সক্রিয়</span>
+                <div class="inline-flex items-center gap-1.5 bg-stone-800 border border-stone-700 text-stone-300 text-[11px] px-2.5 py-0.5 rounded-full font-bold">
+                  <span class="text-amber-400">🏪 সক্রিয় শপ:</span>
+                  <span class="text-white">${selectedSeller === 'ALL' ? 'সবগুলো শপ একসাথে' : (shopMap.get(selectedSeller) || selectedSeller)}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Quick Action Buttons -->
-          <div class="flex items-center gap-2">
+          <!-- Shop Switcher & Quick Actions -->
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <div class="flex items-center bg-stone-800 border border-amber-500/50 rounded-xl px-2.5 py-1.5 shadow-inner">
+              <span class="text-xs mr-1.5">🏪</span>
+              <select onchange="window.location.href='/dashboard?seller_id=' + this.value" class="bg-transparent text-amber-300 font-black text-xs outline-none cursor-pointer">
+                ${storeOptions.map(opt => '<option value="' + opt.id + '" class="bg-stone-900 text-white font-bold" ' + (selectedSeller === opt.id ? 'selected' : '') + '>' + opt.name + '</option>').join('')}
+              </select>
+            </div>
             <a href="/qr" title="WhatsApp QR কোড" class="bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700 shadow-2xs transition flex items-center gap-1.5">
               <span>📱</span>
               <span class="hidden sm:inline">QR কোড</span>
@@ -2138,6 +2196,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           if (btn) { btn.innerText = 'সেভ হচ্ছে...'; btn.disabled = true; }
 
           const payload = {
+            seller_id: '${selectedSeller === "ALL" ? "autodokan_seller_1" : selectedSeller}',
             shop_name: document.getElementById('set_shop_name').value.trim(),
             inside_dhaka_fee: document.getElementById('set_inside_fee').value,
             outside_dhaka_fee: document.getElementById('set_outside_fee').value,
@@ -2183,6 +2242,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           if (btn) { btn.innerText = 'সেভ হচ্ছে...'; btn.disabled = true; }
 
           const payload = {
+            seller_id: '${selectedSeller === "ALL" ? "autodokan_seller_1" : selectedSeller}',
             model_code: document.getElementById('add_code').value.toUpperCase().trim(),
             name: document.getElementById('add_name').value.trim(),
             price: document.getElementById('add_price').value,
@@ -2277,6 +2337,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
               const invUrl = window.location.origin + '/connect?token=' + inv.invite_token;
 
+              const portalUrl = window.location.origin + '/portal?token=' + inv.invite_token;
               return '<div class="bg-[#fcfaf7] border border-stone-200 rounded-xl p-3.5 flex items-center justify-between flex-wrap gap-2">' +
                 '<div>' +
                   '<div class="flex items-center gap-2">' +
@@ -2289,12 +2350,15 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                     'তারিখ: ' + (inv.created_at ? new Date(inv.created_at).toLocaleDateString('bn-BD') : 'আজ') +
                   '</p>' +
                 '</div>' +
-                '<div class="flex items-center gap-2">' +
-                  '<button type="button" data-url="' + invUrl + '" onclick="copyInviteLink(this.dataset.url)" class="bg-white border border-stone-300 hover:border-stone-400 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">' +
-                    'কপি লিংক' +
+                '<div class="flex items-center gap-2 flex-wrap">' +
+                  '<button type="button" data-url="' + portalUrl + '" onclick="copyInviteLink(this.dataset.url)" class="bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">' +
+                    'মার্চেন্ট পোর্টাল লিংক 📋' +
                   '</button>' +
-                  '<a href="/connect?token=' + inv.invite_token + '" target="_blank" class="bg-stone-900 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">' +
-                    'QR পেজ খুলুন ↗' +
+                  '<a href="' + portalUrl + '" target="_blank" class="bg-stone-900 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">' +
+                    'পোর্টাল খুলুন ↗' +
+                  '</a>' +
+                  '<a href="/connect?token=' + inv.invite_token + '" target="_blank" class="bg-white border border-stone-300 hover:border-stone-400 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-lg transition">' +
+                    'QR পেজ ↗' +
                   '</a>' +
                 '</div>' +
               '</div>';
@@ -2718,6 +2782,12 @@ app.get('/connect', async (req, res) => {
     return res.status(404).send('<h3>ইনভাইটেশন লিংকটি সঠিক নয় বা মেয়াদোত্তীর্ণ হয়েছে।</h3>');
   }
 
+  // 1-Time Invite Flow: If already connected, redirect directly to Merchant Portal
+  const isAlreadyConnected = sellerStatuses.get(inv.seller_id) === 'connected' || inv.status === 'CONNECTED';
+  if (isAlreadyConnected) {
+    return res.redirect('/portal?token=' + encodeURIComponent(token));
+  }
+
   // Auto-start session if not active
   if (!sellerSockets.has(inv.seller_id)) {
     startSellerSession(inv.seller_id);
@@ -2799,7 +2869,10 @@ app.get('/connect', async (req, res) => {
           const rawNum = (data.number || '').replace(/[^0-9]/g, '');
 
           banner.className = 'bg-emerald-50 border border-emerald-300 text-emerald-900 p-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2';
-          statusText.innerText = '🎉 হোয়াটসঅ্যাপ সফলভাবে কানেক্ট হয়েছে! নম্বর: ' + numDisplay;
+          statusText.innerText = '🎉 হোয়াটসঅ্যাপ সফলভাবে কানেক্ট হয়েছে! নম্বর: ' + numDisplay + ' (মার্চেন্ট পোর্টালে নিয়ে যাওয়া হচ্ছে...)';
+          setTimeout(function() {
+            window.location.href = '/portal?token=' + encodeURIComponent(token);
+          }, 2000);
           qrImg.classList.add('hidden');
           placeholder.classList.remove('hidden');
           
@@ -2888,6 +2961,20 @@ app.get('/api/connect/status', async (req, res) => {
     has_qr: hasQR
   });
 });
+
+// ==========================================
+// Dedicated Multi-Tenant Merchant Portal Router
+// ==========================================
+const { createMerchantPortalRouter } = require('./merchant_portal');
+app.use('/', createMerchantPortalRouter({
+  supabase,
+  sellerStatuses,
+  sellerNumbers,
+  sellerSockets,
+  startSellerSession,
+  refreshProductsFromDB,
+  refreshSettingsFromDB
+}));
 
 // ==========================================
 // Smart Helper Functions (Payment, Human Takeover, Auto Courier)
