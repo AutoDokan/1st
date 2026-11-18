@@ -168,14 +168,27 @@ function createMerchantPortalRouter({
       const colorChips = (p.colors || '').split(',').map(c => c.trim()).filter(Boolean);
 
       return `
-      <div class="prod-card bg-[#1C1C1E] rounded-[26px] border border-white/[0.08] hover:border-white/[0.18] p-6 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.6)] space-y-5 transition-all flex flex-col justify-between" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}">
+      <div class="prod-card bg-[#1C1C1E] rounded-[26px] border border-white/[0.08] hover:border-white/[0.18] p-6 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.6)] space-y-5 transition-all flex flex-col justify-between" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}" data-gallery="${encodeURIComponent(JSON.stringify(uniqueGallery))}">
         
         <div class="space-y-4">
           <!-- Card Header: Model Badge & Instant Stock Toggle Switch -->
           <div class="flex items-center justify-between gap-3 border-b border-white/[0.06] pb-3.5">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-mono font-bold text-sm bg-[#2C2C2E] text-white px-3 py-1 rounded-[10px] border border-white/[0.1]">${p.model_code || 'PROD'}</span>
-              <span class="text-xs text-[rgba(235,235,245,0.70)] bg-[#2C2C2E] px-2.5 py-1 rounded-[8px] border border-white/[0.04]">📦 ${p.stock_quantity || 1} পিস ইনভেন্টরি</span>
+              
+              <!-- 1-Click Inline Quick-Edit Stock Inventory -->
+              <div class="inline-flex items-center">
+                <div id="stock-view-${p.id}" class="text-xs text-[rgba(235,235,245,0.75)] bg-[#2C2C2E] px-2.5 py-1 rounded-[8px] border border-white/[0.06] hover:border-white/30 hover:text-white transition cursor-pointer flex items-center gap-1.5 group/stock" onclick="startInlineEditStock(${p.id}, ${p.stock_quantity || 1})" title="ক্লিক করে সরাসরি ইনভেন্টরি স্টক পরিবর্তন করুন">
+                  <span>📦 <span id="stock-val-${p.id}">${p.stock_quantity || 1}</span> পিস ইনভেন্টরি</span>
+                  <span class="opacity-0 group-hover/stock:opacity-100 text-[10px] text-[rgba(235,235,245,0.40)] transition">✎</span>
+                </div>
+                <div id="stock-edit-${p.id}" class="hidden flex items-center gap-1">
+                  <input type="number" id="stock-input-${p.id}" value="${p.stock_quantity || 1}" min="0" class="w-16 px-2 py-0.5 text-xs font-bold bg-[#1C1C1E] border border-[#30D158]/50 rounded-[8px] text-white focus:outline-hidden focus:border-[#30D158]" onkeydown="if(event.key==='Enter') saveInlineStock(${p.id}); else if(event.key==='Escape') cancelInlineStock(${p.id}, ${p.stock_quantity || 1});">
+                  <button type="button" onclick="saveInlineStock(${p.id})" class="px-2 py-0.5 rounded-[6px] bg-[#30D158] hover:bg-[#34C759] active:scale-95 text-black font-bold text-[10px]" title="সংরক্ষণ (Enter)">✓</button>
+                  <button type="button" onclick="cancelInlineStock(${p.id}, ${p.stock_quantity || 1})" class="px-2 py-0.5 rounded-[6px] bg-white/15 hover:bg-white/25 active:scale-95 text-white font-bold text-[10px]" title="বাতিল (Esc)">✕</button>
+                </div>
+                <span id="stock-toast-${p.id}" class="hidden text-[11px] text-[#30D158] font-bold ml-1.5 animate-pulse">✓ সেভড</span>
+              </div>
             </div>
 
             <!-- 1-Click Instant Stock Toggle -->
@@ -187,9 +200,14 @@ function createMerchantPortalRouter({
 
           <!-- Product Media & Details Layout (Spacious) -->
           <div class="flex gap-4 sm:gap-5 items-start">
-            <!-- Product Photo with Multiple Thumbnail Switcher -->
+            <!-- Product Photo with Multiple Thumbnail Switcher & 1-Click Enlarge -->
             <div class="shrink-0 space-y-2">
-              <img id="img-preview-${p.id}" src="${mainImg}" alt="${p.model_code}" class="w-28 h-36 sm:w-32 sm:h-40 object-cover rounded-[18px] bg-[#2C2C2E] border border-white/[0.1] shadow-md transition">
+              <div class="relative group/cardimg cursor-pointer rounded-[18px] overflow-hidden" onclick="openCatalogLightbox(${p.id})" title="বড় করে দেখতে ছবিতে ক্লিক করুন">
+                <img id="img-preview-${p.id}" src="${mainImg}" alt="${p.model_code}" class="w-28 h-36 sm:w-32 sm:h-40 object-cover rounded-[18px] bg-[#2C2C2E] border border-white/[0.1] shadow-md transition duration-200 group-hover/cardimg:scale-105">
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/cardimg:opacity-100 transition flex items-center justify-center pointer-events-none">
+                  <span class="bg-black/80 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full border border-white/20 shadow-md">🔍 বড় দেখুন</span>
+                </div>
+              </div>
               
               <!-- Multi-Photo Switcher Dots (Up to 8) -->
               ${uniqueGallery.length > 1 ? `
@@ -206,11 +224,23 @@ function createMerchantPortalRouter({
             <div class="flex-1 min-w-0 space-y-2">
               <h3 class="font-bold text-white text-base sm:text-lg leading-snug line-clamp-2" title="${p.name}">${p.name}</h3>
               
-              <!-- Pricing Engine -->
-              <div class="flex items-baseline gap-2.5 pt-1">
-                <span class="font-extrabold text-white text-xl sm:text-2xl">৳${p.price}</span>
-                ${hasDiscount ? `<span class="text-[rgba(235,235,245,0.35)] line-through text-sm font-mono font-medium">৳${p.regular_price}</span>` : ''}
-                ${hasDiscount ? `<span class="text-xs text-[#30D158] font-semibold bg-[#30D158]/15 border border-[#30D158]/25 px-2 py-0.5 rounded-[6px]">ছাড়</span>` : ''}
+              <!-- Pricing Engine with 1-Click Inline Quick-Edit -->
+              <div class="flex items-baseline gap-2.5 pt-1 group/price relative">
+                <!-- View Mode -->
+                <div id="price-view-${p.id}" class="flex items-baseline gap-2 cursor-pointer hover:opacity-90 transition" onclick="startInlineEditPrice(${p.id}, ${p.price})" title="ক্লিক করে সরাসরি মূল্য পরিবর্তন করুন">
+                  <span id="price-val-${p.id}" class="font-extrabold text-white text-xl sm:text-2xl">৳${p.price}</span>
+                  <span class="opacity-0 group-hover/price:opacity-100 text-[10px] text-[rgba(235,235,245,0.50)] bg-white/10 px-1.5 py-0.5 rounded transition">✎ এডিট</span>
+                  ${hasDiscount ? `<span class="text-[rgba(235,235,245,0.35)] line-through text-sm font-mono font-medium">৳${p.regular_price}</span>` : ''}
+                  ${hasDiscount ? `<span class="text-xs text-[#30D158] font-semibold bg-[#30D158]/15 border border-[#30D158]/25 px-2 py-0.5 rounded-[6px]">ছাড়</span>` : ''}
+                </div>
+                <!-- Edit Mode (Hidden initially) -->
+                <div id="price-edit-${p.id}" class="hidden flex items-center gap-1.5">
+                  <span class="text-white font-bold text-base">৳</span>
+                  <input type="number" id="price-input-${p.id}" value="${p.price}" min="0" class="w-24 px-2 py-1 text-base font-bold bg-[#1C1C1E] border border-[#30D158]/50 rounded-[10px] text-white focus:outline-hidden focus:border-[#30D158]" onkeydown="if(event.key==='Enter') saveInlinePrice(${p.id}); else if(event.key==='Escape') cancelInlinePrice(${p.id}, ${p.price});">
+                  <button type="button" onclick="saveInlinePrice(${p.id})" class="p-1.5 rounded-[8px] bg-[#30D158] hover:bg-[#34C759] active:scale-95 text-black font-bold text-xs" title="সংরক্ষণ (Enter)">✓</button>
+                  <button type="button" onclick="cancelInlinePrice(${p.id}, ${p.price})" class="p-1.5 rounded-[8px] bg-white/15 hover:bg-white/25 active:scale-95 text-white font-bold text-xs" title="বাতিল (Esc)">✕</button>
+                </div>
+                <span id="price-toast-${p.id}" class="hidden text-xs text-[#30D158] font-bold ml-1 animate-pulse">✓ সেভড</span>
               </div>
 
               <!-- Material / Fabric -->
@@ -1060,6 +1090,139 @@ function createMerchantPortalRouter({
       if (img && url) img.src = url;
     }
 
+    // Open Catalog Lightbox from Card Image Click
+    function openCatalogLightbox(productId) {
+      const card = document.querySelector('.prod-card[data-id="' + productId + '"]');
+      if (!card) return;
+      const raw = card.getAttribute('data-gallery');
+      if (!raw) return;
+      try {
+        const list = JSON.parse(decodeURIComponent(raw));
+        if (Array.isArray(list) && list.length > 0) {
+          studioUploadedImages = [...list];
+          openPhotoLightbox(0);
+        }
+      } catch(e) {
+        console.error('Error opening catalog lightbox:', e);
+      }
+    }
+
+    // Inline Quick-Edit for Price
+    function startInlineEditPrice(id, currentPrice) {
+      const viewEl = document.getElementById('price-view-' + id);
+      const editEl = document.getElementById('price-edit-' + id);
+      const inputEl = document.getElementById('price-input-' + id);
+      if (viewEl && editEl && inputEl) {
+        viewEl.classList.add('hidden');
+        editEl.classList.remove('hidden');
+        inputEl.focus();
+        inputEl.select();
+      }
+    }
+
+    function cancelInlinePrice(id, originalPrice) {
+      const viewEl = document.getElementById('price-view-' + id);
+      const editEl = document.getElementById('price-edit-' + id);
+      const inputEl = document.getElementById('price-input-' + id);
+      if (viewEl && editEl) {
+        editEl.classList.add('hidden');
+        viewEl.classList.remove('hidden');
+        if (inputEl) inputEl.value = originalPrice;
+      }
+    }
+
+    async function saveInlinePrice(id) {
+      const inputEl = document.getElementById('price-input-' + id);
+      if (!inputEl) return;
+      const newPrice = parseFloat(inputEl.value);
+      if (isNaN(newPrice) || newPrice < 0) {
+        alert('দয়া করে সঠিক মূল্য লিখুন');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/portal/quick-edit?token=' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, field: 'price', value: newPrice })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const valEl = document.getElementById('price-val-' + id);
+          if (valEl) valEl.innerText = '৳' + Number(newPrice).toLocaleString('en-IN');
+          const toast = document.getElementById('price-toast-' + id);
+          if (toast) {
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2000);
+          }
+          cancelInlinePrice(id, newPrice);
+          showToast('✅ প্রোডাক্ট মূল্য ৳' + Number(newPrice).toLocaleString('en-IN') + ' আপডেট হয়েছে!');
+        } else {
+          alert('মূল্য আপডেট এরর: ' + (data.error || 'সমস্যা হয়েছে'));
+        }
+      } catch (e) {
+        alert('কানেকশন সমস্যা: ' + e.message);
+      }
+    }
+
+    // Inline Quick-Edit for Stock Inventory
+    function startInlineEditStock(id, currentStock) {
+      const viewEl = document.getElementById('stock-view-' + id);
+      const editEl = document.getElementById('stock-edit-' + id);
+      const inputEl = document.getElementById('stock-input-' + id);
+      if (viewEl && editEl && inputEl) {
+        viewEl.classList.add('hidden');
+        editEl.classList.remove('hidden');
+        inputEl.focus();
+        inputEl.select();
+      }
+    }
+
+    function cancelInlineStock(id, originalStock) {
+      const viewEl = document.getElementById('stock-view-' + id);
+      const editEl = document.getElementById('stock-edit-' + id);
+      const inputEl = document.getElementById('stock-input-' + id);
+      if (viewEl && editEl) {
+        editEl.classList.add('hidden');
+        viewEl.classList.remove('hidden');
+        if (inputEl) inputEl.value = originalStock;
+      }
+    }
+
+    async function saveInlineStock(id) {
+      const inputEl = document.getElementById('stock-input-' + id);
+      if (!inputEl) return;
+      const newStock = parseInt(inputEl.value);
+      if (isNaN(newStock) || newStock < 0) {
+        alert('দয়া করে সঠিক স্টক সংখ্যা লিখুন');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/portal/quick-edit?token=' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, field: 'stock_quantity', value: newStock })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const valEl = document.getElementById('stock-val-' + id);
+          if (valEl) valEl.innerText = newStock;
+          const toast = document.getElementById('stock-toast-' + id);
+          if (toast) {
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2000);
+          }
+          cancelInlineStock(id, newStock);
+          showToast('✅ ইনভেন্টরি স্টক ' + newStock + ' পিস আপডেট হয়েছে!');
+        } else {
+          alert('স্টক আপডেট এরর: ' + (data.error || 'সমস্যা হয়েছে'));
+        }
+      } catch (e) {
+        alert('কানেকশন সমস্যা: ' + e.message);
+      }
+    }
+
     // Quick Live Stock Toggle
     async function toggleStockLive(id, nextState) {
       try {
@@ -1643,6 +1806,34 @@ function createMerchantPortalRouter({
     if (error) return res.status(500).json({ error: error.message });
     await refreshProductsFromDB(inv.seller_id);
     return res.json({ success: true, in_stock: isStock, id });
+  });
+
+  // Instant Inline Quick-Edit (Price, Regular Price, Stock Quantity)
+  router.post('/api/portal/quick-edit', async (req, res) => {
+    const token = req.query.token || req.body.token;
+    const inv = await authenticateMerchantToken(token);
+    if (!inv) return res.status(401).json({ error: 'Unauthorized token' });
+
+    const { id, field, value } = req.body;
+    if (!id || !field) return res.status(400).json({ error: 'Missing id or field' });
+
+    const allowedFields = ['price', 'regular_price', 'stock_quantity'];
+    if (!allowedFields.includes(field)) {
+      return res.status(400).json({ error: 'Field not allowed for quick-edit' });
+    }
+
+    const numVal = field === 'stock_quantity' ? (parseInt(value) || 0) : (parseFloat(value) || 0);
+    const updateObj = { [field]: numVal };
+
+    const { error } = await supabase
+      .from('products')
+      .update(updateObj)
+      .eq('id', id)
+      .eq('seller_id', inv.seller_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    await refreshProductsFromDB(inv.seller_id);
+    return res.json({ success: true, id, field, value: numVal });
   });
 
   // Quick Save AI Notes
