@@ -209,22 +209,31 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
         const cAttr = p.custom_attributes || {};
 
         const qualityList = [];
-        if (cAttr.color_guarantee) qualityList.push('কালার ১০০% গ্যারান্টি');
+        if (cAttr.color_guarantee) qualityList.push('কালার গ্যারান্টি');
         if (cAttr.wrinkle_free) qualityList.push('কুঁচকে যায় না');
         if (cAttr.summer_friendly) qualityList.push('গরমে আরামদায়ক');
         if (cAttr.wash_care) qualityList.push('সহজে ওয়াশেবল');
+        if (cAttr.warranty) qualityList.push(`ওয়ারেন্টি: ${cAttr.warranty}`);
         const qualityBadges = qualityList.join(', ');
 
+        const bundleStr = cAttr.bundle_label || (cAttr.bundle_active ? `${cAttr.bundle_qty || 2}টি নিলে বিশেষ বান্ডেল ছাড়` : '');
+
         const details = [
-          p.fabric ? `ফেব্রিক: ${p.fabric}` : '',
+          p.category && p.category !== 'general' ? `ক্যাটাগরি: ${p.category}` : '',
+          p.fabric ? `উপাদান: ${p.fabric}` : (cAttr.material ? `উপাদান: ${cAttr.material}` : ''),
           cAttr.transparency ? `ঘনত্ব: ${cAttr.transparency}` : '',
           cAttr.package_type ? `প্যাকেজ: ${cAttr.package_type}` : '',
+          cAttr.inclusions ? `থাকছে: ${cAttr.inclusions}` : '',
           (p.hijab_included || cAttr.hijab_included || cAttr.hijab_details) ? `হিজাব: ${cAttr.hijab_details || 'হিজাব অন্তর্ভুক্ত'}` : '',
           colorStr ? `কালার: ${colorStr}` : '',
           p.sizes ? `সাইজ: ${p.sizes}` : '',
           cAttr.body_fit ? `ফিটিং: ${cAttr.body_fit}` : '',
           cAttr.flare_inches ? `ঘের: ${cAttr.flare_inches}` : '',
+          cAttr.comfort ? `কমফোর্ট: ${cAttr.comfort}` : '',
+          cAttr.tech_specs ? `স্পেক্স: ${cAttr.tech_specs}` : '',
+          cAttr.skin_type ? `ত্বক: ${cAttr.skin_type}` : '',
           qualityBadges ? `কোয়ালিটি: ${qualityBadges}` : '',
+          bundleStr ? `[বান্ডেল অফার: ${bundleStr}]` : '',
           cAttr.lighting_disclaimer ? `লাইটিং নোট: ${cAttr.lighting_disclaimer}` : '',
           p.short_description ? `সেলস নোট: ${p.short_description}` : ''
         ].filter(Boolean).join(', ');
@@ -834,10 +843,11 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 ৩. কাপড় পাতলা বা ইনার লাগবে কিনা জানতে চাইলে তালিকার 'ঘনত্ব' অনুযায়ী স্পষ্ট জানাবে (যেমন: "এটি ১০০% নন-ট্রান্সপারেন্ট, আলাদা ইনারের প্রয়োজন নেই")।
 ৪. কোয়ালিটি ও ছবির রঙের মিল জানতে চাইলে তালিকায় থাকা নিশ্চয়তা উল্লেখ করবে এবং বলবে স্টুডিও লাইটিংয়ের কারণে ছবিতে ৫-১০% সামান্য উনিশ-বিশ হতে পারে, বাস্তবে কাপড় অত্যন্ত প্রিমিয়াম।
 
-স্টক ও দামের ব্যাখ্যা (ভ্যালু-বেসড সেলিং):
-১. ডাটাবেসে যে প্রোডাক্ট "স্টক আউট" রয়েছে, সেটির কথা বললে স্পষ্টভাবে বলো যে এই মডেলটি এখন স্টকে নেই এবং স্টকে থাকা একই কোয়ালিটির অন্য রানিং মডেল দেখতে বলো।
-২. কাস্টমার দাম বেশি বললে বা বাজারে কম দামের কথা তুললে রোবটের মতো শুধু "ফিক্সড" বলে মুখ ফিরিয়ে নেবে না। মিষ্টি ভাষায় কোয়ালিটি তুলে ধরো: "${qualityPitch}"
-৩. একাধিক পিস নিলে বলো: "আমাদের প্রতিটি প্রোডাক্টের রেট একদম রিজনেবল মূল্যে রাখা, তবে আপনি একসাথে একাধিক নিলে আমরা ডেলিভারি খরচে স্পেশাল ছাড় বা সুন্দর গিফটের ব্যবস্থা করে দেব।"
+স্টক, দাম ও বান্ডেল ডিল (ভ্যালু-বেসড সেলিং ও বান্ডেল অফার):
+১. কোনো প্রোডাক্টে [বান্ডেল অফার: ...] থাকলে কাস্টমার দাম কম রাখতে চাইলে বা একাধিক পিস নিতে চাইলে অবশ্যই সেই বান্ডেল অনুযায়ী আকর্ষণীয় অফার দেবে (যেমন: "আমাদের ১টির রেগুলার প্রাইস ৳[দাম], তবে আপনি একসাথে ২টি নিলে বান্ডেল অফারে ১০% ছাড়ে মোট ৳[টাকা] পাবেন")।
+২. ডাটাবেসে যে প্রোডাক্ট "স্টক আউট" রয়েছে, সেটির কথা বললে স্পষ্টভাবে বলো যে এই মডেলটি এখন স্টকে নেই এবং স্টকে থাকা একই কোয়ালিটির অন্য রানিং মডেল দেখতে বলো।
+৩. কাস্টমার দাম বেশি বললে বা বাজারে কম দামের কথা তুললে মিষ্টি ভাষায় কোয়ালিটি তুলে ধরো: "${qualityPitch}"
+৪. বান্ডেল ছাড়া অন্য কোনো মনগড়া বা আন্দাজে ছাড় দেবে না।
 
 স্ল্যাং ও অভিযোগ:
 ১. "নাম ধুয়ে পানি খাবো", "poc", "sobi", "pic den" মানে ছবি দেখতে চেয়েছেন।

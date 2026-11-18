@@ -1082,12 +1082,15 @@ function createMerchantPortalRouter({
       <form id="productStudioForm" onsubmit="handleProductStudioSubmit(event)" class="space-y-6">
         <input type="hidden" id="studio_prod_id" value="">
 
-        <!-- SECTION 1: বেসিক তথ্য ও প্রাইসিং -->
+        <!-- SECTION 1: বেসিক তথ্য ও ক্যাটাগরি -->
         <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-4">
-          <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 pb-1 border-b border-white/[0.06]">
-            <span class="text-emerald-400">🏷️</span><span>১. মৌলিক তথ্য ও মূল্য (Pricing Engine)</span>
+          <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center justify-between pb-1 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-400">🏷️</span><span>১. মৌলিক তথ্য ও ক্যাটাগরি</span>
+            </div>
+            <span class="text-[11px] font-normal text-[rgba(235,235,245,0.50)]">যেকোনো প্রোডাক্টের জন্য প্রযোজ্য</span>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">মডেল কোড *</label>
               <input type="text" id="studio_code" required placeholder="যেমন: DF-105" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-mono font-bold p-3 rounded-[12px] focus:border-white/40 outline-none uppercase">
@@ -1096,11 +1099,32 @@ function createMerchantPortalRouter({
               <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">প্রোডাক্টের নাম *</label>
               <input type="text" id="studio_name" required placeholder="যেমন: প্রিমিয়াম দুবাই চেরি রানি কাফতান আবায়া" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-medium p-3 rounded-[12px] focus:border-white/40 outline-none">
             </div>
+            <div>
+              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">প্রোডাক্ট ক্যাটাগরি *</label>
+              <select id="studio_category" onchange="onStudioCategoryChange(this.value)" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none cursor-pointer font-medium">
+                <option value="fashion">👗 পোশাক, বোরকা ও আবায়া</option>
+                <option value="footwear">👞 জুতা ও ফুটওয়্যার</option>
+                <option value="electronics">🎧 গ্যাজেট ও ইলেকট্রনিক্স</option>
+                <option value="cosmetics">💄 বিউটি ও স্কিনকেয়ার</option>
+                <option value="food">🍯 অর্গানিক ফুড ও গ্রোসারি</option>
+                <option value="general">📦 অন্যান্য পণ্য (Universal)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: মূল্য ও বান্ডেল/ভলিউম প্রাইসিং ইঞ্জিন -->
+        <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-4">
+          <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center justify-between pb-1 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-amber-400">💰</span><span>২. মূল্য ও বান্ডেল/ভলিউম ডিসকাউন্ট ইঞ্জিন</span>
+            </div>
+            <span class="text-[11px] font-normal text-emerald-400">🔥 একাধিক পিস বিক্রি বাড়ানোর কৌশল</span>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">বিক্রয় মূল্য (টাকা) *</label>
-              <input type="number" id="studio_price" required placeholder="যেমন: 1850" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-emerald-400 text-base font-bold p-3 rounded-[12px] focus:border-white/40 outline-none">
+              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">বিক্রয় মূল্য (১ পিস) *</label>
+              <input type="number" id="studio_price" oninput="updateBundlePreview()" required placeholder="যেমন: 1850" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-emerald-400 text-base font-bold p-3 rounded-[12px] focus:border-white/40 outline-none">
             </div>
             <div>
               <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">রেগুলার মূল্য (MRP)</label>
@@ -1111,111 +1135,215 @@ function createMerchantPortalRouter({
               <input type="number" id="studio_stock_qty" value="25" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
             </div>
           </div>
+
+          <!-- BUNDLE / VOLUME PRICING ACCORDION -->
+          <div class="p-3.5 rounded-[16px] bg-[#1C1C1E] border border-white/[0.08] space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-white cursor-pointer select-none">
+                <input type="checkbox" id="studio_bundle_active" onchange="updateBundlePreview()" class="accent-emerald-400 w-4 h-4 rounded">
+                <span>🔥 বান্ডেল / মাল্টি-পিস অফার চালু করুন (যেমন: ২টি কিনলে ১০% ছাড়)</span>
+              </label>
+            </div>
+
+            <div id="bundleConfigBox" class="hidden space-y-3 pt-2 border-t border-white/[0.06]">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">অফার পরিমাণ</label>
+                  <select id="studio_bundle_qty" onchange="updateBundlePreview()" class="w-full bg-[#242426] border border-white/[0.08] text-white text-xs p-2.5 rounded-[10px] focus:border-white/40 outline-none">
+                    <option value="2">২টি কিনলে অফার</option>
+                    <option value="3">৩টি কিনলে অফার</option>
+                    <option value="4">৪টি কিনলে অফার</option>
+                    <option value="5">৫টি কিনলে অফার</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">অফারের ধরন</label>
+                  <select id="studio_bundle_type" onchange="updateBundlePreview()" class="w-full bg-[#242426] border border-white/[0.08] text-white text-xs p-2.5 rounded-[10px] focus:border-white/40 outline-none">
+                    <option value="percentage">% শতাংশ ছাড় (যেমন: 10%)</option>
+                    <option value="fixed_price">ফিক্সড কম্বো মূল্য (যেমন: ৳3200)</option>
+                    <option value="free_delivery">সম্পূর্ণ ফ্রি ডেলিভারি অফার</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">ছাড়ের মান (% বা ৳)</label>
+                  <input type="number" id="studio_bundle_value" oninput="updateBundlePreview()" value="10" placeholder="যেমন: 10 বা 3200" class="w-full bg-[#242426] border border-white/[0.08] text-white text-xs p-2.5 rounded-[10px] focus:border-white/40 outline-none">
+                </div>
+              </div>
+              <div id="bundlePreviewBox" class="p-2.5 rounded-[10px] bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium">
+                💡 প্রিভিউ: গ্রাহক ২টি নিলে ১০% ছাড়ে আকর্ষণীয় মূল্যে পেয়ে যাবেন!
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- SECTION 2: ফেব্রিক ও কোয়ালিটি স্পেক্স -->
+        <!-- SECTION 3: ক্যাটাগরি-অনুযায়ী ডায়নামিক স্পেসিফিকেশন ও প্যাকেজ -->
         <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-4">
-          <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 pb-1 border-b border-white/[0.06]">
-            <span class="text-sky-400">🧵</span><span>২. ফেব্রিক ও কোয়ালিটি ইন্টেলিজেন্স (Fabric & Quality)</span>
+          <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center justify-between pb-1 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-sky-400">⚙️</span><span id="specSectionHeading">৩. প্যাকেজ, স্পেসিফিকেশন ও সাইজ গাইড</span>
+            </div>
+            <span id="currentCategoryBadge" class="text-[11px] font-normal text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-[6px]">পোশাক ও ফ্যাশন</span>
           </div>
+
+          <!-- UNIVERSAL PACKAGE TYPE ROW (All Categories) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">ফেব্রিক / উপাদান *</label>
-                <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
-                  <span>প্রিসেট:</span>
-                  <button type="button" onclick="setPresetFabric('দুবাই চেরি')" class="text-white hover:underline cursor-pointer">দুবাই চেরি</button>
+                <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">প্যাকেজের ধরন *</label>
+                <div id="pkgPresetContainer" class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                  <button type="button" onclick="setPresetPackage('১ পিস')" class="text-white hover:underline cursor-pointer">১ পিস</button>
                   <span>•</span>
-                  <button type="button" onclick="setPresetFabric('সফট জর্জেট')" class="text-white hover:underline cursor-pointer">জর্জেট</button>
+                  <button type="button" onclick="setPresetPackage('২ পিস সেট')" class="text-white hover:underline cursor-pointer">২ পিস সেট</button>
                   <span>•</span>
-                  <button type="button" onclick="setPresetFabric('নিদা ফেব্রিক')" class="text-white hover:underline cursor-pointer">নিদা</button>
+                  <button type="button" onclick="setPresetPackage('ফুল কম্বো সেট')" class="text-white hover:underline cursor-pointer">কম্বো</button>
                 </div>
               </div>
-              <input type="text" id="studio_fabric" placeholder="যেমন: দুবাই চেরি প্রিমিয়াম" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              <input type="text" id="studio_package_type" placeholder="যেমন: ২ পিস সেট (আবায়া + হিজাব) বা প্রিমিয়াম বক্স" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">কাপড় কি পাতলা / ইনার লাগবে? *</label>
-              <select id="studio_transparency" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none cursor-pointer">
-                <option value="100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)">100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)</option>
-                <option value="হালকা পাতলা (ভেতরে ইনার বা কামিজ পরা ভালো)">হালকা পাতলা (ভেতরে ইনার বা কামিজ পরা ভালো)</option>
-                <option value="মাঝারি ঘনত্ব (ইনার ছাড়াই পরিধানযোগ্য)">মাঝারি ঘনত্ব (ইনার ছাড়াই পরিধানযোগ্য)</option>
-              </select>
+              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">প্যাকেজে যা যা অন্তর্ভুক্ত থাকছে *</label>
+              <input type="text" id="studio_package_inclusions" placeholder="যেমন: মূল প্রোডাক্ট + প্রিমিয়াম বক্স + গিফট উপহার" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
             </div>
           </div>
 
-          <!-- Quality Guarantee Badges (Checkboxes) -->
+          <!-- DYNAMIC SUB-SECTION: FASHION / ABAYA -->
+          <div id="cat_fields_fashion" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">ফেব্রিক / উপাদান</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetFabric('দুবাই চেরি')" class="text-white hover:underline cursor-pointer">দুবাই চেরি</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetFabric('সফট জর্জেট')" class="text-white hover:underline cursor-pointer">জর্জেট</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetFabric('নিদা ফেব্রিক')" class="text-white hover:underline cursor-pointer">নিদা</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_fabric" placeholder="যেমন: দুবাই চেরি প্রিমিয়াম" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">কাপড় কি পাতলা / ইনার লাগবে?</label>
+                <select id="studio_transparency" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none cursor-pointer">
+                  <option value="100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)">100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)</option>
+                  <option value="হালকা পাতলা (ভেতরে ইনার বা কামিজ পরা ভালো)">হালকা পাতলা (ভেতরে ইনার বা কামিজ পরা ভালো)</option>
+                  <option value="মাঝারি ঘনত্ব (ইনার ছাড়াই পরিধানযোগ্য)">মাঝারি ঘনত্ব (ইনার ছাড়াই পরিধানযোগ্য)</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">হিজাব অন্তর্ভুক্ত?</label>
+                <select id="studio_hijab_included" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none cursor-pointer">
+                  <option value="true">হ্যাঁ, ম্যাচিং হিজাব সাথে ফ্রি</option>
+                  <option value="false">না, হিজাব অন্তর্ভুক্ত নয়</option>
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">হিজাবের বিবরণ ও সাইজ</label>
+                <input type="text" id="studio_hijab_details" placeholder="যেমন: ম্যাচিং সফট দুবাই চেরি হিজাব ফ্রি, সাইজ: ৩০×৮০ ইঞ্চি" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">বডি ফিটিং সাইজ গাইড</label>
+                <input type="text" id="studio_body_fit" placeholder="যেমন: বডি সাইজ ৩৬ থেকে ৪৬ পর্যন্ত পারফেক্ট" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">নিচের ঘের (Flare Inches)</label>
+                <input type="text" id="studio_flare_inches" placeholder="যেমন: ১২০ ইঞ্চি ফ্লেয়ার" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- DYNAMIC SUB-SECTION: FOOTWEAR -->
+          <div id="cat_fields_footwear" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">জুতার মেটেরিয়াল / উপাদান</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetFabric('জেনুইন কাউ লেদার')" class="text-white hover:underline cursor-pointer">লেদার</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetFabric('ব্রিদেবল মেশ')" class="text-white hover:underline cursor-pointer">মেশ</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_footwear_material" placeholder="যেমন: ১০০% জেনুইন কাউ লেদার / রাবার সোল" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ইনসোল ও কমফোর্ট ফিচার</label>
+                <input type="text" id="studio_footwear_comfort" placeholder="যেমন: সফট মেমোরি ফোম কুশন, অ্যান্টি-স্লিপ গ্রিপ সোল" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- DYNAMIC SUB-SECTION: ELECTRONICS & GADGETS -->
+          <div id="cat_fields_electronics" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ওয়ারেন্টি পলিসি</label>
+                <input type="text" id="studio_warranty" placeholder="যেমন: ৬ মাস রিপ্লেসমেন্ট ওয়ারেন্টি, ১ বছর সার্ভিস" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ব্যাটারি / টেকনিক্যাল স্পেক্স</label>
+                <input type="text" id="studio_electronics_specs" placeholder="যেমন: ব্লুটুথ ৫.৩, ব্যাটারি ব্যাকআপ ১০ ঘণ্টা" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- DYNAMIC SUB-SECTION: COSMETICS & BEAUTY -->
+          <div id="cat_fields_cosmetics" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">স্কিন টাইপ উপযুক্ততা</label>
+                <input type="text" id="studio_skin_type" placeholder="যেমন: সব ধরনের ত্বকে ব্যবহারযোগ্য (অল স্কিন টাইপ)" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">নেট ওজন / ভলিউম</label>
+                <input type="text" id="studio_net_volume" placeholder="যেমন: ৫০ গ্রাম / ১০০ মিলি" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- UNIVERSAL SIZES & VARIANTS ROW -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+              <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">সাইজ / ভ্যারিয়েন্ট (কমা দিয়ে লিখুন) *</label>
+              <div id="sizePresetContainer" class="flex items-center gap-2 text-xs">
+                <span class="text-[rgba(235,235,245,0.40)]">প্রিসেট:</span>
+                <button type="button" onclick="setPresetSizes('৫০, ৫২, ৫৪, ৫৬')" class="text-white hover:underline cursor-pointer font-medium">আবায়া (৫০-৫৬)</button>
+                <span>•</span>
+                <button type="button" onclick="setPresetSizes('৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪')" class="text-white hover:underline cursor-pointer font-medium">জুতা (৩৯-৪৪)</button>
+                <span>•</span>
+                <button type="button" onclick="setPresetSizes('M, L, XL, XXL')" class="text-white hover:underline cursor-pointer font-medium">শার্ট (M-XXL)</button>
+                <span>•</span>
+                <button type="button" onclick="setPresetSizes('স্ট্যান্ডার্ড সাইজ')" class="text-white hover:underline cursor-pointer font-medium">ফ্রি সাইজ</button>
+              </div>
+            </div>
+            <input type="text" id="studio_sizes" placeholder="যেমন: ৫০, ৫২, ৫৪, ৫৬ অথবা ৩৯, ৪০, ৪১, ৪২, ৪৩" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-medium p-3 rounded-[12px] focus:border-white/40 outline-none">
+          </div>
+
+          <!-- QUALITY GUARANTEE BADGES (Checkboxes) -->
           <div>
             <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-2">কোয়ালিটি নিশ্চয়তা ব্যাজ (AI কাস্টমারকে কনভিন্স করতে বলবে):</label>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <label class="flex items-center gap-2 p-2.5 rounded-[12px] bg-[#1C1C1E] border border-white/[0.06] text-xs text-white cursor-pointer hover:border-white/20 transition select-none">
                 <input type="checkbox" id="studio_color_guarantee" class="accent-white w-4 h-4 rounded">
-                <span>🎨 কালার ১০০% গ্যারান্টি</span>
+                <span id="badge_txt_1">🎨 কালার ১০০% গ্যারান্টি</span>
               </label>
               <label class="flex items-center gap-2 p-2.5 rounded-[12px] bg-[#1C1C1E] border border-white/[0.06] text-xs text-white cursor-pointer hover:border-white/20 transition select-none">
                 <input type="checkbox" id="studio_wrinkle_free" class="accent-white w-4 h-4 rounded">
-                <span>✨ কুঁচকে যায় না (Wrinkle-free)</span>
+                <span id="badge_txt_2">✨ প্রিমিয়াম কোয়ালিটি</span>
               </label>
               <label class="flex items-center gap-2 p-2.5 rounded-[12px] bg-[#1C1C1E] border border-white/[0.06] text-xs text-white cursor-pointer hover:border-white/20 transition select-none">
                 <input type="checkbox" id="studio_summer_friendly" class="accent-white w-4 h-4 rounded">
-                <span>❄️ গরমে আরামদায়ক</span>
+                <span id="badge_txt_3">❄️ আরামদায়ক ফিনিশিং</span>
               </label>
               <label class="flex items-center gap-2 p-2.5 rounded-[12px] bg-[#1C1C1E] border border-white/[0.06] text-xs text-white cursor-pointer hover:border-white/20 transition select-none">
                 <input type="checkbox" id="studio_wash_care" class="accent-white w-4 h-4 rounded">
-                <span>🧼 সহজে ওয়াশেবল</span>
+                <span id="badge_txt_4">🔍 চেক করে নেওয়ার সুযোগ</span>
               </label>
             </div>
-          </div>
-        </div>
-
-        <!-- SECTION 3: প্যাকেজ, হিজাব ও ফিটিং স্পেক্স -->
-        <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-4">
-          <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 pb-1 border-b border-white/[0.06]">
-            <span class="text-amber-400">📦</span><span>৩. প্যাকেজ, হিজাব ও ফিটিং স্পেসিফিকেশন (Package & Fit)</span>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">প্যাকেজে কি কি থাকবে? *</label>
-                <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
-                  <button type="button" onclick="setPresetPackage('১ পিস (শুধু আবায়া)')" class="text-white hover:underline cursor-pointer">১ পিস</button>
-                  <span>•</span>
-                  <button type="button" onclick="setPresetPackage('২ পিস সেট (আবায়া + হিজাব)')" class="text-white hover:underline cursor-pointer">২ পিস</button>
-                  <span>•</span>
-                  <button type="button" onclick="setPresetPackage('৩ পিস সেট (আবায়া + হিজাব + ওড়না/ইনার)')" class="text-white hover:underline cursor-pointer">৩ পিস</button>
-                </div>
-              </div>
-              <input type="text" id="studio_package_type" placeholder="যেমন: ২ পিস সেট (আবায়া + ম্যাচিং হিজাব)" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">হিজাব কি সাথে অন্তর্ভুক্ত?</label>
-              <select id="studio_hijab_included" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none cursor-pointer">
-                <option value="true">হ্যাঁ, ম্যাচিং হিজাব সাথে ফ্রি</option>
-                <option value="false">না, হিজাব অন্তর্ভুক্ত নয় (শুধু আবায়া)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">সাইজসমূহ *</label>
-                <button type="button" onclick="setPresetSizes('৫০, ৫২, ৫৪, ৫৬')" class="text-[11px] text-white hover:underline cursor-pointer">৫০-৫৬</button>
-              </div>
-              <input type="text" id="studio_sizes" placeholder="যেমন: ৫০, ৫২, ৫৪, ৫৬" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">বডি ফিটিং সাইজ গাইড</label>
-              <input type="text" id="studio_body_fit" placeholder="যেমন: বডি সাইজ ৩৬ থেকে ৪৬ পর্যন্ত পারফেক্ট" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">নিচের ঘের (Flare Inches)</label>
-              <input type="text" id="studio_flare_inches" placeholder="যেমন: ১২০ ইঞ্চি ফ্লেয়ার" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">হিজাবের বিবরণ (যদি থাকে)</label>
-            <input type="text" id="studio_hijab_details" placeholder="যেমন: ম্যাচিং সফট দুবাই চেরি হিজাব ফ্রি অন্তর্ভুক্ত, সাইজ: ৩০×৮০ ইঞ্চি" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
           </div>
         </div>
 
@@ -1941,6 +2069,92 @@ function createMerchantPortalRouter({
       }
     }
 
+    function onStudioCategoryChange(cat) {
+      const fashionBox = document.getElementById('cat_fields_fashion');
+      const footwearBox = document.getElementById('cat_fields_footwear');
+      const elecBox = document.getElementById('cat_fields_electronics');
+      const cosmeticsBox = document.getElementById('cat_fields_cosmetics');
+      const badge = document.getElementById('currentCategoryBadge');
+      
+      fashionBox.classList.add('hidden');
+      footwearBox.classList.add('hidden');
+      elecBox.classList.add('hidden');
+      cosmeticsBox.classList.add('hidden');
+
+      if (cat === 'footwear') {
+        footwearBox.classList.remove('hidden');
+        badge.innerText = 'জুতা ও ফুটওয়্যার';
+        badge.className = 'text-[11px] font-normal text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-[6px]';
+        document.getElementById('badge_txt_1').innerText = '👞 ১০০% পিওর লেদার';
+        document.getElementById('badge_txt_2').innerText = '✨ মেমোরি ফোম কমফোর্ট';
+        document.getElementById('badge_txt_3').innerText = '🌧️ ওয়াটার রেজিস্ট্যান্ট';
+        document.getElementById('badge_txt_4').innerText = '🔍 চেক করে নেওয়ার সুযোগ';
+      } else if (cat === 'electronics') {
+        elecBox.classList.remove('hidden');
+        badge.innerText = 'গ্যাজেট ও ইলেকট্রনিক্স';
+        badge.className = 'text-[11px] font-normal text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-[6px]';
+        document.getElementById('badge_txt_1').innerText = '⚡ ১০০% অথেনটিক';
+        document.getElementById('badge_txt_2').innerText = '🛡️ ওয়ারেন্টি সমর্থিত';
+        document.getElementById('badge_txt_3').innerText = '🔋 লং ব্যাটারি লাইফ';
+        document.getElementById('badge_txt_4').innerText = '🔍 বক্স খুলে চেক সুবিধা';
+      } else if (cat === 'cosmetics') {
+        cosmeticsBox.classList.remove('hidden');
+        badge.innerText = 'বিউটি ও স্কিনকেয়ার';
+        badge.className = 'text-[11px] font-normal text-pink-300 bg-pink-500/10 px-2 py-0.5 rounded-[6px]';
+        document.getElementById('badge_txt_1').innerText = '💄 ১০০% অরিজিনাল';
+        document.getElementById('badge_txt_2').innerText = '🌿 প্যারাবেন-মুক্ত';
+        document.getElementById('badge_txt_3').innerText = '✨ স্কিন-ফ্রেন্ডলি';
+        document.getElementById('badge_txt_4').innerText = '🔍 সিলড ইনট্যাক্ট প্যাক';
+      } else if (cat === 'food' || cat === 'general') {
+        badge.innerText = cat === 'food' ? 'অর্গানিক ফুড' : 'অন্যান্য পণ্য';
+        badge.className = 'text-[11px] font-normal text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-[6px]';
+        document.getElementById('badge_txt_1').innerText = '🌿 ১০০% খাঁটি উপাদান';
+        document.getElementById('badge_txt_2').innerText = '✨ প্রিমিয়াম কোয়ালিটি';
+        document.getElementById('badge_txt_3').innerText = '📦 ইনট্যাক্ট প্যাকেজিং';
+        document.getElementById('badge_txt_4').innerText = '🔍 চেক করে নেওয়ার সুযোগ';
+      } else {
+        fashionBox.classList.remove('hidden');
+        badge.innerText = 'পোশাক ও ফ্যাশন';
+        badge.className = 'text-[11px] font-normal text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-[6px]';
+        document.getElementById('badge_txt_1').innerText = '🎨 কালার ১০০% গ্যারান্টি';
+        document.getElementById('badge_txt_2').innerText = '✨ কুঁচকে যায় না (Wrinkle-free)';
+        document.getElementById('badge_txt_3').innerText = '❄️ গরমে আরামদায়ক';
+        document.getElementById('badge_txt_4').innerText = '🧼 সহজে ওয়াশেবল';
+      }
+    }
+
+    function updateBundlePreview() {
+      const isBundle = document.getElementById('studio_bundle_active').checked;
+      const box = document.getElementById('bundleConfigBox');
+      const preview = document.getElementById('bundlePreviewBox');
+      if (!isBundle) {
+        box.classList.add('hidden');
+        return;
+      }
+      box.classList.remove('hidden');
+
+      const price = parseFloat(document.getElementById('studio_price').value) || 0;
+      const qty = parseInt(document.getElementById('studio_bundle_qty').value) || 2;
+      const type = document.getElementById('studio_bundle_type').value;
+      const val = parseFloat(document.getElementById('studio_bundle_value').value) || 0;
+
+      let text = '';
+      let comboPrice = price * qty;
+      let savings = 0;
+
+      if (type === 'percentage') {
+        savings = Math.round(comboPrice * (val / 100));
+        const finalPrice = comboPrice - savings;
+        text = '💡 প্রিভিউ: গ্রাহক ' + qty + 'টি নিলে ' + val + '% ছাড়ে মোট ৳' + finalPrice.toLocaleString() + ' (সাশ্রয় ৳' + savings.toLocaleString() + ')';
+      } else if (type === 'fixed_price') {
+        savings = comboPrice > val ? comboPrice - val : 0;
+        text = '💡 প্রিভিউ: গ্রাহক ' + qty + 'টি নিলে স্পেশাল কম্বো রেট ৳' + val.toLocaleString() + (savings > 0 ? ' (সাশ্রয় ৳' + savings.toLocaleString() + ')' : '');
+      } else if (type === 'free_delivery') {
+        text = '💡 প্রিভিউ: গ্রাহক ' + qty + 'টি বা তার বেশি নিলে সম্পূর্ণ ফ্রি ডেলিভারি অফার!';
+      }
+      preview.innerText = text;
+    }
+
     // Open Modal for Add
     function openAddProductModal() {
       document.getElementById('modalTitle').innerText = '➕ নতুন প্রোডাক্ট যোগ করুন';
@@ -1950,13 +2164,23 @@ function createMerchantPortalRouter({
       renderStudioPhotos();
 
       // Smart Defaults for high conversion & effortless entry
+      document.getElementById('studio_category').value = 'fashion';
+      onStudioCategoryChange('fashion');
+
+      document.getElementById('studio_bundle_active').checked = false;
+      document.getElementById('studio_bundle_qty').value = '2';
+      document.getElementById('studio_bundle_type').value = 'percentage';
+      document.getElementById('studio_bundle_value').value = '10';
+      updateBundlePreview();
+
+      document.getElementById('studio_package_type').value = '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)';
+      document.getElementById('studio_package_inclusions').value = 'আবায়া + ম্যাচিং হিজাব + প্রিমিয়াম প্যাকিং';
       document.getElementById('studio_transparency').value = '100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)';
       document.getElementById('studio_color_guarantee').checked = true;
       document.getElementById('studio_wrinkle_free').checked = true;
       document.getElementById('studio_summer_friendly').checked = true;
       document.getElementById('studio_wash_care').checked = true;
       document.getElementById('studio_hijab_included').value = 'true';
-      document.getElementById('studio_package_type').value = '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)';
       document.getElementById('studio_hijab_details').value = 'ম্যাচিং সফট দুবাই চেরি হিজাব ফ্রি অন্তর্ভুক্ত';
       document.getElementById('studio_lighting_disclaimer').value = 'স্টুডিও লাইটিং ও মোবাইল ডিসপ্লের কারণে ছবির কালার বাস্তবে ৫-১০% সামান্য উনিশ-বিশ হতে পারে';
 
@@ -1986,12 +2210,31 @@ function createMerchantPortalRouter({
           document.getElementById('studio_ai_notes').value = p.short_description || '';
 
           const c = p.custom_attributes || {};
+          const cat = p.category || c.category || 'fashion';
+          document.getElementById('studio_category').value = cat;
+          onStudioCategoryChange(cat);
+
+          // Bundle Settings
+          document.getElementById('studio_bundle_active').checked = !!c.bundle_active;
+          document.getElementById('studio_bundle_qty').value = c.bundle_qty || '2';
+          document.getElementById('studio_bundle_type').value = c.bundle_type || 'percentage';
+          document.getElementById('studio_bundle_value').value = c.bundle_value || '10';
+          updateBundlePreview();
+
+          document.getElementById('studio_package_type').value = c.package_type || (p.hijab_included ? '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)' : '১ পিস');
+          document.getElementById('studio_package_inclusions').value = c.inclusions || '';
           document.getElementById('studio_transparency').value = c.transparency || '100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)';
-          document.getElementById('studio_package_type').value = c.package_type || (p.hijab_included ? '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)' : '১ পিস (শুধু আবায়া)');
           document.getElementById('studio_hijab_included').value = (p.hijab_included !== false && c.hijab_included !== false) ? 'true' : 'false';
           document.getElementById('studio_hijab_details').value = c.hijab_details || (p.hijab_included ? 'ম্যাচিং হিজাব সাথে অন্তর্ভুক্ত' : '');
           document.getElementById('studio_body_fit').value = c.body_fit || '';
           document.getElementById('studio_flare_inches').value = c.flare_inches || '';
+          document.getElementById('studio_footwear_material').value = c.material || '';
+          document.getElementById('studio_footwear_comfort').value = c.comfort || '';
+          document.getElementById('studio_warranty').value = c.warranty || '';
+          document.getElementById('studio_electronics_specs').value = c.tech_specs || '';
+          document.getElementById('studio_skin_type').value = c.skin_type || '';
+          document.getElementById('studio_net_volume').value = c.net_volume || '';
+
           document.getElementById('studio_color_guarantee').checked = c.color_guarantee !== false;
           document.getElementById('studio_wrinkle_free').checked = c.wrinkle_free !== false;
           document.getElementById('studio_summer_friendly').checked = c.summer_friendly !== false;
@@ -2066,11 +2309,31 @@ function createMerchantPortalRouter({
       const prodId = document.getElementById('studio_prod_id').value;
       const isEdit = !!prodId;
       const isHijabInc = document.getElementById('studio_hijab_included').value === 'true';
+      const category = document.getElementById('studio_category').value;
+      const isBundle = document.getElementById('studio_bundle_active').checked;
+      const bundleQty = parseInt(document.getElementById('studio_bundle_qty').value) || 2;
+      const bundleType = document.getElementById('studio_bundle_type').value;
+      const bundleVal = parseFloat(document.getElementById('studio_bundle_value').value) || 0;
+      const priceVal = parseFloat(document.getElementById('studio_price').value) || 0;
+
+      let bundleLabel = '';
+      if (isBundle) {
+        if (bundleType === 'percentage') {
+          const combo = priceVal * bundleQty;
+          const save = Math.round(combo * (bundleVal / 100));
+          bundleLabel = bundleQty + 'টি নিলে ' + bundleVal + '% ছাড়ে মোট ৳' + (combo - save) + ' (৳' + save + ' সাশ্রয়)';
+        } else if (bundleType === 'fixed_price') {
+          bundleLabel = bundleQty + 'টি নিলে স্পেশাল কম্বো রেট ৳' + bundleVal;
+        } else if (bundleType === 'free_delivery') {
+          bundleLabel = bundleQty + 'টি বা তার বেশি নিলে সম্পূর্ণ ফ্রি ডেলিভারি';
+        }
+      }
 
       const payload = {
         id: prodId || undefined,
         model_code: document.getElementById('studio_code').value.trim(),
         name: document.getElementById('studio_name').value.trim(),
+        category: category,
         price: document.getElementById('studio_price').value,
         regular_price: document.getElementById('studio_regular_price').value || document.getElementById('studio_price').value,
         stock_quantity: document.getElementById('studio_stock_qty').value || 1,
@@ -2081,12 +2344,25 @@ function createMerchantPortalRouter({
         gallery_images: studioUploadedImages.slice(0, 8),
         hijab_included: isHijabInc,
         custom_attributes: {
-          transparency: document.getElementById('studio_transparency').value,
+          category: category,
+          bundle_active: isBundle,
+          bundle_qty: bundleQty,
+          bundle_type: bundleType,
+          bundle_value: bundleVal,
+          bundle_label: bundleLabel,
           package_type: document.getElementById('studio_package_type').value.trim(),
+          inclusions: document.getElementById('studio_package_inclusions').value.trim(),
+          transparency: document.getElementById('studio_transparency').value,
           hijab_included: isHijabInc,
           hijab_details: document.getElementById('studio_hijab_details').value.trim(),
           body_fit: document.getElementById('studio_body_fit').value.trim(),
           flare_inches: document.getElementById('studio_flare_inches').value.trim(),
+          material: document.getElementById('studio_footwear_material').value.trim(),
+          comfort: document.getElementById('studio_footwear_comfort').value.trim(),
+          warranty: document.getElementById('studio_warranty').value.trim(),
+          tech_specs: document.getElementById('studio_electronics_specs').value.trim(),
+          skin_type: document.getElementById('studio_skin_type').value.trim(),
+          net_volume: document.getElementById('studio_net_volume').value.trim(),
           color_guarantee: document.getElementById('studio_color_guarantee').checked,
           wrinkle_free: document.getElementById('studio_wrinkle_free').checked,
           summer_friendly: document.getElementById('studio_summer_friendly').checked,
@@ -2586,6 +2862,7 @@ function createMerchantPortalRouter({
     const {
       model_code,
       name,
+      category,
       fabric,
       price,
       regular_price,
@@ -2620,6 +2897,7 @@ function createMerchantPortalRouter({
       seller_id: inv.seller_id,
       model_code: cleanCode,
       name: name.trim(),
+      category: category ? category.trim() : (mergedCustomAttributes.category || 'fashion'),
       fabric: fabric ? fabric.trim() : null,
       price: parsedPrice,
       regular_price: regPrice,
@@ -2652,6 +2930,7 @@ function createMerchantPortalRouter({
       id,
       model_code,
       name,
+      category,
       fabric,
       price,
       regular_price,
@@ -2683,6 +2962,7 @@ function createMerchantPortalRouter({
     const updateFields = {};
     if (model_code !== undefined) updateFields.model_code = model_code.toUpperCase().trim();
     if (name !== undefined) updateFields.name = name.trim();
+    if (category !== undefined) updateFields.category = category.trim();
     if (fabric !== undefined) updateFields.fabric = fabric.trim();
     if (price !== undefined) updateFields.price = parseFloat(price);
     if (regular_price !== undefined) updateFields.regular_price = parseFloat(regular_price);
