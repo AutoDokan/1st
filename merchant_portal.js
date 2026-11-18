@@ -131,8 +131,9 @@ function createMerchantPortalRouter({
 
     // Calculate KPIs
     const totalProducts = products.length;
-    const inStockProducts = products.filter(p => p.in_stock).length;
-    const stockOutProducts = totalProducts - inStockProducts;
+    const inStockProducts = products.filter(p => p.in_stock && (p.stock_quantity === undefined || p.stock_quantity === null || Number(p.stock_quantity) > 0)).length;
+    const lowStockProducts = products.filter(p => p.in_stock && (Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= 5)).length;
+    const stockOutProducts = products.filter(p => !p.in_stock || Number(p.stock_quantity) === 0).length;
     const totalInventoryValue = products.reduce((sum, p) => sum + ((Number(p.price) || 0) * (Number(p.stock_quantity) || 1)), 0);
 
     const totalOrders = orders.length;
@@ -147,7 +148,9 @@ function createMerchantPortalRouter({
     // ========================================================
     const productCardsHtml = products.map(p => {
       const searchMeta = (p.id + ' ' + (p.model_code || '') + ' ' + (p.name || '') + ' ' + (p.fabric || '') + ' ' + (p.colors || '') + ' ' + (p.sizes || '')).toLowerCase();
-      const stockStatus = p.in_stock ? 'IN_STOCK' : 'STOCK_OUT';
+      const isOut = !p.in_stock || (Number(p.stock_quantity) === 0);
+      const isLow = !isOut && (Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= 5);
+      const stockStatus = isOut ? 'STOCK_OUT' : (isLow ? 'LOW_STOCK' : 'IN_STOCK');
       const mainImg = p.image_url || 'https://placehold.co/300x380/1c1c1e/ffffff?text=' + encodeURIComponent(p.model_code || 'PROD');
       const hasDiscount = p.regular_price && Number(p.regular_price) > Number(p.price);
 
@@ -192,9 +195,9 @@ function createMerchantPortalRouter({
             </div>
 
             <!-- 1-Click Instant Stock Toggle -->
-            <button type="button" onclick="toggleStockLive(${p.id}, ${p.in_stock ? 'false' : 'true'})" class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer transition flex items-center gap-2 ${p.in_stock ? 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 hover:bg-[#30D158]/25' : 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 hover:bg-[#FF453A]/25'}">
-              <span class="w-2 h-2 rounded-full ${p.in_stock ? 'bg-[#30D158] animate-pulse' : 'bg-[#FF453A]'}"></span>
-              <span>${p.in_stock ? 'ইন-স্টক' : 'স্টক আউট'}</span>
+            <button type="button" onclick="toggleStockLive(${p.id}, ${p.in_stock ? 'false' : 'true'})" class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer transition flex items-center gap-2 ${isOut ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 hover:bg-[#FF453A]/25' : (isLow ? 'bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30 hover:bg-[#FF9F0A]/25' : 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 hover:bg-[#30D158]/25')}">
+              <span class="w-2 h-2 rounded-full ${isOut ? 'bg-[#FF453A]' : (isLow ? 'bg-[#FF9F0A] animate-pulse' : 'bg-[#30D158] animate-pulse')}"></span>
+              <span>${isOut ? 'স্টক আউট' : (isLow ? 'লো-স্টক (' + (p.stock_quantity || 1) + ')' : 'ইন-স্টক')}</span>
             </button>
           </div>
 
@@ -291,6 +294,158 @@ function createMerchantPortalRouter({
         </div>
 
       </div>
+      `;
+    }).join('');
+
+    // ========================================================
+    // Render Amazon Seller Central Style Spreadsheet Table Rows
+    // ========================================================
+    const productTableRowsHtml = products.map(p => {
+      const searchMeta = (p.id + ' ' + (p.model_code || '') + ' ' + (p.name || '') + ' ' + (p.fabric || '') + ' ' + (p.colors || '') + ' ' + (p.sizes || '')).toLowerCase();
+      const isOut = !p.in_stock || (Number(p.stock_quantity) === 0);
+      const isLow = !isOut && (Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= 5);
+      const stockStatus = isOut ? 'STOCK_OUT' : (isLow ? 'LOW_STOCK' : 'IN_STOCK');
+      const mainImg = p.image_url || 'https://placehold.co/300x380/1c1c1e/ffffff?text=' + encodeURIComponent(p.model_code || 'PROD');
+      const hasDiscount = p.regular_price && Number(p.regular_price) > Number(p.price);
+
+      // Extract all gallery photos (up to 8)
+      const gallery = [
+        p.image_url,
+        p.detail_image_url,
+        p.real_image_url,
+        p.hijab_image_url,
+        p.flare_image_url,
+        ...(p.custom_attributes?.gallery_images || [])
+      ].filter(u => typeof u === 'string' && u.trim());
+      const uniqueGallery = Array.from(new Set(gallery)).slice(0, 8);
+
+      // Sizes chips
+      const sizeChips = (p.sizes || 'স্ট্যান্ডার্ড').split(',').map(s => s.trim()).filter(Boolean);
+
+      return `
+      <tr class="prod-table-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-sm" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}" data-gallery="${encodeURIComponent(JSON.stringify(uniqueGallery))}">
+        <!-- Col 1: Status & Quick Stock Switch -->
+        <td class="p-4 align-middle">
+          <div class="space-y-1">
+            ${isOut ? `
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-xs font-bold bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#FF453A]"></span>স্টক আউট
+              </span>
+            ` : (isLow ? `
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-xs font-bold bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30" title="স্টক সীমিত, দ্রুত রি-স্টক করুন">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#FF9F0A] animate-pulse"></span>লো-স্টক (${p.stock_quantity})
+              </span>
+            ` : `
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-xs font-bold bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>অ্যাক্টিভ
+              </span>
+            `)}
+            <button type="button" onclick="toggleStockLive(${p.id}, ${p.in_stock ? 'false' : 'true'})" class="text-[11px] text-[rgba(235,235,245,0.40)] hover:text-white underline cursor-pointer block font-medium">
+              ${p.in_stock ? 'স্টক আউট করুন' : 'ইন-স্টক করুন'}
+            </button>
+          </div>
+        </td>
+
+        <!-- Col 2: Image Thumbnail with Lightbox Enlarge -->
+        <td class="p-4 align-middle">
+          <div class="flex items-center gap-2">
+            <div class="relative group/tblimg cursor-pointer shrink-0 rounded-[12px] overflow-hidden" onclick="openCatalogLightbox(${p.id})" title="বড় করে দেখতে ক্লিক করুন">
+              <img id="tbl-img-preview-${p.id}" src="${mainImg}" alt="${p.model_code}" class="w-12 h-16 sm:w-14 sm:h-18 object-cover rounded-[12px] bg-[#2C2C2E] border border-white/[0.1] shadow-xs group-hover/tblimg:scale-105 transition">
+              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/tblimg:opacity-100 transition flex items-center justify-center pointer-events-none">
+                <span class="text-white text-[10px]">🔍</span>
+              </div>
+            </div>
+            <div class="text-[10px] text-[rgba(235,235,245,0.50)] font-mono">
+              <div>📸 ${uniqueGallery.length} ছবি</div>
+              ${uniqueGallery.length > 1 ? `
+                <div class="flex gap-1 mt-1">
+                  ${uniqueGallery.slice(0, 3).map(g => `<img src="${g}" class="w-3.5 h-4.5 rounded-[3px] object-cover border border-white/20">`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </td>
+
+        <!-- Col 3: SKU & Title Details -->
+        <td class="p-4 align-middle max-w-[280px]">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-mono font-bold text-xs bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[6px] border border-white/[0.1]">${p.model_code || 'PROD'}</span>
+            ${hasDiscount ? `<span class="text-[10px] text-[#30D158] font-bold bg-[#30D158]/15 border border-[#30D158]/25 px-1.5 py-0.5 rounded-[4px]">অফার</span>` : ''}
+          </div>
+          <div class="font-bold text-white text-sm mt-1 truncate" title="${p.name.replace(/"/g, '&quot;')}">${p.name}</div>
+          <div class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5 truncate" title="${(p.fabric || 'স্ট্যান্ডার্ড').replace(/"/g, '&quot;')}">✨ ${p.fabric || 'স্ট্যান্ডার্ড প্রিমিয়াম কোয়ালিটি'}</div>
+        </td>
+
+        <!-- Col 4: Sizes -->
+        <td class="p-4 align-middle">
+          <div class="flex items-center gap-1 flex-wrap max-w-[140px]">
+            ${sizeChips.map(sz => `<span class="text-xs font-mono font-semibold px-2 py-0.5 rounded-[6px] bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]">${sz}</span>`).join('')}
+          </div>
+        </td>
+
+        <!-- Col 5: Price with 1-Click Inline Quick-Edit -->
+        <td class="p-4 align-middle">
+          <div class="inline-flex items-center group/tblprice">
+            <div id="tbl-price-view-${p.id}" class="flex items-baseline gap-1.5 cursor-pointer hover:opacity-85 transition" onclick="startInlineEditPrice(${p.id}, ${p.price})" title="ক্লিক করে সরাসরি মূল্য এডিট করুন">
+              <span id="tbl-price-val-${p.id}" class="font-extrabold text-white text-base font-mono">৳${Number(p.price).toLocaleString('en-IN')}</span>
+              <span class="opacity-0 group-hover/tblprice:opacity-100 text-[10px] text-[rgba(235,235,245,0.50)] transition">✎</span>
+            </div>
+            <div id="tbl-price-edit-${p.id}" class="hidden flex items-center gap-1">
+              <span class="text-white text-xs font-bold">৳</span>
+              <input type="number" id="tbl-price-input-${p.id}" value="${p.price}" min="0" class="w-20 px-1.5 py-0.5 text-xs font-bold bg-[#1C1C1E] border border-[#30D158]/50 rounded-[6px] text-white focus:outline-hidden focus:border-[#30D158]" onkeydown="if(event.key==='Enter') saveInlinePrice(${p.id}); else if(event.key==='Escape') cancelInlinePrice(${p.id}, ${p.price});">
+              <button type="button" onclick="saveInlinePrice(${p.id})" class="px-1.5 py-0.5 rounded-[4px] bg-[#30D158] hover:bg-[#34C759] text-black font-bold text-[10px]" title="সেভ (Enter)">✓</button>
+              <button type="button" onclick="cancelInlinePrice(${p.id}, ${p.price})" class="px-1.5 py-0.5 rounded-[4px] bg-white/20 hover:bg-white/30 text-white font-bold text-[10px]" title="বাতিল (Esc)">✕</button>
+            </div>
+            <span id="tbl-price-toast-${p.id}" class="hidden text-[10px] text-[#30D158] font-bold ml-1 animate-pulse">✓</span>
+          </div>
+          ${hasDiscount ? `<div class="text-[11px] text-[rgba(235,235,245,0.40)] line-through font-mono mt-0.5">৳${Number(p.regular_price).toLocaleString('en-IN')}</div>` : ''}
+        </td>
+
+        <!-- Col 6: Inventory Stock with Quick +/- Buttons & Inline Type -->
+        <td class="p-4 align-middle">
+          <div class="inline-flex items-center gap-1 group/tblstock">
+            <button type="button" onclick="stepStock(${p.id}, -1)" class="w-6 h-6 rounded-[6px] bg-[#2C2C2E] hover:bg-[#3A3A3C] active:scale-95 text-white text-xs font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer" title="১ পিস কমান">-</button>
+            
+            <div id="tbl-stock-view-${p.id}" class="text-xs font-mono font-bold text-white bg-[#2C2C2E] px-2.5 py-1 rounded-[6px] border border-white/[0.08] hover:border-white/30 hover:text-white cursor-pointer transition flex items-center gap-1" onclick="startInlineEditStock(${p.id}, ${p.stock_quantity || 1})" title="সরাসরি স্টক সংখ্যা লিখুন">
+              <span id="tbl-stock-val-${p.id}">${p.stock_quantity || 1}</span>
+              <span class="opacity-0 group-hover/tblstock:opacity-100 text-[9px] text-[rgba(235,235,245,0.40)]">✎</span>
+            </div>
+
+            <button type="button" onclick="stepStock(${p.id}, 1)" class="w-6 h-6 rounded-[6px] bg-[#2C2C2E] hover:bg-[#3A3A3C] active:scale-95 text-white text-xs font-bold flex items-center justify-center border border-white/[0.08] cursor-pointer" title="১ পিস বাড়ান">+</button>
+
+            <div id="tbl-stock-edit-${p.id}" class="hidden flex items-center gap-1">
+              <input type="number" id="tbl-stock-input-${p.id}" value="${p.stock_quantity || 1}" min="0" class="w-14 px-1 py-0.5 text-xs font-bold bg-[#1C1C1E] border border-[#30D158]/50 rounded-[6px] text-white focus:outline-hidden focus:border-[#30D158]" onkeydown="if(event.key==='Enter') saveInlineStock(${p.id}); else if(event.key==='Escape') cancelInlineStock(${p.id}, ${p.stock_quantity || 1});">
+              <button type="button" onclick="saveInlineStock(${p.id})" class="px-1.5 py-0.5 rounded-[4px] bg-[#30D158] hover:bg-[#34C759] text-black font-bold text-[10px]" title="সেভ">✓</button>
+              <button type="button" onclick="cancelInlineStock(${p.id}, ${p.stock_quantity || 1})" class="px-1.5 py-0.5 rounded-[4px] bg-white/20 hover:bg-white/30 text-white font-bold text-[10px]" title="বাতিল">✕</button>
+            </div>
+            <span id="tbl-stock-toast-${p.id}" class="hidden text-[10px] text-[#30D158] font-bold ml-1 animate-pulse">✓</span>
+          </div>
+        </td>
+
+        <!-- Col 7: AI Status -->
+        <td class="p-4 align-middle">
+          <div class="space-y-1">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[11px] font-semibold bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30">
+              <span>🤖 AI সিঙ্কড</span>
+            </span>
+            <div class="text-[10px] text-[rgba(235,235,245,0.40)] truncate max-w-[120px]" title="${(p.short_description || 'স্বয়ংক্রিয় সেলস অ্যাসিস্ট্যান্ট সক্রিয়').replace(/"/g, '&quot;')}">
+              ${p.short_description || 'স্বয়ংক্রিয় রেডি'}
+            </div>
+          </div>
+        </td>
+
+        <!-- Col 8: Actions -->
+        <td class="p-4 align-middle text-right">
+          <div class="inline-flex items-center gap-1.5 justify-end">
+            <button type="button" onclick="openEditProductModalById(${p.id})" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-xs font-semibold px-2.5 py-1.5 rounded-[10px] border border-white/[0.08] transition flex items-center gap-1 cursor-pointer" title="সম্পূর্ণ প্রোডাক্ট এডিট">
+              <span>✏️ এডিট</span>
+            </button>
+            <button type="button" onclick="openSafeDeleteModal(${p.id}, '${p.model_code}', '${p.name.replace(/'/g, "\\'")}', '${mainImg}')" class="bg-[#2C2C2E] hover:bg-[#FF453A]/20 text-[#FF453A] text-xs font-semibold px-2.5 py-1.5 rounded-[10px] border border-[#FF453A]/20 transition flex items-center justify-center cursor-pointer" title="মুছে ফেলুন">
+              <span>🗑️</span>
+            </button>
+          </div>
+        </td>
+      </tr>
       `;
     }).join('');
 
@@ -720,15 +875,49 @@ function createMerchantPortalRouter({
           </div>
         </div>
 
-        <!-- Stock Filter Buttons -->
-        <div class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold">
-          <button type="button" onclick="filterStock('ALL')" id="filter-stock-all" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer">সবগুলো (${totalProducts})</button>
-          <button type="button" onclick="filterStock('IN_STOCK')" id="filter-stock-instock" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টকে আছে (${inStockProducts})</button>
-          <button type="button" onclick="filterStock('STOCK_OUT')" id="filter-stock-out" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টক আউট (${stockOutProducts})</button>
+        <!-- Stock Filter Buttons & View Switcher (Amazon Grid vs Cards) -->
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold flex-wrap">
+            <button type="button" onclick="filterStock('ALL')" id="filter-stock-all" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer">সবগুলো (${totalProducts})</button>
+            <button type="button" onclick="filterStock('IN_STOCK')" id="filter-stock-instock" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টকে আছে (${inStockProducts})</button>
+            <button type="button" onclick="filterStock('LOW_STOCK')" id="filter-stock-low_stock" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">⚠️ লো-স্টক (${lowStockProducts})</button>
+            <button type="button" onclick="filterStock('STOCK_OUT')" id="filter-stock-out" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টক আউট (${stockOutProducts})</button>
+          </div>
+
+          <!-- Amazon Grid vs Rich Cards View Switcher -->
+          <div class="flex items-center gap-1 bg-[#2C2C2E] p-1 rounded-[14px] border border-white/[0.08]">
+            <button type="button" onclick="switchProductView('table')" id="view-mode-table-btn" class="px-3 py-1.5 rounded-[10px] text-xs font-bold bg-white text-black shadow-xs transition cursor-pointer flex items-center gap-1.5" title="অ্যামাজন সেলার সেন্ট্রাল স্প্রেডশিট গ্রিড ভিউ">
+              <span>📋 টেবিল গ্রিড (Amazon)</span>
+            </button>
+            <button type="button" onclick="switchProductView('cards')" id="view-mode-cards-btn" class="px-3 py-1.5 rounded-[10px] text-xs font-semibold text-[rgba(235,235,245,0.60)] hover:text-white transition cursor-pointer flex items-center gap-1.5" title="শোকেস কার্ড ভিউ">
+              <span>🖼️ কার্ড ভিউ</span>
+            </button>
+          </div>
         </div>
 
-        <!-- Products Grid (Spacious 2-column Desktop Grid: Cards do NOT stick together) -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-7 lg:gap-8" id="productsGrid">
+        <!-- 1. Amazon-Style Spreadsheet Table View -->
+        <div id="productsTableView" class="overflow-x-auto border border-white/[0.06] rounded-[22px] shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+          <table class="w-full text-left text-[rgba(235,235,245,0.70)] text-sm">
+            <thead class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] font-semibold border-b border-white/[0.06] text-xs uppercase tracking-wider">
+              <tr>
+                <th class="p-4">স্ট্যাটাস</th>
+                <th class="p-4">ছবি</th>
+                <th class="p-4">SKU / মডেল ও বিবরণ</th>
+                <th class="p-4">সাইজ</th>
+                <th class="p-4">বিক্রয় মূল্য</th>
+                <th class="p-4">ইনভেন্টরি স্টক</th>
+                <th class="p-4">AI ব্রেন</th>
+                <th class="p-4 text-right">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="productsTableBody">
+              ${productTableRowsHtml || '<tr><td colspan="8" class="p-12 text-center text-[rgba(235,235,245,0.35)] font-semibold">এখনও কোনো প্রোডাক্ট নেই। উপরে "+ নতুন প্রোডাক্ট যোগ করুন" বাটনে চাপ দিন।</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 2. Products Grid (Spacious 2-column Desktop Grid: Cards do NOT stick together) -->
+        <div class="hidden grid grid-cols-1 lg:grid-cols-2 gap-7 lg:gap-8" id="productsGrid">
           ${productCardsHtml || '<div class="col-span-full py-20 text-center text-[rgba(235,235,245,0.35)] font-semibold border border-dashed border-white/[0.08] rounded-[24px]">এখনও কোনো প্রোডাক্ট যোগ করা হয়নি। উপরে "➕ নতুন প্রোডাক্ট যোগ করুন" বাটনে চাপ দিন।</div>'}
         </div>
 
@@ -1191,9 +1380,9 @@ function createMerchantPortalRouter({
       if (img && url) img.src = url;
     }
 
-    // Open Catalog Lightbox from Card Image Click
+    // Open Catalog Lightbox from Card/Table Image Click
     function openCatalogLightbox(productId) {
-      const card = document.querySelector('.prod-card[data-id="' + productId + '"]');
+      const card = document.querySelector('.prod-card[data-id="' + productId + '"]') || document.querySelector('.prod-table-row[data-id="' + productId + '"]');
       if (!card) return;
       const raw = card.getAttribute('data-gallery');
       if (!raw) return;
@@ -1208,7 +1397,7 @@ function createMerchantPortalRouter({
       }
     }
 
-    // Inline Quick-Edit for Price
+    // Inline Quick-Edit for Price (Syncs both Card and Amazon Table views)
     function startInlineEditPrice(id, currentPrice) {
       const viewEl = document.getElementById('price-view-' + id);
       const editEl = document.getElementById('price-edit-' + id);
@@ -1218,6 +1407,15 @@ function createMerchantPortalRouter({
         editEl.classList.remove('hidden');
         inputEl.focus();
         inputEl.select();
+      }
+      const tblViewEl = document.getElementById('tbl-price-view-' + id);
+      const tblEditEl = document.getElementById('tbl-price-edit-' + id);
+      const tblInputEl = document.getElementById('tbl-price-input-' + id);
+      if (tblViewEl && tblEditEl && tblInputEl) {
+        tblViewEl.classList.add('hidden');
+        tblEditEl.classList.remove('hidden');
+        tblInputEl.focus();
+        tblInputEl.select();
       }
     }
 
@@ -1230,10 +1428,18 @@ function createMerchantPortalRouter({
         viewEl.classList.remove('hidden');
         if (inputEl) inputEl.value = originalPrice;
       }
+      const tblViewEl = document.getElementById('tbl-price-view-' + id);
+      const tblEditEl = document.getElementById('tbl-price-edit-' + id);
+      const tblInputEl = document.getElementById('tbl-price-input-' + id);
+      if (tblViewEl && tblEditEl) {
+        tblEditEl.classList.add('hidden');
+        tblViewEl.classList.remove('hidden');
+        if (tblInputEl) tblInputEl.value = originalPrice;
+      }
     }
 
     async function saveInlinePrice(id) {
-      const inputEl = document.getElementById('price-input-' + id);
+      const inputEl = document.getElementById('tbl-price-input-' + id) || document.getElementById('price-input-' + id);
       if (!inputEl) return;
       const newPrice = parseFloat(inputEl.value);
       if (isNaN(newPrice) || newPrice < 0) {
@@ -1251,10 +1457,18 @@ function createMerchantPortalRouter({
         if (data.success) {
           const valEl = document.getElementById('price-val-' + id);
           if (valEl) valEl.innerText = '৳' + Number(newPrice).toLocaleString('en-IN');
+          const tblValEl = document.getElementById('tbl-price-val-' + id);
+          if (tblValEl) tblValEl.innerText = '৳' + Number(newPrice).toLocaleString('en-IN');
+          
           const toast = document.getElementById('price-toast-' + id);
           if (toast) {
             toast.classList.remove('hidden');
             setTimeout(() => toast.classList.add('hidden'), 2000);
+          }
+          const tblToast = document.getElementById('tbl-price-toast-' + id);
+          if (tblToast) {
+            tblToast.classList.remove('hidden');
+            setTimeout(() => tblToast.classList.add('hidden'), 2000);
           }
           cancelInlinePrice(id, newPrice);
           showToast('✅ প্রোডাক্ট মূল্য ৳' + Number(newPrice).toLocaleString('en-IN') + ' আপডেট হয়েছে!');
@@ -1266,7 +1480,7 @@ function createMerchantPortalRouter({
       }
     }
 
-    // Inline Quick-Edit for Stock Inventory
+    // Inline Quick-Edit for Stock Inventory (Syncs both Card and Amazon Table views)
     function startInlineEditStock(id, currentStock) {
       const viewEl = document.getElementById('stock-view-' + id);
       const editEl = document.getElementById('stock-edit-' + id);
@@ -1276,6 +1490,15 @@ function createMerchantPortalRouter({
         editEl.classList.remove('hidden');
         inputEl.focus();
         inputEl.select();
+      }
+      const tblViewEl = document.getElementById('tbl-stock-view-' + id);
+      const tblEditEl = document.getElementById('tbl-stock-edit-' + id);
+      const tblInputEl = document.getElementById('tbl-stock-input-' + id);
+      if (tblViewEl && tblEditEl && tblInputEl) {
+        tblViewEl.classList.add('hidden');
+        tblEditEl.classList.remove('hidden');
+        tblInputEl.focus();
+        tblInputEl.select();
       }
     }
 
@@ -1288,10 +1511,18 @@ function createMerchantPortalRouter({
         viewEl.classList.remove('hidden');
         if (inputEl) inputEl.value = originalStock;
       }
+      const tblViewEl = document.getElementById('tbl-stock-view-' + id);
+      const tblEditEl = document.getElementById('tbl-stock-edit-' + id);
+      const tblInputEl = document.getElementById('tbl-stock-input-' + id);
+      if (tblViewEl && tblEditEl) {
+        tblEditEl.classList.add('hidden');
+        tblViewEl.classList.remove('hidden');
+        if (tblInputEl) tblInputEl.value = originalStock;
+      }
     }
 
     async function saveInlineStock(id) {
-      const inputEl = document.getElementById('stock-input-' + id);
+      const inputEl = document.getElementById('tbl-stock-input-' + id) || document.getElementById('stock-input-' + id);
       if (!inputEl) return;
       const newStock = parseInt(inputEl.value);
       if (isNaN(newStock) || newStock < 0) {
@@ -1309,13 +1540,24 @@ function createMerchantPortalRouter({
         if (data.success) {
           const valEl = document.getElementById('stock-val-' + id);
           if (valEl) valEl.innerText = newStock;
+          const tblValEl = document.getElementById('tbl-stock-val-' + id);
+          if (tblValEl) tblValEl.innerText = newStock;
+          
           const toast = document.getElementById('stock-toast-' + id);
           if (toast) {
             toast.classList.remove('hidden');
             setTimeout(() => toast.classList.add('hidden'), 2000);
           }
+          const tblToast = document.getElementById('tbl-stock-toast-' + id);
+          if (tblToast) {
+            tblToast.classList.remove('hidden');
+            setTimeout(() => tblToast.classList.add('hidden'), 2000);
+          }
           cancelInlineStock(id, newStock);
           showToast('✅ ইনভেন্টরি স্টক ' + newStock + ' পিস আপডেট হয়েছে!');
+          if (newStock === 0) {
+            setTimeout(() => window.location.reload(), 600);
+          }
         } else {
           alert('স্টক আপডেট এরর: ' + (data.error || 'সমস্যা হয়েছে'));
         }
@@ -1700,7 +1942,7 @@ function createMerchantPortalRouter({
       document.querySelectorAll('.stock-filter-btn').forEach(b => {
         b.className = 'stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer';
       });
-      const active = type === 'ALL' ? 'filter-stock-all' : (type === 'IN_STOCK' ? 'filter-stock-instock' : 'filter-stock-out');
+      const active = type === 'ALL' ? 'filter-stock-all' : (type === 'IN_STOCK' ? 'filter-stock-instock' : (type === 'LOW_STOCK' ? 'filter-stock-low_stock' : 'filter-stock-out'));
       const el = document.getElementById(active);
       if (el) el.className = 'stock-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer';
       applyProductFilters();
@@ -1710,10 +1952,19 @@ function createMerchantPortalRouter({
 
     function applyProductFilters() {
       const q = (document.getElementById('prodSearch')?.value || '').toLowerCase().trim();
-      document.querySelectorAll('.prod-card').forEach(c => {
+      document.querySelectorAll('.prod-card, .prod-table-row').forEach(c => {
         const search = c.getAttribute('data-search') || '';
         const stock = c.getAttribute('data-stock') || '';
-        const matchStock = (currentStockFilter === 'ALL') || (stock === currentStockFilter);
+        let matchStock = false;
+        if (currentStockFilter === 'ALL') {
+          matchStock = true;
+        } else if (currentStockFilter === 'IN_STOCK') {
+          matchStock = (stock === 'IN_STOCK' || stock === 'LOW_STOCK');
+        } else if (currentStockFilter === 'LOW_STOCK') {
+          matchStock = (stock === 'LOW_STOCK');
+        } else if (currentStockFilter === 'STOCK_OUT') {
+          matchStock = (stock === 'STOCK_OUT');
+        }
         const matchSearch = !q || search.includes(q);
         c.style.display = (matchStock && matchSearch) ? '' : 'none';
       });
@@ -1927,6 +2178,79 @@ function createMerchantPortalRouter({
         btn.innerText = '💾 সেটিংস সেভ করুন'; btn.disabled = false;
       }
     }
+
+    // Product View Switcher (Amazon Spreadsheet Table vs Cards Grid)
+    function switchProductView(mode) {
+      const tableView = document.getElementById('productsTableView');
+      const cardsView = document.getElementById('productsGrid');
+      const tableBtn = document.getElementById('view-mode-table-btn');
+      const cardsBtn = document.getElementById('view-mode-cards-btn');
+      
+      if (mode === 'cards') {
+        if (tableView) tableView.classList.add('hidden');
+        if (cardsView) cardsView.classList.remove('hidden');
+        if (cardsBtn) {
+          cardsBtn.className = 'px-3 py-1.5 rounded-[10px] text-xs font-bold bg-white text-black shadow-xs transition cursor-pointer flex items-center gap-1.5';
+        }
+        if (tableBtn) {
+          tableBtn.className = 'px-3 py-1.5 rounded-[10px] text-xs font-semibold text-[rgba(235,235,245,0.60)] hover:text-white transition cursor-pointer flex items-center gap-1.5';
+        }
+        try { localStorage.setItem('autodokan_product_view', 'cards'); } catch(e) {}
+      } else {
+        // Amazon Table View default
+        if (tableView) tableView.classList.remove('hidden');
+        if (cardsView) cardsView.classList.add('hidden');
+        if (tableBtn) {
+          tableBtn.className = 'px-3 py-1.5 rounded-[10px] text-xs font-bold bg-white text-black shadow-xs transition cursor-pointer flex items-center gap-1.5';
+        }
+        if (cardsBtn) {
+          cardsBtn.className = 'px-3 py-1.5 rounded-[10px] text-xs font-semibold text-[rgba(235,235,245,0.60)] hover:text-white transition cursor-pointer flex items-center gap-1.5';
+        }
+        try { localStorage.setItem('autodokan_product_view', 'table'); } catch(e) {}
+      }
+    }
+
+    // Step Stock (+ / - 1 click)
+    async function stepStock(id, delta) {
+      const stockValEl = document.getElementById('tbl-stock-val-' + id) || document.getElementById('stock-val-' + id);
+      if (!stockValEl) return;
+      const current = parseInt(stockValEl.innerText) || 0;
+      const nextVal = Math.max(0, current + delta);
+
+      if (document.getElementById('tbl-stock-val-' + id)) document.getElementById('tbl-stock-val-' + id).innerText = nextVal;
+      if (document.getElementById('stock-val-' + id)) document.getElementById('stock-val-' + id).innerText = nextVal;
+
+      try {
+        const res = await fetch('/api/portal/quick-edit?token=' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, field: 'stock_quantity', value: nextVal })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ ইনভেন্টরি স্টক ' + nextVal + ' পিস আপডেট হয়েছে!');
+          if (nextVal === 0) {
+            setTimeout(function() { window.location.reload(); }, 600);
+          }
+        } else {
+          if (document.getElementById('tbl-stock-val-' + id)) document.getElementById('tbl-stock-val-' + id).innerText = current;
+          if (document.getElementById('stock-val-' + id)) document.getElementById('stock-val-' + id).innerText = current;
+          alert('স্টক আপডেট এরর: ' + (data.error || 'সমস্যা হয়েছে'));
+        }
+      } catch (e) {
+        if (document.getElementById('tbl-stock-val-' + id)) document.getElementById('tbl-stock-val-' + id).innerText = current;
+        if (document.getElementById('stock-val-' + id)) document.getElementById('stock-val-' + id).innerText = current;
+        alert('কানেকশন সমস্যা: ' + e.message);
+      }
+    }
+
+    // Initialize saved product view mode on page load
+    (function initProductView() {
+      try {
+        const saved = localStorage.getItem('autodokan_product_view') || 'table';
+        switchProductView(saved);
+      } catch(e) {}
+    })();
   </script>
 </body>
 </html>`);
