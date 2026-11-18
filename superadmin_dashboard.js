@@ -1,26 +1,7 @@
 /**
  * AutoDokan Engine OS — Super Admin Executive Control Center
  * 100% Pure Apple Human Interface Guidelines (HIG) Edition
- * 
- * Strict Apple Design System Fidelity:
- *  - Colors:
- *      * systemGroupedBackground: #000000 (OLED pure black)
- *      * secondarySystemGroupedBackground: #1C1C1E (Apple graphite card surface)
- *      * tertiarySystemGroupedBackground: #2C2C2E (Nested group & input background)
- *      * systemGray4: #3A3A3C (Hover & active surfaces)
- *      * separator: rgba(255, 255, 255, 0.08)
- *  - Semantic Text Opacities:
- *      * label (Primary): #FFFFFF (100% white — headers, titles, metrics)
- *      * secondaryLabel: rgba(235, 235, 245, 0.60) (60% white — subtitles, body, table data)
- *      * tertiaryLabel: rgba(235, 235, 245, 0.30) (30% white — timestamps, captions, units)
- *  - Interactive System Accents:
- *      * systemBlue: #0A84FF (Exclusively for interactive controls, links, and buttons — NEVER on static numbers)
- *      * systemGreen: #30D158 (Online live bot indicator & approved status)
- *      * systemOrange: #FF9F0A (Pending status)
- *      * systemRed: #FF453A (Disconnected & cancelled status)
- *  - iMessage Chat Aesthetic:
- *      * Inbound Customer Bubble: #2C2C2E
- *      * Outbound Assistant Bubble: #0A84FF with pure white text
+ * With Real-Time Live Pulse Engine, Bot Fleet Actions & Multi-Tenant SaaS Controls
  */
 
 const crypto = require('crypto');
@@ -72,11 +53,16 @@ function createSuperAdminRouter({
     const shopsTelemetry = allInvites.map(inv => {
       const sProds = allProducts.filter(p => p.seller_id === inv.seller_id);
       const sOrders = allOrders.filter(o => o.seller_id === inv.seller_id);
+      const sChats = recentChats.filter(c => c.seller_id === inv.seller_id);
       const sSettings = allSettings.find(s => s.seller_id === inv.seller_id) || {};
       const waInfo = getSellerWhatsAppInfo ? getSellerWhatsAppInfo(inv.seller_id) : { status: 'disconnected', number: null };
       const isOnline = waInfo.status === 'connected' || inv.status === 'CONNECTED';
       const liveNumber = waInfo.number || inv.phone || 'অনির্ধারিত';
       const revenue = sOrders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
+      const convRate = sChats.length > 0 ? Math.round((sOrders.length / sChats.length) * 100) : (sOrders.length > 0 ? 100 : 0);
+
+      // Determine SaaS Plan
+      const planName = inv.role === 'admin' ? 'Enterprise' : (inv.status === 'SUSPENDED' ? 'Suspended' : 'Pro Growth');
 
       return {
         seller_id: inv.seller_id,
@@ -93,6 +79,9 @@ function createSuperAdminRouter({
         orders_count: sOrders.length,
         pending_orders_count: sOrders.filter(o => o.status === 'Pending' || o.status === 'Pending Verification').length,
         revenue: revenue,
+        conversion_rate: convRate,
+        plan: planName,
+        status: inv.status || 'ACTIVE',
         created_at: inv.created_at
       };
     });
@@ -115,8 +104,8 @@ function createSuperAdminRouter({
 
     // Generate Shops HTML Cards (Apple secondarySystemGroupedBackground #1C1C1E)
     const shopsCardsHtml = shopsTelemetry.map(s => {
-      const portalUrl = `/portal?token=${s.invite_token}`;
-      const connectUrl = `/connect?token=${s.invite_token}`;
+      const portalUrl = '/portal?token=' + s.invite_token;
+      const connectUrl = '/connect?token=' + s.invite_token;
 
       const catBadges = {
         'modest_fashion': '👗 মোডেস্ট ফ্যাশন',
@@ -130,23 +119,26 @@ function createSuperAdminRouter({
       const catLabel = catBadges[s.category] || '🛍️ ই-কমার্স';
 
       return `
-      <div class="bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.14] rounded-[22px] p-5.5 shadow-[0_4px_24px_rgba(0,0,0,0.5)] space-y-4.5 transition-all duration-200">
+      <div id="shop-card-${s.seller_id}" class="bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.14] rounded-[22px] p-5.5 shadow-[0_4px_24px_rgba(0,0,0,0.5)] space-y-4.5 transition-all duration-200">
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <h3 class="text-base font-semibold text-white tracking-tight">${s.shop_name}</h3>
               <span class="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] border border-white/[0.06]">${catLabel}</span>
+              <span id="plan-badge-${s.seller_id}" class="text-[10px] font-medium px-2 py-0.5 rounded-full ${s.plan === 'Enterprise' ? 'bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30' : (s.plan === 'Suspended' ? 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30' : 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30')}">
+                ${s.plan === 'Enterprise' ? '🏢 Enterprise' : (s.plan === 'Suspended' ? '⏸️ স্থগিত' : '💎 Pro Growth')}
+              </span>
             </div>
             <p class="text-xs text-[rgba(235,235,245,0.60)] mt-1">
               মালিক: <span class="text-white font-medium">${s.owner_name}</span> • 
               আইডি: <span class="font-mono text-[rgba(235,235,245,0.30)]">${s.seller_id}</span>
             </p>
           </div>
-          <div>
+          <div id="bot-status-container-${s.seller_id}">
             ${s.is_online ? `
               <span class="inline-flex items-center gap-1.5 bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 text-xs px-2.5 py-1 rounded-full font-medium">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#30D158]"></span>
-                <span>বট লাইভ (+${s.live_number})</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
+                <span>বট লাইভ (+ ${s.live_number})</span>
               </span>
             ` : `
               <span class="inline-flex items-center gap-1.5 bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] border border-white/[0.06] text-xs px-2.5 py-1 rounded-full font-medium">
@@ -175,25 +167,33 @@ function createSuperAdminRouter({
             <div class="text-[10px] text-[rgba(235,235,245,0.30)]">COD ভলিউম</div>
           </div>
           <div>
-            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.30)] uppercase tracking-wider">AI বট এজেন্ট</div>
-            <div class="text-xs font-semibold text-white mt-1">${s.persona_name}</div>
-            <div class="text-[10px] text-[rgba(235,235,245,0.30)]">স্বয়ংক্রিয় সেলস</div>
+            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.30)] uppercase tracking-wider">AI কনভার্সন</div>
+            <div class="text-xs font-semibold text-[#30D158] mt-1">${s.conversion_rate}%</div>
+            <div class="text-[10px] text-[rgba(235,235,245,0.30)]">${s.persona_name}</div>
           </div>
         </div>
 
-        <!-- Action Links (Apple HIG Interactive Styling) -->
+        <!-- Action Links & Dynamic Bot Fleet Controls -->
         <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
-          <div class="flex items-center gap-2">
-            <a href="${portalUrl}" target="_blank" class="bg-[#0A84FF] hover:bg-[#0071E3] text-white text-xs px-3.5 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1 shadow-[0_2px_8px_rgba(10,132,255,0.25)]">
-              <span>মার্চেন্ট পোর্টাল (ইনভেন্টরি ও সেলস)</span><span>↗</span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <a href="${portalUrl}" target="_blank" class="bg-[#0A84FF] hover:bg-[#0071E3] text-white text-xs px-3 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1 shadow-[0_2px_8px_rgba(10,132,255,0.25)]">
+              <span>মার্চেন্ট পোর্টাল</span><span>↗</span>
             </a>
-            <a href="${connectUrl}" target="_blank" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white/90 border border-white/[0.08] text-xs px-3 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1">
-              <span>WhatsApp QR</span><span>↗</span>
+            <a href="${connectUrl}" target="_blank" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white/90 border border-white/[0.08] text-xs px-2.5 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1">
+              <span>QR কোড</span><span>↗</span>
             </a>
+            <!-- Dynamic WhatsApp Bot Restart Button -->
+            <button type="button" onclick="restartTenantBot('${s.seller_id}', '${s.shop_name}')" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] active:scale-95 text-[rgba(235,235,245,0.85)] border border-white/[0.08] text-xs px-2.5 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1 cursor-pointer" title="হোয়াটসঅ্যাপ সকেট রিস্টার্ট করুন">
+              <span>🔄 বট রিস্টার্ট</span>
+            </button>
+            <!-- Dynamic SaaS Plan Switcher -->
+            <button type="button" onclick="toggleTenantPlan('${s.seller_id}', '${s.plan}')" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[rgba(235,235,245,0.60)] hover:text-white border border-white/[0.08] text-xs px-2.5 py-1.5 rounded-[12px] font-medium transition cursor-pointer" title="SaaS প্ল্যান ও স্ট্যাটাস পরিবর্তন">
+              <span>⚙️ প্ল্যান</span>
+            </button>
           </div>
           <div>
             <a href="/dashboard?seller_id=${s.seller_id}&tab=orders" class="text-[#0A84FF] hover:underline text-xs font-medium px-2 py-1 transition flex items-center gap-1">
-              <span>অর্ডারস দেখুন</span><span>→</span>
+              <span>অর্ডারস</span><span>→</span>
             </a>
           </div>
         </div>
@@ -325,25 +325,39 @@ function createSuperAdminRouter({
         <div>
           <div class="flex items-center gap-2">
             <h1 class="font-semibold text-sm sm:text-base text-white tracking-tight">AutoDokan Engine OS</h1>
-            <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] text-[10px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">Apple HIG Platform</span>
+            <!-- Real-Time Pulse Indicator -->
+            <div class="flex items-center gap-1.5 bg-[#2C2C2E] border border-white/[0.08] px-2 py-0.5 rounded-full">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#30D158] opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-[#30D158]"></span>
+              </span>
+              <span class="text-[10px] font-mono font-medium text-white tracking-wide">LIVE</span>
+              <span id="pulseCountdown" class="text-[9px] text-[rgba(235,235,245,0.30)]">6s</span>
+            </div>
           </div>
           <div class="flex items-center gap-2 mt-0.5 text-xs text-[rgba(235,235,245,0.30)]">
-            <span class="inline-flex items-center gap-1.5 text-[#30D158] font-medium">
+            <span id="headerBotsCount" class="inline-flex items-center gap-1.5 text-[#30D158] font-medium">
               <span class="w-1.5 h-1.5 rounded-full bg-[#30D158]"></span>
               <span>${onlineBots}/${totalShops}টি WhatsApp বট সক্রিয়</span>
             </span>
             <span>•</span>
-            <span>প্ল্যাটফর্ম GMV: <span class="text-white font-medium">${formatMoney(totalPlatformGMV)}</span></span>
+            <span>প্ল্যাটফর্ম GMV: <span id="headerGMV" class="text-white font-medium">${formatMoney(totalPlatformGMV)}</span></span>
           </div>
         </div>
       </div>
 
       <!-- Quick Actions & Shop Inspector -->
       <div class="flex items-center gap-2.5 flex-wrap">
+        <!-- Manual Sync Button -->
+        <button type="button" onclick="triggerManualPulse()" id="syncBtn" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] active:scale-95 text-white/90 border border-white/[0.08] text-xs px-3 py-1.5 rounded-[14px] font-medium transition flex items-center gap-1.5 cursor-pointer">
+          <span id="syncSpinner">🔄</span>
+          <span>সিঙ্ক</span>
+        </button>
+
         <!-- Dynamic Shop Switcher Dropdown (Apple #1C1C1E Style) -->
         <div class="flex items-center bg-[#1C1C1E] border border-white/[0.08] rounded-[14px] px-3 py-1.5">
           <span class="text-xs mr-1.5 text-[rgba(235,235,245,0.30)]">🏬</span>
-          <select onchange="window.location.href='/dashboard?seller_id=' + this.value + '&tab=${activeTab}'" class="bg-transparent text-white font-medium text-xs outline-none cursor-pointer">
+          <select id="shopFilterSelect" onchange="window.location.href='/dashboard?seller_id=' + this.value + '&tab=${activeTab}'" class="bg-transparent text-white font-medium text-xs outline-none cursor-pointer">
             <option value="ALL" class="bg-[#1C1C1E] text-white" ${selectedSeller === 'ALL' ? 'selected' : ''}>🌐 সবগুলো শপ একসাথে (All Stores)</option>
             ${shopsTelemetry.map(s => `<option value="${s.seller_id}" class="bg-[#1C1C1E] text-white" ${selectedSeller === s.seller_id ? 'selected' : ''}>${s.shop_name} (${s.category})</option>`).join('')}
           </select>
@@ -368,19 +382,19 @@ function createSuperAdminRouter({
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
         <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">রেজিস্টার্ড টেন্যান্ট শপ</div>
-        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalShops}টি <span class="text-xs text-[#30D158] font-medium">(${onlineBots} লাইভ)</span></div>
+        <div id="metricTotalShops" class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalShops}টি <span class="text-xs text-[#30D158] font-medium">(${onlineBots} লাইভ)</span></div>
       </div>
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
         <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">মার্চেন্ট ইনভেন্টরি ভলিউম</div>
-        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalPlatformProducts}টি পণ্য</div>
+        <div id="metricTotalProducts" class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalPlatformProducts}টি পণ্য</div>
       </div>
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
         <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">প্ল্যাটফর্ম মোট অর্ডারস</div>
-        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalPlatformOrders}টি</div>
+        <div id="metricTotalOrders" class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalPlatformOrders}টি</div>
       </div>
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
         <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">গ্রস মার্চেন্ডাইজ ভলিউম</div>
-        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${formatMoney(totalPlatformGMV)}</div>
+        <div id="metricTotalGMV" class="text-2xl font-bold text-white mt-1.5 tracking-tight">${formatMoney(totalPlatformGMV)}</div>
       </div>
     </div>
 
@@ -388,12 +402,12 @@ function createSuperAdminRouter({
     <div class="bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[18px] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
       <button type="button" onclick="switchSuperTab('shops')" id="stab-btn-shops" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'shops' ? 'bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.60)] hover:text-white'}">
         <span>🏢 মার্চেন্ট শপসমূহ ও বট ফ্লিট</span>
-        <span class="${activeTab === 'shops' ? 'bg-[#3A3A3C] text-white' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.30)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${totalShops}</span>
+        <span id="tabBadgeShops" class="${activeTab === 'shops' ? 'bg-[#3A3A3C] text-white' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.30)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${totalShops}</span>
       </button>
 
       <button type="button" onclick="switchSuperTab('orders')" id="stab-btn-orders" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'orders' ? 'bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.60)] hover:text-white'}">
         <span>📋 প্ল্যাটফর্ম অর্ডারস পাইপলাইন</span>
-        <span class="${activeTab === 'orders' ? 'bg-[#3A3A3C] text-white' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.30)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredOrders.length}</span>
+        <span id="tabBadgeOrders" class="${activeTab === 'orders' ? 'bg-[#3A3A3C] text-white' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.30)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredOrders.length}</span>
       </button>
 
       <button type="button" onclick="switchSuperTab('chats')" id="stab-btn-chats" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'chats' ? 'bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.60)] hover:text-white'}">
@@ -407,11 +421,11 @@ function createSuperAdminRouter({
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 class="text-base font-semibold text-white tracking-tight">🏢 প্ল্যাটফর্ম টেন্যান্টস ও WhatsApp বট ফ্লিট</h2>
-          <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">অ্যাডমিন প্ল্যাটফর্মের সেন্ট্রাল মনিটর। প্রতিটি মার্চেন্ট তাদের নিজস্ব ডেডিকেটেড পোর্টালে ইনভেন্টরি, ডেলিভারি রুলস ও পেমেন্ট স্বাধীনভাবে পরিচালনা করে।</p>
+          <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">সুপার অ্যাডমিন প্ল্যাটফর্ম মনিটর। প্রতিটি মার্চেন্টকে রিমোটলি কন্ট্রোল, বট রিস্টার্ট এবং সাবস্ক্রিপশন পরিচালনা করুন।</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4.5">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4.5" id="shopsGridContainer">
         ${shopsCardsHtml}
       </div>
     </section>
@@ -441,7 +455,7 @@ function createSuperAdminRouter({
                 <th class="p-3.5">স্ট্যাটাস</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="ordersTableBody">
               ${orderRowsHtml || '<tr><td colspan="6" class="p-8 text-center text-[rgba(235,235,245,0.30)]">কোনো অর্ডার পাওয়া যায়নি</td></tr>'}
             </tbody>
           </table>
@@ -457,7 +471,7 @@ function createSuperAdminRouter({
           <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">বিভিন্ন মার্চেন্ট শপে কাস্টমারদের সাথে AI সেলস এজেন্টের কথোপকথন রিয়েল-টাইমে পর্যবেক্ষণ করুন।</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5" id="chatsGridContainer">
           ${liveChatRowsHtml || '<div class="col-span-full py-10 text-center text-[rgba(235,235,245,0.30)]">এখনও কোনো লাইভ চ্যাট রেকর্ড নেই।</div>'}
         </div>
       </div>
@@ -545,17 +559,41 @@ function createSuperAdminRouter({
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <script>
-    function showToast(msg) {
+    // State Tracking for Real-Time Changes
+    const knownOrderIds = new Set([${allOrders.map(o => o.id).join(',')}]);
+    let countdownSec = 6;
+
+    // Apple Tone Generator via Native Web Audio API (Zero External Asset Dependency)
+    function playAppleChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch(e) {}
+    }
+
+    function showToast(msg, isSuccess = true) {
       const c = document.getElementById('toastContainer');
       const t = document.createElement('div');
       t.className = 'bg-[#1C1C1E] text-white border border-white/[0.12] text-xs font-medium px-4 py-3 rounded-[16px] shadow-[0_10px_30px_rgba(0,0,0,0.6)] pointer-events-auto transition transform translate-y-2 opacity-0 flex items-center gap-2';
-      t.innerText = msg;
+      t.innerHTML = (isSuccess ? '<span>🟢</span> ' : '<span>⚠️</span> ') + msg;
       c.appendChild(t);
       setTimeout(() => { t.classList.remove('translate-y-2', 'opacity-0'); }, 10);
       setTimeout(() => {
         t.classList.add('opacity-0', 'translate-y-2');
         setTimeout(() => t.remove(), 300);
-      }, 3000);
+      }, 3500);
     }
 
     function switchSuperTab(tab) {
@@ -579,6 +617,125 @@ function createSuperAdminRouter({
         showToast('📋 লিংক কপি হয়েছে!');
       }
     }
+
+    // Dynamic Bot Fleet Action: 1-Click Restart
+    async function restartTenantBot(sellerId, shopName) {
+      if (!confirm(shopName + '-এর WhatsApp বট রিস্টার্ট করতে চান?')) return;
+      showToast('🔄 ' + shopName + '-এর বট সেশন রিস্টার্ট হচ্ছে...');
+      try {
+        const res = await fetch('/api/admin/shops/' + sellerId + '/bot-restart', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ ' + shopName + '-এর বট রিস্টার্ট ট্রিগার হয়েছে!');
+          fetchLivePulse();
+        } else {
+          showToast('❌ ' + (data.error || 'এরর হয়েছে'), false);
+        }
+      } catch (err) {
+        showToast('❌ সংযোগ সমস্যা: ' + err.message, false);
+      }
+    }
+
+    // Dynamic SaaS Plan Switcher
+    async function toggleTenantPlan(sellerId, currentPlan) {
+      const newPlan = prompt('টেন্যান্ট প্ল্যান নির্বাচন করুন (Pro Growth / Enterprise / Suspended):', currentPlan);
+      if (!newPlan || newPlan === currentPlan) return;
+      try {
+        const res = await fetch('/api/admin/shops/' + sellerId + '/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan: newPlan, status: newPlan === 'Suspended' ? 'SUSPENDED' : 'ACTIVE' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('💎 ' + data.message);
+          const badge = document.getElementById('plan-badge-' + sellerId);
+          if (badge) {
+            badge.innerText = newPlan === 'Enterprise' ? '🏢 Enterprise' : (newPlan === 'Suspended' ? '⏸️ স্থগিত' : '💎 Pro Growth');
+          }
+        }
+      } catch (err) {
+        showToast('❌ এরর: ' + err.message, false);
+      }
+    }
+
+    // Real-Time Live Pulse Engine (Zero-Refresh Background Polling)
+    async function fetchLivePulse() {
+      try {
+        const curSeller = document.getElementById('shopFilterSelect')?.value || 'ALL';
+        const res = await fetch('/api/admin/live-pulse?seller_id=' + curSeller);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.success) return;
+
+        // 1. Update Metrics Cards
+        const m = data.metrics;
+        document.getElementById('metricTotalShops').innerHTML = m.totalShops + 'টি <span class="text-xs text-[#30D158] font-medium">(' + m.onlineBots + ' লাইভ)</span>';
+        document.getElementById('metricTotalProducts').innerText = m.totalPlatformProducts + 'টি পণ্য';
+        document.getElementById('metricTotalOrders').innerText = m.totalPlatformOrders + 'টি';
+        document.getElementById('metricTotalGMV').innerText = m.totalPlatformGMVFormatted;
+        document.getElementById('headerGMV').innerText = m.totalPlatformGMVFormatted;
+        document.getElementById('headerBotsCount').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-[#30D158]"></span><span>' + m.onlineBots + '/' + m.totalShops + 'টি WhatsApp বট সক্রিয়</span>';
+        document.getElementById('tabBadgeShops').innerText = m.totalShops;
+        document.getElementById('tabBadgeOrders').innerText = data.latestOrders.length;
+
+        // 2. Check for New Incoming Orders
+        let hasNewOrder = false;
+        let newestOrder = null;
+        for (const ord of data.latestOrders) {
+          if (!knownOrderIds.has(ord.id)) {
+            knownOrderIds.add(ord.id);
+            hasNewOrder = true;
+            newestOrder = ord;
+          }
+        }
+
+        if (hasNewOrder && newestOrder) {
+          playAppleChime();
+          showToast('🎉 নতুন অর্ডার! #' + newestOrder.id + ' — ' + newestOrder.shop_name + ' (৳' + newestOrder.due_cod + ')');
+          
+          // Prepend row to table if on screen
+          const tbody = document.getElementById('ordersTableBody');
+          if (tbody) {
+            const tr = document.createElement('tr');
+            tr.className = 'order-row border-b border-white/[0.04] bg-[#30D158]/10 hover:bg-[#2C2C2E]/40 transition text-xs';
+            tr.innerHTML = '<td class="p-3.5">' +
+              '<div class="font-mono font-medium text-white">#' + newestOrder.id + '</div>' +
+              '<div class="text-[10px] text-[rgba(235,235,245,0.30)] mt-0.5">এখনই</div>' +
+              '<div class="mt-1"><span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] text-[9px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">🏬 ' + newestOrder.shop_name + '</span></div>' +
+              '</td>' +
+              '<td class="p-3.5"><div class="font-medium text-white text-xs">' + (newestOrder.customer_name || 'কাস্টমার') + '</div><div class="text-xs text-[#0A84FF] font-mono">' + (newestOrder.customer_phone || '') + '</div></td>' +
+              '<td class="p-3.5"><div class="text-xs text-[rgba(235,235,245,0.60)]">' + (newestOrder.address || '') + '</div></td>' +
+              '<td class="p-3.5"><span class="font-mono text-white text-xs">[' + (newestOrder.model_code || 'PROD') + ']</span></td>' +
+              '<td class="p-3.5"><span class="font-semibold text-white text-xs">৳' + newestOrder.due_cod + '</span></td>' +
+              '<td class="p-3.5"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30">Pending</span></td>';
+            tbody.insertBefore(tr, tbody.firstChild);
+          }
+        }
+
+      } catch (err) {
+        console.error('Pulse poll error:', err);
+      }
+    }
+
+    function triggerManualPulse() {
+      const sp = document.getElementById('syncSpinner');
+      sp.classList.add('animate-spin');
+      fetchLivePulse().finally(() => {
+        setTimeout(() => sp.classList.remove('animate-spin'), 600);
+      });
+    }
+
+    // Background Heartbeat Interval
+    setInterval(() => {
+      countdownSec--;
+      if (countdownSec <= 0) {
+        countdownSec = 6;
+        fetchLivePulse();
+      }
+      const el = document.getElementById('pulseCountdown');
+      if (el) el.innerText = countdownSec + 's';
+    }, 1000);
 
     // Dynamic Shop Onboarding Handler
     async function handleDynamicShopCreation(e) {
@@ -624,6 +781,130 @@ function createSuperAdminRouter({
   });
 
   // ========================================================
+  // GET /api/admin/live-pulse — Real-Time Engine Polling Endpoint
+  // ========================================================
+  router.get('/api/admin/live-pulse', async (req, res) => {
+    try {
+      const selectedSeller = req.query.seller_id || 'ALL';
+      const [invitesRes, settingsRes, prodsRes, ordsRes, chatsRes] = await Promise.all([
+        supabase.from('seller_invites').select('*').order('id', { ascending: true }),
+        supabase.from('store_settings').select('seller_id, business_category, bot_persona_name'),
+        supabase.from('products').select('id, seller_id, in_stock'),
+        supabase.from('orders').select('*').order('id', { ascending: false }).limit(40),
+        supabase.from('chat_sessions').select('*').order('updated_at', { ascending: false }).limit(20)
+      ]);
+
+      const allInvites = invitesRes.data || [];
+      const allSettings = settingsRes.data || [];
+      const allProducts = prodsRes.data || [];
+      const allOrders = ordsRes.data || [];
+      const recentChats = chatsRes.data || [];
+
+      // Map shop names
+      const shopNameMap = new Map();
+      allInvites.forEach(inv => shopNameMap.set(inv.seller_id, inv.shop_name));
+      shopNameMap.set('autodokan_seller_1', 'Dawah Fashion');
+
+      const shops = allInvites.map(inv => {
+        const sProds = allProducts.filter(p => p.seller_id === inv.seller_id);
+        const sOrders = allOrders.filter(o => o.seller_id === inv.seller_id);
+        const sChats = recentChats.filter(c => c.seller_id === inv.seller_id);
+        const waInfo = getSellerWhatsAppInfo ? getSellerWhatsAppInfo(inv.seller_id) : { status: 'disconnected', number: null };
+        const isOnline = waInfo.status === 'connected' || inv.status === 'CONNECTED';
+        const revenue = sOrders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
+        const convRate = sChats.length > 0 ? Math.round((sOrders.length / sChats.length) * 100) : (sOrders.length > 0 ? 100 : 0);
+
+        return {
+          seller_id: inv.seller_id,
+          shop_name: inv.shop_name,
+          is_online: isOnline,
+          live_number: waInfo.number || inv.phone || 'অনির্ধারিত',
+          products_count: sProds.length,
+          orders_count: sOrders.length,
+          revenue: revenue,
+          conversion_rate: convRate,
+          plan: inv.role === 'admin' ? 'Enterprise' : (inv.status === 'SUSPENDED' ? 'Suspended' : 'Pro Growth'),
+          status: inv.status || 'ACTIVE'
+        };
+      });
+
+      const totalShops = shops.length;
+      const onlineBots = shops.filter(s => s.is_online).length;
+      const totalPlatformProducts = allProducts.length;
+      const totalPlatformOrders = allOrders.length;
+      const totalPlatformGMV = allOrders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
+
+      const filteredOrders = selectedSeller === 'ALL' ? allOrders : allOrders.filter(o => o.seller_id === selectedSeller);
+      const filteredChats = selectedSeller === 'ALL' ? recentChats : recentChats.filter(c => c.seller_id === selectedSeller);
+
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        metrics: {
+          totalShops,
+          onlineBots,
+          totalPlatformProducts,
+          totalPlatformOrders,
+          totalPlatformGMV,
+          totalPlatformGMVFormatted: formatMoney(totalPlatformGMV)
+        },
+        shops,
+        latestOrders: filteredOrders.slice(0, 15).map(o => ({
+          id: o.id,
+          customer_name: o.customer_name || 'কাস্টমার',
+          customer_phone: o.customer_phone || '',
+          address: o.address || '',
+          model_code: o.model_code || 'PROD',
+          length_size: o.length_size || 'স্ট্যান্ডার্ড',
+          due_cod: Number(o.due_cod) || Number(o.total_bdt) || 0,
+          status: o.status || 'Pending',
+          seller_id: o.seller_id,
+          shop_name: shopNameMap.get(o.seller_id) || o.seller_id,
+          created_at: o.created_at
+        })),
+        latestChats: filteredChats.slice(0, 10)
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ========================================================
+  // POST /api/admin/shops/:seller_id/bot-restart — Remote Bot Session Control
+  // ========================================================
+  router.post('/api/admin/shops/:seller_id/bot-restart', async (req, res) => {
+    try {
+      const sellerId = req.params.seller_id;
+      if (startSellerSession) {
+        startSellerSession(sellerId);
+        return res.json({ success: true, message: 'WhatsApp বট রিস্টার্ট ট্রিগার করা হয়েছে।' });
+      }
+      return res.status(400).json({ success: false, error: 'বট কন্ট্রোলার পাওয়া যায়নি।' });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ========================================================
+  // POST /api/admin/shops/:seller_id/plan — SaaS Subscription Control
+  // ========================================================
+  router.post('/api/admin/shops/:seller_id/plan', async (req, res) => {
+    try {
+      const sellerId = req.params.seller_id;
+      const { plan, status } = req.body;
+      const updateData = {};
+      if (status) updateData.status = status;
+      if (plan) updateData.role = plan === 'Enterprise' ? 'admin' : 'merchant';
+
+      const { error } = await supabase.from('seller_invites').update(updateData).eq('seller_id', sellerId);
+      if (error) throw error;
+      return res.json({ success: true, message: 'টেন্যান্ট সাবস্ক্রিপশন প্ল্যান আপডেট করা হয়েছে।' });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ========================================================
   // POST /api/admin/shops/create — Dynamic Shop Creation API
   // ========================================================
   router.post('/api/admin/shops/create', async (req, res) => {
@@ -661,7 +942,7 @@ function createSuperAdminRouter({
         return res.status(500).json({ error: invError.message });
       }
 
-      // 2. Insert into store_settings with specified Category and Persona!
+      // 2. Insert into store_settings with specified Category and Persona
       const defaultReturn = cleanCategory === 'footwear' 
         ? 'ডেলিভারি ম্যানের সামনে সাইজ ও কোয়ালিটি চেক করে ট্রায়াল দিয়ে নিতে পারবেন।'
         : 'ডেলিভারি ম্যানের সামনে চেক করে রিসিভ করতে পারবেন। কোনো সমস্যা থাকলে তাৎক্ষণিক রিটার্ন।';
