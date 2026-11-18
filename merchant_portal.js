@@ -59,18 +59,97 @@ function createMerchantPortalRouter({
   // ========================================================
   // GET /portal — Merchant Control Panel
   // ========================================================
+  // GET /api/portal/verify-token — Quick validation endpoint for login
+  router.get('/api/portal/verify-token', async (req, res) => {
+    const token = req.query.token;
+    const inv = await authenticateMerchantToken(token);
+    if (!inv) return res.status(401).json({ success: false, error: 'টোকেনটি সঠিক নয় বা মেয়াদোত্তীর্ণ' });
+    return res.json({ success: true, shop_name: inv.shop_name, seller_id: inv.seller_id });
+  });
+
+  // ========================================================
+  // GET /portal — Merchant Control Panel & Dynamic Login
+  // ========================================================
   router.get('/portal', async (req, res) => {
     const token = req.query.token;
     if (!token) {
-      return res.status(401).send(`<!DOCTYPE html>
+      return res.send(`<!DOCTYPE html>
 <html lang="bn">
-<head><meta charset="utf-8"><title>অ্যাক্সেস ডিনাইড</title><script src="https://cdn.tailwindcss.com"></script></head>
-<body class="bg-[#000000] text-white flex items-center justify-center min-h-screen p-4 text-center font-sans">
-  <div class="bg-[#1C1C1E] p-8 rounded-[24px] border border-white/[0.08] shadow-2xl max-w-md w-full space-y-3">
-    <div class="text-4xl">🔒</div>
-    <h1 class="text-lg font-bold text-white">মার্চেন্ট অ্যাক্সেস টোকেন পাওয়া যায়নি</h1>
-    <p class="text-xs text-[rgba(235,235,245,0.60)]">দয়া করে আপনাকে দেওয়া সঠিক মার্চেন্ট পোর্টাল লিঙ্ক ব্যবহার করুন।</p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>মার্চেন্ট পোর্টাল লগইন — অটোদোকান</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Plus Jakarta Sans", "Hind Siliguri", sans-serif; }
+  </style>
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('autodokan_merchant_token');
+        if (saved && saved.trim()) {
+          window.location.replace('/portal?token=' + encodeURIComponent(saved.trim()));
+        }
+      } catch(e) {}
+    })();
+  </script>
+</head>
+<body class="bg-[#000000] text-white flex items-center justify-center min-h-screen p-4 font-sans selection:bg-[#30D158] selection:text-black">
+  <div class="bg-[#1C1C1E] border border-white/[0.12] rounded-[28px] max-w-md w-full p-8 shadow-[0_24px_70px_rgba(0,0,0,0.8)] space-y-6 text-center">
+    <div class="flex items-center justify-center">
+      <div class="w-16 h-16 rounded-[22px] bg-gradient-to-tr from-[#30D158]/30 via-emerald-500/20 to-[#30D158]/10 border border-[#30D158]/30 flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(48,209,88,0.25)]">
+        🛍️
+      </div>
+    </div>
+    <div>
+      <h1 class="text-2xl font-black text-white tracking-tight">মার্চেন্ট পোর্টাল লগইন</h1>
+      <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1.5">আপনার শপের সিক্রেট ইনভাইট টোকেন বা কোড দিয়ে সরাসরি পোর্টালে প্রবেশ করুন।</p>
+    </div>
+    <form onsubmit="handlePortalLogin(event)" class="space-y-4 text-left">
+      <div>
+        <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] uppercase tracking-wider mb-2">ইনভাইটেশন টোকেন / শপ কি</label>
+        <input type="text" id="merchantTokenInput" placeholder="যেমন: inv_dawah_fashion" required autofocus class="w-full bg-[#2C2C2E] border border-white/[0.10] text-white font-mono text-sm px-4 py-3 rounded-[16px] focus:outline-none focus:border-[#30D158] focus:ring-1 focus:ring-[#30D158] transition">
+      </div>
+      <button type="submit" id="loginSubmitBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black font-extrabold text-sm py-3.5 rounded-[16px] transition cursor-pointer shadow-[0_4px_20px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 active:scale-95">
+        <span>লগইন করুন</span>
+        <span>→</span>
+      </button>
+      <div class="pt-2 text-center">
+        <button type="button" onclick="document.getElementById('merchantTokenInput').value='inv_dawah_fashion'; handlePortalLogin(event);" class="text-[11px] text-[#30D158] hover:underline font-semibold cursor-pointer inline-flex items-center gap-1">
+          <span>💡 ডেমো টেস্ট শপ:</span>
+          <span class="font-mono">inv_dawah_fashion</span>
+        </button>
+      </div>
+    </form>
+    <div class="text-[11px] text-[rgba(235,235,245,0.40)] border-t border-white/[0.06] pt-4">
+      AutoDokan Enterprise AI Commerce • End-to-End Dynamic Sync
+    </div>
   </div>
+  <script>
+    async function handlePortalLogin(e) {
+      if (e && e.preventDefault) e.preventDefault();
+      var input = document.getElementById('merchantTokenInput');
+      var val = (input ? input.value : '').trim();
+      if (!val) return alert('দয়া করে আপনার সঠিক মার্চেন্ট টোকেন লিখুন');
+      var btn = document.getElementById('loginSubmitBtn');
+      if (btn) { btn.innerText = 'ভেরিফাই হচ্ছে...'; btn.disabled = true; }
+      try {
+        var res = await fetch('/api/portal/verify-token?token=' + encodeURIComponent(val));
+        var data = await res.json();
+        if (data.success) {
+          localStorage.setItem('autodokan_merchant_token', val);
+          window.location.href = '/portal?token=' + encodeURIComponent(val);
+        } else {
+          alert('ভুল টোকেন: ' + (data.error || 'টোকেনটি পাওয়া যায়নি'));
+          if (btn) { btn.innerText = 'লগইন করুন →'; btn.disabled = false; }
+        }
+      } catch (err) {
+        localStorage.setItem('autodokan_merchant_token', val);
+        window.location.href = '/portal?token=' + encodeURIComponent(val);
+      }
+    }
+  </script>
 </body>
 </html>`);
     }
@@ -81,10 +160,15 @@ function createMerchantPortalRouter({
 <html lang="bn">
 <head><meta charset="utf-8"><title>ইনভাইটেশন পাওয়া যায়নি</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-[#000000] text-white flex items-center justify-center min-h-screen p-4 text-center font-sans">
-  <div class="bg-[#1C1C1E] p-8 rounded-[24px] border border-white/[0.08] shadow-2xl max-w-md w-full space-y-3">
+  <div class="bg-[#1C1C1E] p-8 rounded-[24px] border border-white/[0.08] shadow-2xl max-w-md w-full space-y-4">
     <div class="text-4xl">⚠️</div>
     <h1 class="text-lg font-bold text-white">ইনভাইটেশন লিঙ্কটি সঠিক নয় বা মেয়াদোত্তীর্ণ</h1>
-    <p class="text-xs text-[rgba(235,235,245,0.60)]">দয়া করে অ্যাডমিনের সাথে যোগাযোগ করে নতুন লিঙ্ক সংগ্রহ করুন।</p>
+    <p class="text-xs text-[rgba(235,235,245,0.60)]">দয়া করে সঠিক টোকেন দিয়ে পুনরায় চেষ্টা করুন।</p>
+    <div class="pt-2">
+      <a href="/portal" onclick="try{localStorage.removeItem('autodokan_merchant_token');}catch(e){}" class="inline-block bg-white text-black font-bold text-xs px-5 py-2.5 rounded-[12px] hover:bg-[#E5E5EA] transition cursor-pointer">
+        লগইন পেজে যান →
+      </a>
+    </div>
   </div>
 </body>
 </html>`);
@@ -907,6 +991,12 @@ function createMerchantPortalRouter({
         <a href="/connect?token=${token}" target="_blank" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-[14px] border border-white/[0.08] transition flex items-center gap-1.5 shadow-xs">
           <span>📲 WhatsApp QR লিঙ্ক</span>
         </a>
+
+        <!-- Logout Button -->
+        <button type="button" onclick="logoutMerchantPortal()" class="bg-[#1C1C1E] hover:bg-[#FF453A]/15 text-[rgba(235,235,245,0.70)] hover:text-[#FF453A] text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-[14px] border border-white/[0.08] hover:border-[#FF453A]/30 transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95" title="লগআউট করে টোকেন পরিবর্তন করুন">
+          <span>🚪</span>
+          <span class="hidden sm:inline">লগআউট</span>
+        </button>
       </div>
 
     </div>
@@ -1920,6 +2010,20 @@ function createMerchantPortalRouter({
     let pendingDeleteProdId = null;
     let deleteCountdownTimer = null;
     let deleteSecondsLeft = 3;
+
+    // ==========================================
+    // PERSISTENCE & LOGOUT ENGINE
+    // ==========================================
+    try {
+      if (token) localStorage.setItem('autodokan_merchant_token', token);
+    } catch(e) {}
+
+    function logoutMerchantPortal() {
+      if (confirm('আপনি কি এই মার্চেন্ট সেশন থেকে লগআউট করতে চান?')) {
+        try { localStorage.removeItem('autodokan_merchant_token'); } catch(e) {}
+        window.location.href = '/portal';
+      }
+    }
 
     // ==========================================
     // THEME ENGINE (DARK / LIGHT DUAL MODE)
