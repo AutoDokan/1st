@@ -714,8 +714,44 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
   const sPromotionsText = sellerPromotionsTextCache.get(sellerId) || cachedPromotionsText;
 
   const category = (sSettings.business_category || '').toLowerCase();
-  const isFootwear = category.includes('footwear') || category.includes('shoe') || category.includes('juta');
-  const isModestFashion = category.includes('fashion') || category.includes('clothing') || category.includes('abaya') || category.includes('burqa') || !category;
+  
+  let sizeGuideline = '';
+  let qualityPitch = '';
+  let productDomain = 'পণ্য';
+
+  if (category.includes('footwear') || category.includes('shoe') || category.includes('juta')) {
+    productDomain = 'জুতা ও ফুটওয়্যার';
+    sizeGuideline = `কাস্টমার জুতার সাইজ জানতে চাইলে বা পরামর্শ চাইলে:
+     - ডাটাবেসে যে যে সাইজ দেওয়া আছে (যেমন ৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪) তা দেখে বলো স্টকে কী কী সাইজ আছে।
+     - জুতার ক্ষেত্রে সাধারণ বাটা/এপেক্স স্ট্যান্ডার্ড সাইজের সমান ফিটিং হবে এবং পায়ে একদম পারফেক্ট কমফোর্ট দেবে তা জানিয়ে কনফিডেন্টলি পরামর্শ দাও।`;
+    qualityPitch = `বাজারে কমদামে সাধারণ কপি জুতা পাওয়া যেতে পারে, কিন্তু আমাদের জুতোর প্রিমিয়াম ফিনিশিং, আরামদায়ক কুশন ইনসোল এবং টেকসই গ্রিপ সোল হাতে নিলেই প্রিমিয়াম কোয়ালিটি বুঝতে পারবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
+  } else if (category.includes('fashion') || category.includes('clothing') || category.includes('abaya') || category.includes('burqa') || category.includes('dress') || category.includes('panjabi') || category.includes('sharee')) {
+    productDomain = 'পোশাক ও ফ্যাশন';
+    sizeGuideline = `সাইজ নির্বাচন চার্ট (বাধ্যতামূলক):
+     - কাস্টমার উচ্চতা জানালে (যেমন "আমার হাইট ৫'৩"", "5 fut 5"): ৫'০"-৫'১" হলে ৫০ সাইজ, ৫'২"-৫'৩" হলে ৫২ সাইজ, ৫'৪"-৫'৫" হলে ৫৪ সাইজ, ৫'৬"-৫'৮" হলে ৫৬ সাইজ সাজেস্ট করো।
+     - অন্যান্য পোশাকের ক্ষেত্রে ডাটাবেজের সাইজ (M, L, XL, XXL) অনুযায়ী ফিটিং নিশ্চিত করো।`;
+    qualityPitch = `বাজারে কমদামে অনেক কপি পাওয়া যেতে পারে, কিন্তু আমাদের কাপড়ের প্রিমিয়াম ফেব্রিক ফিনিশিং, নিখুঁত সেলাই এবং কালার গ্যারান্টি হাতে নিলেই প্রিমিয়াম ফিল পাবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
+  } else if (category.includes('gadget') || category.includes('electronic') || category.includes('mobile') || category.includes('tech')) {
+    productDomain = 'গ্যাজেট ও ইলেকট্রনিক্স';
+    sizeGuideline = `কাস্টমার মডেল স্পেসিফিকেশন, ব্যাটারি ব্যাকআপ, ওয়্যারেন্টি বা কানেক্টিভিটি জানতে চাইলে ডাটাবেজের ফিচার তালিকা দেখে সরাসরি নিশ্চিত করো।`;
+    qualityPitch = `বাজারে অনেক নন-ব্র্যান্ডেড বা ক্লোন প্রোডাক্ট থাকে, কিন্তু আমাদের গ্যাজেটগুলো ১০০% অথেনটিক এবং ইনস্পেক্ট করা। কুরিয়ারের সামনে বক্স খুলে চেক করে নেওয়ার সম্পূর্ণ সুযোগ রয়েছে।`;
+  } else if (category.includes('cosmetic') || category.includes('beauty') || category.includes('skincare')) {
+    productDomain = 'বিউটি ও স্কিনকেয়ার';
+    sizeGuideline = `কাস্টমার স্কিনের ধরন (তৈলাক্ত, শুষ্ক বা সংবেদনশীল) বা ব্যবহারবিধি জানতে চাইলে পণ্যের বিবরণ অনুযায়ী জেনুইন পরামর্শ দাও।`;
+    qualityPitch = `আমাদের প্রতিটি স্কিনকেয়ার ও বিউটি প্রোডাক্ট ১০০% অরিজিনাল ও ইনট্যাক্ট। ত্বক সুরক্ষায় আমরা কখনোই নকল বা কমদামী কপি প্রোডাক্ট বিক্রি করি না।`;
+  } else if (category.includes('food') || category.includes('organic') || category.includes('honey') || category.includes('grocery')) {
+    productDomain = 'অর্গানিক ফুড ও গ্রোসারি';
+    sizeGuideline = `কাস্টমার পরিমাণ, ওজন (যেমন ৫০০ গ্রাম, ১ কেজি) বা প্যাকেজিং জানতে চাইলে ডাটাবেজে স্টকে থাকা ভ্যারিয়েন্ট অনুযায়ী জানাও।`;
+    qualityPitch = `আমাদের প্রতিটি খাদ্যপণ্য ১০০% খাঁটি, কেমিক্যালমুক্ত ও প্রাকৃতিক উপায়ে সংগৃহীত। স্বাস্থ্য সচেতন পরিবারের জন্য সর্বোচ্চ মানের নিশ্চয়তা দিচ্ছি।`;
+  } else if (category.includes('perfume') || category.includes('attar') || category.includes('fragrance')) {
+    productDomain = 'পারফিউম ও সুগন্ধি';
+    sizeGuideline = `কাস্টমার সুবাসের স্থায়িত্ব (Long-lasting), নোটস বা বোতলের মিলি (যেমন ৫০ মিলি, ১০০ মিলি) জানতে চাইলে বিবরণ দেখে জানাও।`;
+    qualityPitch = `আমাদের আতর ও পারফিউম সম্পূর্ণ প্রিমিয়াম গ্রেডের অ্যালকোহল-মুক্ত নির্যাস থেকে তৈরি, যা কাপড়ে দীর্ঘ সময় ধরে মিষ্টি সুবাস ছড়াবে ইনশাআল্লাহ।`;
+  } else {
+    productDomain = 'পণ্য';
+    sizeGuideline = `কাস্টমার সাইজ, ভ্যারিয়েন্ট বা বিবরণ জানতে চাইলে ডাটাবেজের [LIVE PRODUCTS] তালিকায় স্টকে থাকা বিবরণ দেখে সরাসরি স্পষ্ট পরামর্শ দাও।`;
+    qualityPitch = `বাজারে কমদামে সাধারণ পণ্য পাওয়া যেতে পারে, কিন্তু আমাদের পণ্যের প্রিমিয়াম ফিনিশিং, নিখুঁত কোয়ালিটি ও দীর্ঘস্থায়িত্ব হাতে নিলেই বুঝতে পারবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
+  }
 
   const freeMinText = sSettings.free_delivery_min_amount ? ` (বিশেষ অফার: ৳${sSettings.free_delivery_min_amount} বা তার বেশি অর্ডারে ফ্রি ডেলিভারি!)` : '';
   const returnPolicyText = sSettings.return_policy || 'কুরিয়ার ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।';
@@ -728,29 +764,6 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 
   const activeModelCode = sessionState.lastViewedModel || 'None';
   const timeGapInfo = sessionState.timeGapHours ? `${sessionState.timeGapHours} hours ago` : 'None';
-
-  // Dynamic Category-Specific Consultative Pitch
-  let sizeGuideline = '';
-  let qualityPitch = '';
-  if (isFootwear) {
-    sizeGuideline = `কাস্টমার জুতার সাইজ জানতে চাইলে বা পরামর্শ চাইলে:
-     - ডাটাবেসে যে যে সাইজ দেওয়া আছে (যেমন ৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪) তা দেখে বলো স্টকে কী কী সাইজ আছে।
-     - জুতার ক্ষেত্রে সাধারণ বাটা/এপেক্স স্ট্যান্ডার্ড সাইজের সমান ফিটিং হবে এবং পায়ে একদম পারফেক্ট কমফোর্ট দেবে তা জানিয়ে কনফিডেন্টলি পরামর্শ দাও।`;
-    qualityPitch = `বাজারে কমদামে সাধারণ কপি জুতা পাওয়া যেতে পারে, কিন্তু আমাদের জুতোর প্রিমিয়াম ফিনিশিং, আরামদায়ক কুশন ইনসোল এবং টেকসই গ্রিপ সোল হাতে নিলেই প্রিমিয়াম কোয়ালিটি বুঝতে পারবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
-  } else if (isModestFashion) {
-    sizeGuideline = `উচ্চতা অনুযায়ী সাইজ নির্বাচন চার্ট (বাধ্যতামূলক):
-     কাস্টমার নিজের বা গিফটের জন্য উচ্চতা জানালে (যেমন "আমার হাইট ৫'৩"", "5 fut 5", "উচ্চতা ৫ ফুট ২"):
-     অবশ্যই সরাসরি সঠিক সাইজ হিসাব করে কনফিডেন্টলি বলবে:
-     * ৫'০"-৫'১" হলে ৫০ সাইজ
-     * ৫'২"-৫'৩" হলে ৫২ সাইজ (যেমন: "আপনার ৫'৩" হাইটের জন্য ৫২ সাইজের ঝুলটি একদম পারফেক্ট ও সুন্দর ফিটিং হবে!")
-     * ৫'৪"-৫'৫" হলে ৫৪ সাইজ
-     * ৫'৬"-৫'৮" হলে ৫৬ সাইজ
-     এবং বোরকার বডি সাইজ ফ্রি সাইজ বা ফিতা দিয়ে মানানসইভাবে পরা যায় তা জানিয়ে দাও।`;
-    qualityPitch = `বাজারে কমদামে অনেক কপি পাওয়া যেতে পারে, কিন্তু আমাদের কাপড়ের প্রিমিয়াম দুবাই চেরি ফিনিশিং, নিখুঁত সেলাই এবং ১০০% কালার গ্যারান্টি হাতে নিলেই প্রিমিয়াম ফিল পাবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
-  } else {
-    sizeGuideline = `কাস্টমার সাইজ জানতে চাইলে ডাটাবেজে স্টকে থাকা সাইজগুলো দেখে স্পষ্ট পরামর্শ দাও।`;
-    qualityPitch = `বাজারে কমদামে সাধারণ পণ্য পাওয়া যেতে পারে, কিন্তু আমাদের পণ্যের প্রিমিয়াম ফিনিশিং, নিখুঁত কোয়ালিটি ও দীর্ঘস্থায়িত্ব হাতে নিলেই বুঝতে পারবেন ইনশাআল্লাহ। আর কুরিয়ারের সামনে পার্সেল খুলে চেক করে নেওয়ার সুবিধাও তো থাকছে।`;
-  }
 
   return `
 [SESSION STATE]: AlreadyGreeted=${sessionState.hasGreeted ? 'true' : 'false'}, Stage=${sessionState.stage || 'BROWSING'}, ActiveModel=${activeModelCode}, CatalogOverviewSent=${sessionState.catalogSent ? 'true' : 'false'}, TimeGapSinceLastMsg=${timeGapInfo}${recentOrderText ? `\n[RECENT ORDER]: ${recentOrderText}` : ''}
