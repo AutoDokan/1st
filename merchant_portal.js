@@ -983,25 +983,23 @@ function createMerchantPortalRouter({
               <span class="w-2 h-2 rounded-full ${isConnected ? 'bg-[#30D158] animate-pulse' : 'bg-[rgba(235,235,245,0.30)]'}"></span>
               <span>${isConnected ? 'WhatsApp বট সক্রিয় (+' + liveNum + ')' : 'বট অপেক্ষমাণ'}</span>
             </span>
-            <span>•</span>
-            <span>মোট সেলস: <span class="text-white font-bold">${formatMoney(totalRevenue)}</span></span>
           </div>
         </div>
       </div>
 
       <div class="flex items-center gap-2.5">
         <!-- Dual Mode Toggle Button (Light / Dark) -->
-        <button type="button" onclick="toggleTheme()" id="themeToggleBtn" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-[14px] border border-white/[0.08] transition flex items-center gap-2 shadow-xs cursor-pointer active:scale-95" title="থিম পরিবর্তন করুন (লাইট / ডার্ক)">
-          <span id="themeToggleIcon" class="text-sm">☀️</span>
+        <button type="button" onclick="toggleTheme()" id="themeToggleBtn" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-[12px] border border-white/[0.08] transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95" title="থিম পরিবর্তন করুন (লাইট / ডার্ক)">
+          <span id="themeToggleIcon" class="text-xs">☀️</span>
           <span id="themeToggleText" class="hidden sm:inline">লাইট মোড</span>
         </button>
 
-        <a href="/connect?token=${token}" target="_blank" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-[14px] border border-white/[0.08] transition flex items-center gap-1.5 shadow-xs">
+        <a href="/connect?token=${token}" target="_blank" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-[12px] border border-white/[0.08] transition flex items-center gap-1.5 shadow-xs">
           <span>📲 WhatsApp QR লিঙ্ক</span>
         </a>
 
         <!-- Logout Button -->
-        <button type="button" onclick="logoutMerchantPortal()" class="bg-[#1C1C1E] hover:bg-[#FF453A]/15 text-[rgba(235,235,245,0.70)] hover:text-[#FF453A] text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-[14px] border border-white/[0.08] hover:border-[#FF453A]/30 transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95" title="লগআউট করে টোকেন পরিবর্তন করুন">
+        <button type="button" onclick="logoutMerchantPortal()" class="bg-[#1C1C1E] hover:bg-[#FF453A]/15 text-[rgba(235,235,245,0.70)] hover:text-[#FF453A] text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-[12px] border border-white/[0.08] hover:border-[#FF453A]/30 transition flex items-center gap-1 shadow-xs cursor-pointer active:scale-95" title="লগআউট করে টোকেন পরিবর্তন করুন">
           <span>🚪</span>
           <span class="hidden sm:inline">লগআউট</span>
         </button>
@@ -1010,85 +1008,79 @@ function createMerchantPortalRouter({
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-5 sm:px-8 py-8 space-y-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5">
 
-    <!-- 4 Platform Metric Telemetry Cards (Dynamic, Unified & Zero Duplication) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+    <!-- 4 Platform Metric Telemetry Cards (Ultra-Compact Apple Widget Strip - Zero Duplication) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
       
-      <!-- Card 1: Catalog & Stock Inventory -->
-      <div onclick="switchTab('products')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer transition group/c1">
+      <!-- Card 1: Catalog & Stock -->
+      <div onclick="switchTab('products')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(0,0,0,0.3)] cursor-pointer transition group/c1">
         <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">ক্যাটালগ ও লাইভ স্টক</span>
-          <span class="w-8 h-8 rounded-full bg-[#30D158]/15 text-[#30D158] flex items-center justify-center text-sm">📦</span>
+          <span class="text-[rgba(235,235,245,0.50)] text-[11px] sm:text-xs font-semibold uppercase tracking-wider">📦 ক্যাটালগ ও স্টক</span>
+          <span class="text-xs text-[#30D158] font-bold">● স্টকে আছে</span>
         </div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalProducts}টি আইটেম</div>
-        <div class="flex items-center gap-2 mt-2 flex-wrap text-[11px]">
-          <span class="text-[#30D158] font-bold">● ${inStockProducts}টি সক্রিয় ইন-স্টক</span>
-          ${lowStockProducts > 0 ? `<span class="text-[#FF9F0A] font-semibold">⚠️ ${lowStockProducts}টি লো-স্টক</span>` : ''}
-          ${stockOutProducts > 0 ? `<span class="text-[#FF453A] font-semibold">● ${stockOutProducts}টি শেষ</span>` : ''}
+        <div class="text-xl sm:text-2xl font-extrabold text-white mt-1 tracking-tight font-mono">${totalProducts}টি পণ্য</div>
+        <div class="text-[11px] text-[rgba(235,235,245,0.55)] mt-1 truncate">
+          ${inStockProducts}টি সক্রিয় ইন-স্টক ${lowStockProducts > 0 ? `• ⚠️ ${lowStockProducts}টি লো-স্টক` : ''} ${stockOutProducts > 0 ? `• ${stockOutProducts}টি আউট` : ''}
         </div>
       </div>
 
-      <!-- Card 2: Orders & Pipeline (Booked, Confirmed, Shipped, Delivered) -->
-      <div onclick="switchTab('orders')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer transition group/c2">
+      <!-- Card 2: Orders Pipeline -->
+      <div onclick="switchTab('orders')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(0,0,0,0.3)] cursor-pointer transition group/c2">
         <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">অর্ডার লাইফসাইকেল</span>
-          <span class="w-8 h-8 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center text-sm">📋</span>
+          <span class="text-[rgba(235,235,245,0.50)] text-[11px] sm:text-xs font-semibold uppercase tracking-wider">📋 কাস্টমার অর্ডারস</span>
+          <span class="text-xs text-blue-400 font-bold">লাইভ</span>
         </div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalOrders}টি অর্ডার</div>
-        <div class="flex items-center gap-1.5 mt-2 flex-wrap text-[10px] sm:text-[11px]">
-          <span class="px-2 py-0.5 rounded-[6px] bg-[#FF9F0A]/15 text-[#FF9F0A] font-bold border border-[#FF9F0A]/20">📦 ${bookedOrders} বুকড</span>
-          <span class="px-2 py-0.5 rounded-[6px] bg-[#30D158]/15 text-[#30D158] font-bold border border-[#30D158]/20">✓ ${confirmedOrders} কনফার্মড</span>
-          <span class="px-2 py-0.5 rounded-[6px] bg-sky-500/15 text-sky-400 font-bold border border-sky-500/20">🚚 ${shippedOrders} শিপড</span>
-          <span class="px-2 py-0.5 rounded-[6px] bg-purple-500/15 text-purple-300 font-bold border border-purple-500/20">🎉 ${deliveredOrders} ডেলিভার্ড</span>
+        <div class="text-xl sm:text-2xl font-extrabold text-white mt-1 tracking-tight font-mono">${totalOrders}টি অর্ডার</div>
+        <div class="text-[11px] text-[rgba(235,235,245,0.55)] mt-1 truncate">
+          ${bookedOrders}টি বুকড • ${confirmedOrders}টি কনফার্মড ${shippedOrders > 0 ? `• ${shippedOrders}টি শিপড` : ''}
         </div>
       </div>
 
-      <!-- Card 3: Sales Revenue (Interactive Today / 7-Day History) -->
-      <div onclick="openSalesHistoryModal()" class="metric-card bg-[#1C1C1E] border border-emerald-500/30 hover:border-emerald-500/60 p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(48,209,88,0.15)] cursor-pointer transition group/c3 relative overflow-hidden" title="ক্লিক করে আজকের ও সেলস হিস্ট্রি দেখুন">
+      <!-- Card 3: Sales Revenue -->
+      <div onclick="openSalesHistoryModal()" class="metric-card bg-[#1C1C1E] border border-emerald-500/25 hover:border-emerald-500/50 p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(48,209,88,0.1)] cursor-pointer transition group/c3 relative overflow-hidden" title="ক্লিক করে আজকের ও সেলস হিস্ট্রি দেখুন">
         <div class="flex items-center justify-between">
-          <span class="text-emerald-400 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
-            <span>💰</span><span>মোট বিক্রয় রেভিনিউ</span>
+          <span class="text-emerald-400 text-[11px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+            <span>💰 মোট বিক্রয় রেভিনিউ</span>
           </span>
-          <span class="text-[10px] bg-[#30D158]/20 text-[#30D158] font-bold px-2 py-0.5 rounded-full border border-[#30D158]/30 flex items-center gap-1 group-hover/c3:bg-[#30D158] group-hover/c3:text-black transition">
-            <span>📊 অ্যানালিটিক্স</span>
+          <span class="text-[10px] bg-[#30D158]/15 text-[#30D158] font-bold px-1.5 py-0.2 rounded-full border border-[#30D158]/25">
+            অ্যানালিটিক্স ↗
           </span>
         </div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">৳${formatMoney(totalRevenue)}</div>
-        <div class="flex items-center justify-between gap-1 mt-2 text-[11px] flex-wrap">
-          <span class="text-emerald-400 font-semibold">আজকে: ৳${Number(todayRevenue).toLocaleString('en-IN')} (${todayOrders.length}টি)</span>
-          <span class="text-[rgba(235,235,245,0.55)] font-medium">${(last7DaysRevenue < totalRevenue && last7DaysRevenue > 0) ? `৭ দিনে: ৳${Number(last7DaysRevenue).toLocaleString('en-IN')}` : `সফল ডেলিভারি: ${deliveredOrders}টি`}</span>
+        <div class="text-xl sm:text-2xl font-extrabold text-white mt-1 tracking-tight font-mono">৳${formatMoney(totalRevenue)}</div>
+        <div class="text-[11px] text-emerald-400/90 mt-1 truncate font-medium">
+          আজকে: ৳${Number(todayRevenue).toLocaleString('en-IN')} (${todayOrders.length}টি) ${last7DaysRevenue > 0 && last7DaysRevenue < totalRevenue ? `• ৭ দিনে: ৳${Number(last7DaysRevenue).toLocaleString('en-IN')}` : ''}
         </div>
       </div>
 
       <!-- Card 4: Inventory Asset Value -->
-      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-cyan-500/30 p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition">
+      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-cyan-500/30 p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(0,0,0,0.3)] transition">
         <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">ইনভেন্টরি সম্পদ</span>
-          <span class="w-8 h-8 rounded-full bg-cyan-500/15 text-cyan-400 flex items-center justify-center text-sm">💎</span>
+          <span class="text-[rgba(235,235,245,0.50)] text-[11px] sm:text-xs font-semibold uppercase tracking-wider">💎 ইনভেন্টরি সম্পদ</span>
+          <span class="text-[11px] text-cyan-400 font-mono font-bold">স্টক ভ্যালু</span>
         </div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-cyan-400 mt-2 tracking-tight font-mono">৳${formatMoney(totalInventoryValue)}</div>
-        <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-2 truncate">
+        <div class="text-xl sm:text-2xl font-extrabold text-cyan-400 mt-1 tracking-tight font-mono">৳${formatMoney(totalInventoryValue)}</div>
+        <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
           ওয়্যারহাউজের বর্তমান পণ্যের বাজারমূল্য
         </div>
       </div>
 
     </div>
 
-    <!-- Navigation Tabs (Apple Segmented Control Style - Larger Font) -->
-    <div class="tabs-bar bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[20px] flex items-center gap-2 overflow-x-auto no-scrollbar">
-      <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]">
+    <!-- Navigation Tabs (Apple Segmented Control Style - Sleek & Compact) -->
+    <div class="tabs-bar bg-[#1C1C1E] border border-white/[0.08] p-1 rounded-[16px] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]">
         <span>📦 প্রোডাক্টস স্টুডিও</span>
-        <span class="bg-[#3A3A3C] text-white text-xs px-2.5 py-0.5 rounded-full font-bold">${totalProducts}</span>
+        <span class="bg-[#3A3A3C] text-white text-[11px] px-2 py-0.5 rounded-full font-bold">${totalProducts}</span>
       </button>
 
-      <button type="button" onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+      <button type="button" onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
         <span>📋 কাস্টমার অর্ডারস</span>
-        <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.40)] text-xs px-2.5 py-0.5 rounded-full font-bold">${totalOrders}</span>
+        <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] text-[11px] px-2 py-0.5 rounded-full font-bold">${totalOrders}</span>
       </button>
 
-      <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
-        <span>⚙️ অ্যাডভান্সড শপ সেটিংস ও পলিসি</span>
+      <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+        <span>⚙️ শপ সেটিংস ও পলিসি</span>
       </button>
     </div>
 
