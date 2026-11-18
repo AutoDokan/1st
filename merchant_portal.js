@@ -258,6 +258,11 @@ function createMerchantPortalRouter({
     });
     const last7DaysRevenue = last7DaysOrders.reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
 
+    const allSkus = Array.from(new Set([
+      ...products.map(p => p.model_code).filter(Boolean),
+      ...orders.map(o => o.model_code).filter(Boolean)
+    ])).sort();
+
     // ========================================================
     // Render Advanced Product Cards (Apple HIG Pro Dark Theme - Spacious & Large Font)
     // ========================================================
@@ -647,7 +652,7 @@ function createMerchantPortalRouter({
         : 'bg-[#30D158]/15 text-[#30D158] border-[#30D158]/30';
 
       return `
-      <tr class="order-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-sm" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
+      <tr class="order-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-sm" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-model="${o.model_code || 'PROD'}" data-created="${o.created_at || ''}" data-due="${dueCod}" data-search="${searchMeta}">
         <td class="p-4">
           <div class="font-mono font-bold text-white text-sm">#${o.id}</div>
           <div class="text-xs text-[rgba(235,235,245,0.40)] mt-0.5">${o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) : ''}</div>
@@ -698,6 +703,9 @@ function createMerchantPortalRouter({
         </td>
         <td class="p-4 text-right">
           <div class="inline-flex items-center gap-1.5 justify-end">
+            <button type="button" onclick="openOrderDetailsModal(${o.id})" title="অর্ডারের পূর্ণাঙ্গ বিস্তারিত দেখুন" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-xs font-semibold px-2.5 py-1.5 rounded-[10px] border border-white/[0.1] transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95">
+              <span>🔍 ডিটেইলস</span>
+            </button>
             <button type="button" onclick="printOrderMemo(${o.id})" title="কাস্টমার ক্যাশ মেমো / পার্সেল স্লিপ প্রিন্ট" class="bg-[#2C2C2E] hover:bg-white hover:text-black text-white text-xs font-semibold px-2.5 py-1.5 rounded-[10px] border border-white/[0.1] transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95">
               <span>🖨️ মেমো</span>
             </button>
@@ -1161,12 +1169,42 @@ function createMerchantPortalRouter({
     <!-- TAB 2: ORDERS -->
     <section id="tab-orders" class="hidden space-y-6">
       <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
-        <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between border-b border-white/[0.06] pb-5 gap-4">
           <div>
             <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight">📋 কাস্টমার অর্ডারস ও ডেলিভারি পাইপলাইন</h2>
-            <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">WhatsApp AI থেকে স্বয়ংক্রিয়ভাবে সংগৃহীত কাস্টমারদের অর্ডার তালিকা।</p>
+            <div id="filteredOrderCountDisplay" class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1 flex items-center gap-2">
+              <span>মোট ${totalOrders}টি অর্ডার</span>
+              <span>•</span>
+              <span>COD: ৳${Number(validOrders.reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0)).toLocaleString('en-IN')}</span>
+            </div>
           </div>
-          <input type="text" id="orderSearch" oninput="filterOrders(this.value)" placeholder="🔍 নাম, ফোন, ঠিকানা খুঁজুন..." class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs sm:text-sm px-4 py-2.5 rounded-[14px] focus:outline-none focus:border-white/40 w-full sm:w-80">
+
+          <!-- Controls: Search, Date Filter, SKU Filter, Export, Print -->
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <input type="text" id="orderSearch" oninput="applyOrderFilters()" placeholder="🔍 নাম, ফোন, ঠিকানা খুঁজুন..." class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs sm:text-sm px-3.5 py-2 rounded-[14px] focus:outline-none focus:border-white/40 w-full sm:w-56">
+
+            <select id="orderDateFilter" onchange="applyOrderFilters()" class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-semibold px-3 py-2 rounded-[14px] focus:outline-none focus:border-white/40 cursor-pointer">
+              <option value="ALL">📅 সর্বকালের হিস্ট্রি</option>
+              <option value="TODAY">📅 আজ (Today)</option>
+              <option value="YESTERDAY">📅 গতকাল</option>
+              <option value="LAST_7_DAYS">📅 বিগত ৭ দিন</option>
+              <option value="THIS_MONTH">📅 এই চলতি মাস</option>
+              <option value="LAST_30_DAYS">📅 বিগত ৩০ দিন</option>
+            </select>
+
+            <select id="orderSkuFilter" onchange="applyOrderFilters()" class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-semibold px-3 py-2 rounded-[14px] focus:outline-none focus:border-white/40 cursor-pointer">
+              <option value="ALL">👗 সব SKU / মডেল</option>
+              ${allSkus.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+
+            <button type="button" onclick="exportOrdersCSV()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-xs font-semibold px-3.5 py-2 rounded-[14px] border border-white/[0.08] transition flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs" title="ফিল্টারকৃত অর্ডার এক্সেলে এক্সপোর্ট করুন">
+              <span>📥 CSV এক্সপোর্ট</span>
+            </button>
+
+            <button type="button" onclick="printOrdersManifest()" class="bg-white hover:bg-[#E5E5EA] text-black text-xs font-bold px-3.5 py-2 rounded-[14px] transition flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs" title="কুরিয়ার রাইডারের ডেলিভারি শিট প্রিন্ট করুন">
+              <span>🖨️ ডেলিভারি ম্যানিফেস্ট</span>
+            </button>
+          </div>
         </div>
 
         <!-- Status Filter Buttons -->
