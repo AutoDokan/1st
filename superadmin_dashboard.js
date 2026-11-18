@@ -1,20 +1,26 @@
 /**
  * AutoDokan Engine OS — Super Admin Executive Control Center
- * Authentic Apple iOS/macOS Human Interface Guidelines (HIG) Dark Mode Edition
+ * 100% Pure Apple Human Interface Guidelines (HIG) Edition
  * 
- * Apple HIG Semantic Specifications:
- *  - systemGroupedBackground: #000000 (OLED pure black base canvas)
- *  - secondarySystemGroupedBackground: #1C1C1E (Apple signature graphite card surface)
- *  - tertiarySystemGroupedBackground: #2C2C2E (Nested inputs, metrics & elevated elements)
- *  - separator / hairline border: rgba(255, 255, 255, 0.08)
- *  - label (Primary): #FFFFFF (100% white)
- *  - secondaryLabel: rgba(235, 235, 245, 0.60) (Eye-comfort 60% opacity)
- *  - tertiaryLabel: rgba(235, 235, 245, 0.38) (Footnotes & metadata)
- *  - systemBlue: #0A84FF (Apple dynamic dark mode blue)
- *  - systemGreen: #30D158 (Apple dynamic dark mode emerald)
- *  - systemOrange: #FF9F0A (Apple dynamic dark mode amber)
- *  - systemRed: #FF453A (Apple dynamic dark mode coral red)
- *  - Frosted glass material: backdrop-blur-xl saturate(180%)
+ * Strict Apple Design System Fidelity:
+ *  - Colors:
+ *      * systemGroupedBackground: #000000 (OLED pure black)
+ *      * secondarySystemGroupedBackground: #1C1C1E (Apple graphite card surface)
+ *      * tertiarySystemGroupedBackground: #2C2C2E (Nested group & input background)
+ *      * systemGray4: #3A3A3C (Hover & active surfaces)
+ *      * separator: rgba(255, 255, 255, 0.08)
+ *  - Semantic Text Opacities:
+ *      * label (Primary): #FFFFFF (100% white — headers, titles, metrics)
+ *      * secondaryLabel: rgba(235, 235, 245, 0.60) (60% white — subtitles, body, table data)
+ *      * tertiaryLabel: rgba(235, 235, 245, 0.30) (30% white — timestamps, captions, units)
+ *  - Interactive System Accents:
+ *      * systemBlue: #0A84FF (Exclusively for interactive controls, links, and buttons — NEVER on static numbers)
+ *      * systemGreen: #30D158 (Online live bot indicator & approved status)
+ *      * systemOrange: #FF9F0A (Pending status)
+ *      * systemRed: #FF453A (Disconnected & cancelled status)
+ *  - iMessage Chat Aesthetic:
+ *      * Inbound Customer Bubble: #2C2C2E
+ *      * Outbound Assistant Bubble: #0A84FF with pure white text
  */
 
 const crypto = require('crypto');
@@ -33,7 +39,7 @@ function createSuperAdminRouter({
   const express = require('express');
   const router = express.Router();
 
-  // Helper to format currency
+  // Helper to format currency in Apple's clean numeral format
   function formatMoney(amount) {
     return '৳' + (Number(amount) || 0).toLocaleString('en-IN');
   }
@@ -107,7 +113,7 @@ function createSuperAdminRouter({
     shopsTelemetry.forEach(s => shopNameMap.set(s.seller_id, s.shop_name));
     shopNameMap.set('autodokan_seller_1', 'Dawah Fashion');
 
-    // Generate Shops HTML Cards (Apple secondarySystemGroupedBackground #1C1C1E Style)
+    // Generate Shops HTML Cards (Apple secondarySystemGroupedBackground #1C1C1E)
     const shopsCardsHtml = shopsTelemetry.map(s => {
       const portalUrl = `/portal?token=${s.invite_token}`;
       const connectUrl = `/connect?token=${s.invite_token}`;
@@ -124,16 +130,16 @@ function createSuperAdminRouter({
       const catLabel = catBadges[s.category] || '🛍️ ই-কমার্স';
 
       return `
-      <div class="apple-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.16] rounded-[22px] p-5.5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] space-y-4.5 transition-all duration-200">
+      <div class="bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.14] rounded-[22px] p-5.5 shadow-[0_4px_24px_rgba(0,0,0,0.5)] space-y-4.5 transition-all duration-200">
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <h3 class="text-base font-semibold text-white tracking-tight">${s.shop_name}</h3>
-              <span class="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#2C2C2E] text-[rgba(235,235,245,0.7)] border border-white/[0.06]">${catLabel}</span>
+              <span class="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] border border-white/[0.06]">${catLabel}</span>
             </div>
             <p class="text-xs text-[rgba(235,235,245,0.60)] mt-1">
-              মালিক: <span class="text-white/90 font-medium">${s.owner_name}</span> • 
-              আইডি: <span class="font-mono text-[rgba(235,235,245,0.40)]">${s.seller_id}</span>
+              মালিক: <span class="text-white font-medium">${s.owner_name}</span> • 
+              আইডি: <span class="font-mono text-[rgba(235,235,245,0.30)]">${s.seller_id}</span>
             </p>
           </div>
           <div>
@@ -143,50 +149,50 @@ function createSuperAdminRouter({
                 <span>বট লাইভ (+${s.live_number})</span>
               </span>
             ` : `
-              <span class="inline-flex items-center gap-1.5 bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] border border-white/[0.06] text-xs px-2.5 py-1 rounded-full font-medium">
-                <span class="w-1.5 h-1.5 rounded-full bg-white/30"></span>
+              <span class="inline-flex items-center gap-1.5 bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] border border-white/[0.06] text-xs px-2.5 py-1 rounded-full font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-[rgba(235,235,245,0.30)]"></span>
                 <span>অপেক্ষমাণ</span>
               </span>
             `}
           </div>
         </div>
 
-        <!-- Shop Telemetry Metrics (Apple tertiarySystemGroupedBackground #2C2C2E) -->
-        <div class="grid grid-cols-4 gap-2 bg-[#2C2C2E]/70 p-3 rounded-[16px] border border-white/[0.04] text-center">
+        <!-- Shop Telemetry Metrics (Apple tertiarySystemGroupedBackground #2C2C2E with Neutral Numbers) -->
+        <div class="grid grid-cols-4 gap-2 bg-[#2C2C2E] p-3.5 rounded-[16px] border border-white/[0.04] text-center">
           <div>
-            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.40)] uppercase tracking-wider">ইনভেন্টরি</div>
+            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.30)] uppercase tracking-wider">ইনভেন্টরি</div>
             <div class="text-sm font-semibold text-white mt-0.5">${s.products_count}টি</div>
-            <div class="text-[10px] text-[#30D158] font-medium">${s.instock_count} স্টকে</div>
+            <div class="text-[10px] text-[rgba(235,235,245,0.60)] font-medium">${s.instock_count} স্টকে</div>
           </div>
           <div>
-            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.40)] uppercase tracking-wider">মোট অর্ডার</div>
+            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.30)] uppercase tracking-wider">মোট অর্ডার</div>
             <div class="text-sm font-semibold text-white mt-0.5">${s.orders_count}টি</div>
             <div class="text-[10px] text-[#FF9F0A] font-medium">${s.pending_orders_count} পেন্ডিং</div>
           </div>
           <div>
-            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.40)] uppercase tracking-wider">প্ল্যাটফর্ম সেলস</div>
-            <div class="text-sm font-semibold text-[#0A84FF] mt-0.5">${formatMoney(s.revenue)}</div>
-            <div class="text-[10px] text-[rgba(235,235,245,0.40)]">COD ভলিউম</div>
+            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.30)] uppercase tracking-wider">প্ল্যাটফর্ম সেলস</div>
+            <div class="text-sm font-semibold text-white mt-0.5">${formatMoney(s.revenue)}</div>
+            <div class="text-[10px] text-[rgba(235,235,245,0.30)]">COD ভলিউম</div>
           </div>
           <div>
-            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.40)] uppercase tracking-wider">AI বট এজেন্ট</div>
-            <div class="text-xs font-semibold text-white/90 mt-1">${s.persona_name}</div>
-            <div class="text-[10px] text-[rgba(235,235,245,0.40)]">স্বয়ংক্রিয় সেলস</div>
+            <div class="text-[10px] font-medium text-[rgba(235,235,245,0.30)] uppercase tracking-wider">AI বট এজেন্ট</div>
+            <div class="text-xs font-semibold text-white mt-1">${s.persona_name}</div>
+            <div class="text-[10px] text-[rgba(235,235,245,0.30)]">স্বয়ংক্রিয় সেলস</div>
           </div>
         </div>
 
         <!-- Action Links (Apple HIG Interactive Styling) -->
         <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
           <div class="flex items-center gap-2">
-            <a href="${portalUrl}" target="_blank" class="bg-[#0A84FF]/15 hover:bg-[#0A84FF]/25 text-[#0A84FF] border border-[#0A84FF]/30 text-xs px-3.5 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1">
+            <a href="${portalUrl}" target="_blank" class="bg-[#0A84FF] hover:bg-[#0071E3] text-white text-xs px-3.5 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1 shadow-[0_2px_8px_rgba(10,132,255,0.25)]">
               <span>মার্চেন্ট পোর্টাল (ইনভেন্টরি ও সেলস)</span><span>↗</span>
             </a>
-            <a href="${connectUrl}" target="_blank" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white/80 border border-white/[0.08] text-xs px-3 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1">
+            <a href="${connectUrl}" target="_blank" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white/90 border border-white/[0.08] text-xs px-3 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1">
               <span>WhatsApp QR</span><span>↗</span>
             </a>
           </div>
           <div>
-            <a href="/dashboard?seller_id=${s.seller_id}&tab=orders" class="text-[#0A84FF] hover:text-[#0A84FF]/80 text-xs font-medium px-2 py-1 transition flex items-center gap-1">
+            <a href="/dashboard?seller_id=${s.seller_id}&tab=orders" class="text-[#0A84FF] hover:underline text-xs font-medium px-2 py-1 transition flex items-center gap-1">
               <span>অর্ডারস দেখুন</span><span>→</span>
             </a>
           </div>
@@ -195,7 +201,7 @@ function createSuperAdminRouter({
       `;
     }).join('');
 
-    // Generate Global Orders Table Rows
+    // Generate Global Orders Table Rows (Pure Apple HIG Typography)
     const orderRowsHtml = filteredOrders.map(o => {
       const prodPrice = Number(o.total_bdt) || 0;
       const dueCod = Number(o.due_cod) || prodPrice;
@@ -207,13 +213,13 @@ function createSuperAdminRouter({
       return `
       <tr class="order-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-xs" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
         <td class="p-3.5">
-          <div class="font-mono font-medium text-[#0A84FF]">#${o.id}</div>
-          <div class="text-[10px] text-[rgba(235,235,245,0.38)] mt-0.5">${o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) : ''}</div>
-          <div class="mt-1"><span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.7)] text-[9px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">🏬 ${shopName}</span></div>
+          <div class="font-mono font-medium text-white">#${o.id}</div>
+          <div class="text-[10px] text-[rgba(235,235,245,0.30)] mt-0.5">${o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) : ''}</div>
+          <div class="mt-1"><span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] text-[9px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">🏬 ${shopName}</span></div>
         </td>
         <td class="p-3.5">
           <div class="font-medium text-white text-xs">${o.customer_name || 'কাস্টমার'}</div>
-          <a href="https://wa.me/${waPhone}" target="_blank" class="text-[#30D158] hover:underline text-xs font-mono font-medium flex items-center gap-1 mt-0.5">
+          <a href="https://wa.me/${waPhone}" target="_blank" class="text-[#0A84FF] hover:underline text-xs font-mono font-medium flex items-center gap-1 mt-0.5">
             <span>💬</span>
             <span>${o.customer_phone || ''}</span>
           </a>
@@ -222,8 +228,8 @@ function createSuperAdminRouter({
           <div class="text-xs text-[rgba(235,235,245,0.60)] line-clamp-2" title="${o.address || ''}">${o.address || 'ঠিকানা দেওয়া হয়নি'}</div>
         </td>
         <td class="p-3.5">
-          <span class="font-mono font-medium text-white/90 text-xs">[${o.model_code || 'PROD'}]</span>
-          <div class="text-[11px] text-[rgba(235,235,245,0.38)] mt-0.5">সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'}</div>
+          <span class="font-mono font-medium text-white text-xs">[${o.model_code || 'PROD'}]</span>
+          <div class="text-[11px] text-[rgba(235,235,245,0.30)] mt-0.5">সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'}</div>
         </td>
         <td class="p-3.5">
           <span class="font-semibold text-white text-xs">৳${dueCod}</span>
@@ -242,30 +248,40 @@ function createSuperAdminRouter({
       `;
     }).join('');
 
-    // Generate Live Chat Audit Rows
+    // Generate Live Chat Audit Rows (Apple iMessage Native Bubble Aesthetic)
     const liveChatRowsHtml = filteredChats.map(c => {
       const shopName = shopNameMap.get(c.seller_id) || c.seller_id || 'দোকান';
       const lastUserMsg = (c.messages || []).filter(m => m.role === 'user').pop();
       const lastBotMsg = (c.messages || []).filter(m => m.role === 'assistant' || m.role === 'model').pop();
 
       return `
-      <div class="bg-[#1C1C1E] border border-white/[0.08] rounded-[20px] p-4 shadow-[0_2px_16px_rgba(0,0,0,0.3)] space-y-2.5 text-xs">
+      <div class="bg-[#1C1C1E] border border-white/[0.08] rounded-[22px] p-4.5 shadow-[0_2px_16px_rgba(0,0,0,0.4)] space-y-3 text-xs">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.8)] font-medium px-2.5 py-0.5 rounded-full text-[10px] border border-white/[0.06]">🏬 ${shopName}</span>
+            <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] font-medium px-2.5 py-0.5 rounded-full text-[10px] border border-white/[0.06]">🏬 ${shopName}</span>
             <span class="font-mono font-medium text-white">${c.customer_phone || c.customer_identifier}</span>
-            <span class="bg-[#0A84FF]/15 text-[#0A84FF] text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-[#0A84FF]/25">${c.stage || 'BROWSING'}</span>
+            <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-white/[0.06]">${c.stage || 'BROWSING'}</span>
           </div>
-          <span class="text-[10px] text-[rgba(235,235,245,0.38)]">${c.updated_at ? new Date(c.updated_at).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+          <span class="text-[10px] text-[rgba(235,235,245,0.30)]">${c.updated_at ? new Date(c.updated_at).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
         </div>
+
+        <!-- Inbound Customer Message (Apple Incoming Bubble #2C2C2E) -->
         ${lastUserMsg ? `
-          <div class="bg-[#2C2C2E]/60 p-3 rounded-[14px] border border-white/[0.04] text-[rgba(235,235,245,0.8)]">
-            <span class="text-[rgba(235,235,245,0.40)] font-medium">👤 ক্রেতা:</span> ${lastUserMsg.content || lastUserMsg.text || 'মেসেজ'}
+          <div class="flex justify-start">
+            <div class="max-w-[85%] bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] p-3 rounded-[16px] rounded-tl-xs border border-white/[0.04]">
+              <div class="text-[10px] text-[rgba(235,235,245,0.30)] font-medium mb-0.5">👤 ক্রেতা</div>
+              <div class="leading-relaxed">${lastUserMsg.content || lastUserMsg.text || 'মেসেজ'}</div>
+            </div>
           </div>
         ` : ''}
+
+        <!-- Outbound AI Bot Message (Apple Outgoing iMessage Bubble #0A84FF) -->
         ${lastBotMsg ? `
-          <div class="bg-[#0A84FF]/10 p-3 rounded-[14px] border border-[#0A84FF]/20 text-white">
-            <span class="text-[#0A84FF] font-medium">🤖 AI এজেন্ট:</span> ${(lastBotMsg.content || lastBotMsg.text || '').substring(0, 160)}...
+          <div class="flex justify-end">
+            <div class="max-w-[85%] bg-[#0A84FF] text-white p-3 rounded-[16px] rounded-tr-xs shadow-[0_2px_8px_rgba(10,132,255,0.25)]">
+              <div class="text-[10px] text-white/70 font-medium mb-0.5 text-right">🤖 AutoDokan AI</div>
+              <div class="leading-relaxed">${(lastBotMsg.content || lastBotMsg.text || '').substring(0, 180)}...</div>
+            </div>
           </div>
         ` : ''}
       </div>
@@ -277,7 +293,7 @@ function createSuperAdminRouter({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-  <title>AutoDokan Engine OS — Apple Dark Mode Command Center</title>
+  <title>AutoDokan Engine OS — Apple Dark Mode</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
@@ -288,7 +304,7 @@ function createSuperAdminRouter({
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .apple-blur {
+    .apple-glass {
       background-color: rgba(28, 28, 30, 0.75);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -298,7 +314,7 @@ function createSuperAdminRouter({
 <body class="bg-[#000000] text-[rgba(235,235,245,0.60)] min-h-screen pb-24 selection:bg-[#0A84FF]/30 selection:text-white">
 
   <!-- Apple Frosted Glass Top Navbar -->
-  <header class="apple-blur border-b border-white/[0.08] sticky top-0 z-40 px-5 py-3.5">
+  <header class="apple-glass border-b border-white/[0.08] sticky top-0 z-40 px-5 py-3.5">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
       
       <!-- Brand & Platform Fleet Indicator -->
@@ -309,15 +325,15 @@ function createSuperAdminRouter({
         <div>
           <div class="flex items-center gap-2">
             <h1 class="font-semibold text-sm sm:text-base text-white tracking-tight">AutoDokan Engine OS</h1>
-            <span class="bg-[#2C2C2E] text-[#0A84FF] text-[10px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">Apple HIG Mode</span>
+            <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] text-[10px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">Apple HIG Platform</span>
           </div>
-          <div class="flex items-center gap-2 mt-0.5 text-xs text-[rgba(235,235,245,0.40)]">
+          <div class="flex items-center gap-2 mt-0.5 text-xs text-[rgba(235,235,245,0.30)]">
             <span class="inline-flex items-center gap-1.5 text-[#30D158] font-medium">
               <span class="w-1.5 h-1.5 rounded-full bg-[#30D158]"></span>
               <span>${onlineBots}/${totalShops}টি WhatsApp বট সক্রিয়</span>
             </span>
             <span>•</span>
-            <span>প্ল্যাটফর্ম GMV: <span class="text-white/90 font-medium">${formatMoney(totalPlatformGMV)}</span></span>
+            <span>প্ল্যাটফর্ম GMV: <span class="text-white font-medium">${formatMoney(totalPlatformGMV)}</span></span>
           </div>
         </div>
       </div>
@@ -326,7 +342,7 @@ function createSuperAdminRouter({
       <div class="flex items-center gap-2.5 flex-wrap">
         <!-- Dynamic Shop Switcher Dropdown (Apple #1C1C1E Style) -->
         <div class="flex items-center bg-[#1C1C1E] border border-white/[0.08] rounded-[14px] px-3 py-1.5">
-          <span class="text-xs mr-1.5 text-[rgba(235,235,245,0.40)]">🏬</span>
+          <span class="text-xs mr-1.5 text-[rgba(235,235,245,0.30)]">🏬</span>
           <select onchange="window.location.href='/dashboard?seller_id=' + this.value + '&tab=${activeTab}'" class="bg-transparent text-white font-medium text-xs outline-none cursor-pointer">
             <option value="ALL" class="bg-[#1C1C1E] text-white" ${selectedSeller === 'ALL' ? 'selected' : ''}>🌐 সবগুলো শপ একসাথে (All Stores)</option>
             ${shopsTelemetry.map(s => `<option value="${s.seller_id}" class="bg-[#1C1C1E] text-white" ${selectedSeller === s.seller_id ? 'selected' : ''}>${s.shop_name} (${s.category})</option>`).join('')}
@@ -338,7 +354,7 @@ function createSuperAdminRouter({
           <span>➕ নতুন শপ অনবোর্ডিং</span>
         </button>
 
-        <a href="/logout" title="লগআউট" class="text-[rgba(235,235,245,0.40)] hover:text-white p-2 text-xs transition">
+        <a href="/logout" title="লগআউট" class="text-[rgba(235,235,245,0.30)] hover:text-white p-2 text-xs transition">
           🔒
         </a>
       </div>
@@ -348,23 +364,23 @@ function createSuperAdminRouter({
 
   <main class="max-w-7xl mx-auto px-5 py-6 space-y-6">
 
-    <!-- 4 Platform Metric Telemetry Cards (Apple #1C1C1E Secondary System Background) -->
+    <!-- 4 Platform Metric Telemetry Cards (Pure White Metrics as in Apple App Store Connect) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.40)] text-[11px] font-medium uppercase tracking-wider">রেজিস্টার্ড টেন্যান্ট শপ</div>
+        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">রেজিস্টার্ড টেন্যান্ট শপ</div>
         <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalShops}টি <span class="text-xs text-[#30D158] font-medium">(${onlineBots} লাইভ)</span></div>
       </div>
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.40)] text-[11px] font-medium uppercase tracking-wider">মার্চেন্ট ইনভেন্টরি ভলিউম</div>
+        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">মার্চেন্ট ইনভেন্টরি ভলিউম</div>
         <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalPlatformProducts}টি পণ্য</div>
       </div>
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.40)] text-[11px] font-medium uppercase tracking-wider">প্ল্যাটফর্ম মোট অর্ডারস</div>
+        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">প্ল্যাটফর্ম মোট অর্ডারস</div>
         <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalPlatformOrders}টি</div>
       </div>
       <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.40)] text-[11px] font-medium uppercase tracking-wider">গ্রস মার্চেন্ডাইজ ভলিউম</div>
-        <div class="text-2xl font-bold text-[#0A84FF] mt-1.5 tracking-tight">${formatMoney(totalPlatformGMV)}</div>
+        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">গ্রস মার্চেন্ডাইজ ভলিউম</div>
+        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${formatMoney(totalPlatformGMV)}</div>
       </div>
     </div>
 
@@ -372,17 +388,17 @@ function createSuperAdminRouter({
     <div class="bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[18px] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
       <button type="button" onclick="switchSuperTab('shops')" id="stab-btn-shops" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'shops' ? 'bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.60)] hover:text-white'}">
         <span>🏢 মার্চেন্ট শপসমূহ ও বট ফ্লিট</span>
-        <span class="${activeTab === 'shops' ? 'bg-[#3A3A3C] text-[#0A84FF]' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.40)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${totalShops}</span>
+        <span class="${activeTab === 'shops' ? 'bg-[#3A3A3C] text-white' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.30)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${totalShops}</span>
       </button>
 
       <button type="button" onclick="switchSuperTab('orders')" id="stab-btn-orders" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'orders' ? 'bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.60)] hover:text-white'}">
         <span>📋 প্ল্যাটফর্ম অর্ডারস পাইপলাইন</span>
-        <span class="${activeTab === 'orders' ? 'bg-[#3A3A3C] text-[#0A84FF]' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.40)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredOrders.length}</span>
+        <span class="${activeTab === 'orders' ? 'bg-[#3A3A3C] text-white' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.30)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">${filteredOrders.length}</span>
       </button>
 
       <button type="button" onclick="switchSuperTab('chats')" id="stab-btn-chats" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'chats' ? 'bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.60)] hover:text-white'}">
         <span>💬 লাইভ AI চ্যাট অডিট</span>
-        <span class="${activeTab === 'chats' ? 'bg-[#3A3A3C] text-[#30D158]' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.40)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">লাইভ</span>
+        <span class="${activeTab === 'chats' ? 'bg-[#3A3A3C] text-[#30D158]' : 'bg-[#2C2C2E] text-[rgba(235,235,245,0.30)]'} text-[10px] px-2 py-0.5 rounded-full font-bold">লাইভ</span>
       </button>
     </div>
 
@@ -408,14 +424,14 @@ function createSuperAdminRouter({
             <h2 class="text-base font-semibold text-white tracking-tight">📋 প্ল্যাটফর্ম অর্ডারস ও ট্রানজেকশন পাইপলাইন</h2>
             <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">সকল মার্চেন্টের গ্রাহকদের থেকে তৈরি হওয়া রিয়েল-টাইম অর্ডার স্ট্রিম।</p>
           </div>
-          <div class="text-xs text-[rgba(235,235,245,0.40)]">
-            ফিল্টার: <span class="text-[#0A84FF] font-medium">${selectedSeller === 'ALL' ? 'সকল শপ' : (shopNameMap.get(selectedSeller) || selectedSeller)}</span>
+          <div class="text-xs text-[rgba(235,235,245,0.30)]">
+            ফিল্টার: <span class="text-white font-medium">${selectedSeller === 'ALL' ? 'সকল শপ' : (shopNameMap.get(selectedSeller) || selectedSeller)}</span>
           </div>
         </div>
 
         <div class="overflow-x-auto border border-white/[0.06] rounded-[16px]">
-          <table class="w-full text-left text-[rgba(235,235,245,0.7)] text-xs">
-            <thead class="bg-[#2C2C2E]/60 text-[rgba(235,235,245,0.40)] font-medium border-b border-white/[0.06]">
+          <table class="w-full text-left text-[rgba(235,235,245,0.60)] text-xs">
+            <thead class="bg-[#2C2C2E] text-[rgba(235,235,245,0.30)] font-medium border-b border-white/[0.06]">
               <tr>
                 <th class="p-3.5">অর্ডার ID ও শপ</th>
                 <th class="p-3.5">কাস্টমার</th>
@@ -426,7 +442,7 @@ function createSuperAdminRouter({
               </tr>
             </thead>
             <tbody>
-              ${orderRowsHtml || '<tr><td colspan="6" class="p-8 text-center text-[rgba(235,235,245,0.40)]">কোনো অর্ডার পাওয়া যায়নি</td></tr>'}
+              ${orderRowsHtml || '<tr><td colspan="6" class="p-8 text-center text-[rgba(235,235,245,0.30)]">কোনো অর্ডার পাওয়া যায়নি</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -442,18 +458,18 @@ function createSuperAdminRouter({
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          ${liveChatRowsHtml || '<div class="col-span-full py-10 text-center text-[rgba(235,235,245,0.40)]">এখনও কোনো লাইভ চ্যাট রেকর্ড নেই।</div>'}
+          ${liveChatRowsHtml || '<div class="col-span-full py-10 text-center text-[rgba(235,235,245,0.30)]">এখনও কোনো লাইভ চ্যাট রেকর্ড নেই।</div>'}
         </div>
       </div>
     </section>
 
   </main>
 
-  <!-- DYNAMIC NEW SHOP ONBOARDING MODAL (Apple Sheets Style) -->
+  <!-- DYNAMIC NEW SHOP ONBOARDING MODAL (Apple Sheet Style) -->
   <div id="newShopModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-[#1C1C1E] border border-white/[0.12] rounded-[28px] max-w-lg w-full p-6 shadow-[0_20px_50px_rgba(0,0,0,0.7)] space-y-4.5 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3.5">
-        <h3 class="font-semibold text-white text-base">🚀 নতুন শপ অনবোর্ডিং উইজার্ড</h3>
+        <h3 class="font-semibold text-white text-base tracking-tight">🚀 নতুন শপ অনবোর্ডিং উইজার্ড</h3>
         <button type="button" onclick="closeNewShopModal()" class="w-8 h-8 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-[rgba(235,235,245,0.60)] hover:text-white font-bold cursor-pointer transition">✕</button>
       </div>
 
