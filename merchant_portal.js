@@ -1663,22 +1663,40 @@ function createMerchantPortalRouter({
       delivery_timeline: delivery_timeline ? delivery_timeline.trim() : '২-৩ দিন'
     };
 
-    const { error } = await supabase
-      .from('store_settings')
-      .upsert({
-        seller_id: inv.seller_id,
-        inside_dhaka_fee: Number(inside_dhaka_fee) || 80,
-        outside_dhaka_fee: Number(outside_dhaka_fee) || 150,
-        free_delivery_min_amount: free_delivery_min_amount ? Number(free_delivery_min_amount) : null,
-        bkash_number: bkash_number ? bkash_number.trim() : null,
-        nagad_number: nagad_number ? nagad_number.trim() : null,
-        bot_persona_name: bot_persona_name ? bot_persona_name.trim() : 'AI ইনচার্জ',
-        promo_offer: promo_offer ? promo_offer.trim() : null,
-        return_policy: return_policy ? return_policy.trim() : null,
-        extra_config: extra
-      });
+    const settingPayload = {
+      seller_id: inv.seller_id,
+      inside_dhaka_fee: Number(inside_dhaka_fee) || 80,
+      outside_dhaka_fee: Number(outside_dhaka_fee) || 150,
+      free_delivery_min_amount: free_delivery_min_amount ? Number(free_delivery_min_amount) : null,
+      bkash_number: bkash_number ? bkash_number.trim() : null,
+      nagad_number: nagad_number ? nagad_number.trim() : null,
+      bot_persona_name: bot_persona_name ? bot_persona_name.trim() : 'AI ইনচার্জ',
+      promo_offer: promo_offer ? promo_offer.trim() : null,
+      return_policy: return_policy ? return_policy.trim() : null,
+      extra_config: extra
+    };
 
-    if (error) return res.status(500).json({ error: error.message });
+    const { data: existSetting } = await supabase
+      .from('store_settings')
+      .select('id')
+      .eq('seller_id', inv.seller_id)
+      .maybeSingle();
+
+    let saveErr = null;
+    if (existSetting && existSetting.id) {
+      const { error } = await supabase
+        .from('store_settings')
+        .update(settingPayload)
+        .eq('id', existSetting.id);
+      saveErr = error;
+    } else {
+      const { error } = await supabase
+        .from('store_settings')
+        .upsert(settingPayload, { onConflict: 'seller_id' });
+      saveErr = error;
+    }
+
+    if (saveErr) return res.status(500).json({ error: saveErr.message });
     await refreshSettingsFromDB(inv.seller_id);
     return res.json({ success: true });
   });
