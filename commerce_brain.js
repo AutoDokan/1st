@@ -732,13 +732,19 @@ function getAllCachedProducts(sellerId = 'autodokan_seller_1') {
 
 function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = '', userText = '', sellerId = 'autodokan_seller_1') {
   const sSettings = sellerSettingsCache.get(sellerId) || storeSettings;
+  const sExtra = (sSettings && typeof sSettings.extra_config === 'object' && sSettings.extra_config !== null) ? sSettings.extra_config : {};
   const shopName = sSettings.shop_name || 'আমাদের শপ';
   const personaName = sSettings.bot_persona_name || '';
   const insideFee = sSettings.inside_dhaka_fee || 80;
   const outsideFee = sSettings.outside_dhaka_fee || 120;
   const bkashNum = sSettings.bkash_number || '';
   const nagadNum = sSettings.nagad_number || '';
-  const advanceRequired = sSettings.advance_delivery_charge_required !== false;
+  const advanceRequired = sExtra.require_advance_outside !== undefined
+    ? (sExtra.require_advance_outside === true || sExtra.require_advance_outside === 'true')
+    : (sSettings.advance_delivery_charge_required !== false);
+  const deliveryTimeline = sExtra.delivery_timeline || '২-৩ কার্যদিবস';
+  const washCare = sExtra.wash_care || '';
+  const promoOffer = sSettings.promo_offer || '';
   const paymentMethods = [];
   if (bkashNum) paymentMethods.push(`বিকাশ (${bkashNum})`);
   if (nagadNum) paymentMethods.push(`নগদ (${nagadNum})`);
@@ -845,7 +851,9 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
      সব তথ্য ঠিক থাকলে একটু 'ঠিক আছে' বা 'কনফার্ম' লিখে দিন, আমরা পার্সেল বুকিং শুরু করব।"
    - ধাপ ৩: কাস্টমার কনফার্ম করার পর ডেলিভারি পলিসি ও পেমেন্ট:
      ${advanceRequired ? `পার্সেল বুকিং নিশ্চিত করতে ডেলিভারি চার্জটি (ঢাকায় ৳${insideFee} / বাইরে ৳${outsideFee}) আমাদের ${paymentMethodText} নম্বরে সেন্ড মানি করতে বলো। কাস্টমার TrxID দিলে বলো: "ধন্যবাদ! আপনার পেমেন্ট তথ্যটি নোট করা হয়েছে। আমাদের অ্যাকাউন্টস ম্যানেজার ভেরিফাই করে কল দিয়ে অর্ডারটি চূড়ান্ত করবেন এবং কুরিয়ারের ট্র্যাকিং কোড পাঠিয়ে দেওয়া হবে।"` : '১০০% ক্যাশ অন ডেলিভারি, কোনো অগ্রিম চার্জ নেই (পণ্য হাতে পেয়ে পুরো মূল্য পরিশোধ করবেন)।'}
-     - রিটার্ন পলিসি: ${returnPolicyText}
+     - ডেলিভারির আনুমানিক সময়সীমা: ${deliveryTimeline}
+     - রিটার্ন ও এক্সচেঞ্জ পলিসি: ${returnPolicyText}
+     ${washCare ? `- কাপড়ের যত্ন / ওয়াশ কেয়ার: ${washCare}` : ''}
 
 কালার ও স্পেক্স নিয়ম (Zero Hallucination Specs):
 ১. কালার, কাপড়ের ঘনত্ব/ট্রান্সপারেন্সি (ইনার লাগবে কিনা), প্যাকেজ (কয় পিস/হিজাব আছে কিনা), সাইজ, ফিটিং, ঘের ও কোয়ালিটি সংক্রান্ত কাস্টমারের প্রশ্নে হুবহু [LIVE PRODUCTS] তালিকার স্পেসিফিকেশন অনুযায়ী উত্তর দেবে। কোনো কাল্পনিক তথ্য দেওয়া সম্পূর্ণ নিষিদ্ধ।
@@ -857,7 +865,7 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 ১. কোনো প্রোডাক্টে [বান্ডেল অফার: ...] থাকলে কাস্টমার দাম কম রাখতে চাইলে বা একাধিক পিস নিতে চাইলে অবশ্যই সেই বান্ডেল অনুযায়ী আকর্ষণীয় অফার দেবে (যেমন: "আমাদের ১টির রেগুলার প্রাইস ৳[দাম], তবে আপনি একসাথে ২টি নিলে বান্ডেল অফারে ১০% ছাড়ে মোট ৳[টাকা] পাবেন")।
 ২. ডাটাবেসে যে প্রোডাক্ট "স্টক আউট" রয়েছে, সেটির কথা বললে স্পষ্টভাবে বলো যে এই মডেলটি এখন স্টকে নেই এবং স্টকে থাকা একই কোয়ালিটির অন্য রানিং মডেল দেখতে বলো।
 ৩. কাস্টমার দাম বেশি বললে বা বাজারে কম দামের কথা তুললে মিষ্টি ভাষায় কোয়ালিটি তুলে ধরো: "${qualityPitch}"
-৪. বান্ডেল ছাড়া অন্য কোনো মনগড়া বা আন্দাজে ছাড় দেবে না।
+${promoOffer ? `৪. রানিং স্পেশাল অফার: "${promoOffer}" (কাস্টমার বিশেষ কোনো ডিসকাউন্ট বা অফার জানতে চাইলে এটি তুলে ধরবে)।` : '৪. বান্ডেল ছাড়া অন্য কোনো মনগড়া বা আন্দাজে ছাড় দেবে না।'}
 
 স্ল্যাং ও অভিযোগ:
 ১. "নাম ধুয়ে পানি খাবো", "poc", "sobi", "pic den" মানে ছবি দেখতে চেয়েছেন।
