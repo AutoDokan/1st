@@ -2476,7 +2476,7 @@ function createMerchantPortalRouter({
         </div>
 
         <!-- Universal Save Button -->
-        <button type="submit" id="saveSettingsBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black text-xs sm:text-sm font-extrabold py-3.5 rounded-[14px] shadow-[0_2px_14px_rgba(255,255,255,0.15)] transition cursor-pointer active:scale-98 flex items-center justify-center gap-2">
+        <button type="button" onclick="saveMerchantSettingsLive(event)" id="saveSettingsBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black text-xs sm:text-sm font-extrabold py-3.5 rounded-[14px] shadow-[0_2px_14px_rgba(255,255,255,0.15)] transition cursor-pointer active:scale-98 flex items-center justify-center gap-2">
           <span>💾</span>
           <span>সকল সেটিংস ও পলিসি সেভ করুন</span>
         </button>
