@@ -1,11 +1,17 @@
 /**
  * AutoDokan Dedicated Multi-Tenant Merchant Portal
- * Isolated, secure, token-authenticated mobile-first portal for invited merchants.
+ * Isolated, secure, token-authenticated mobile/desktop portal for invited merchants.
  * 100% Apple HIG Pro Dark Mode Edition — High eye-comfort, zero harsh blue glare.
- * Comprehensive Product Studio & Real-Time Inventory Control Suite.
+ * Features:
+ *  - Spacious, non-cluttered cards with large PC-friendly fonts
+ *  - Direct multi-photo upload with strict [Min 5 - Max 8] policy
+ *  - 3-Step Safe Product Deletion Modal with countdown safety lock
+ *  - Advanced Store Settings (Free delivery threshold, COD fraud protection, AI persona tuning)
  */
 
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 
 function createMerchantPortalRouter({
   supabase,
@@ -109,8 +115,14 @@ function createMerchantPortalRouter({
       outside_dhaka_fee: 150,
       bkash_number: '',
       nagad_number: '',
-      return_policy: 'ডেলিভারি ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।'
+      promo_offer: '',
+      return_policy: 'ডেলিভারি ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।',
+      bot_persona_name: 'AI ইনচার্জ',
+      free_delivery_min_amount: 0,
+      extra_config: {}
     };
+
+    const extra = curSettings.extra_config || {};
 
     // Calculate WhatsApp status
     const rawStatus = sellerStatuses.get(sellerId) || inv.status || 'disconnected';
@@ -131,13 +143,24 @@ function createMerchantPortalRouter({
     const totalRevenue = orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
 
     // ========================================================
-    // Render Advanced Product Cards (Apple HIG Pro Dark Theme)
+    // Render Advanced Product Cards (Apple HIG Pro Dark Theme - Spacious & Large Font)
     // ========================================================
     const productCardsHtml = products.map(p => {
       const searchMeta = (p.id + ' ' + (p.model_code || '') + ' ' + (p.name || '') + ' ' + (p.fabric || '') + ' ' + (p.colors || '') + ' ' + (p.sizes || '')).toLowerCase();
       const stockStatus = p.in_stock ? 'IN_STOCK' : 'STOCK_OUT';
-      const mainImg = p.image_url || 'https://placehold.co/240x300/1c1c1e/ffffff?text=' + encodeURIComponent(p.model_code || 'PROD');
+      const mainImg = p.image_url || 'https://placehold.co/300x380/1c1c1e/ffffff?text=' + encodeURIComponent(p.model_code || 'PROD');
       const hasDiscount = p.regular_price && Number(p.regular_price) > Number(p.price);
+
+      // Extract all gallery photos (up to 8)
+      const gallery = [
+        p.image_url,
+        p.detail_image_url,
+        p.real_image_url,
+        p.hijab_image_url,
+        p.flare_image_url,
+        ...(p.custom_attributes?.gallery_images || [])
+      ].filter(u => typeof u === 'string' && u.trim());
+      const uniqueGallery = Array.from(new Set(gallery)).slice(0, 8);
 
       // Sizes chips
       const sizeChips = (p.sizes || 'স্ট্যান্ডার্ড').split(',').map(s => s.trim()).filter(Boolean);
@@ -145,89 +168,94 @@ function createMerchantPortalRouter({
       const colorChips = (p.colors || '').split(',').map(c => c.trim()).filter(Boolean);
 
       return `
-      <div class="prod-card bg-[#1C1C1E] rounded-[22px] border border-white/[0.08] hover:border-white/[0.14] p-4.5 shadow-[0_4px_20px_rgba(0,0,0,0.5)] space-y-4 transition flex flex-col justify-between" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}">
+      <div class="prod-card bg-[#1C1C1E] rounded-[26px] border border-white/[0.08] hover:border-white/[0.18] p-6 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.6)] space-y-5 transition-all flex flex-col justify-between" data-id="${p.id}" data-stock="${stockStatus}" data-search="${searchMeta}">
         
-        <div class="space-y-3.5">
+        <div class="space-y-4">
           <!-- Card Header: Model Badge & Instant Stock Toggle Switch -->
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-mono font-bold text-xs bg-[#2C2C2E] text-white px-2.5 py-1 rounded-[10px] border border-white/[0.08]">${p.model_code || 'PROD'}</span>
-              <span class="text-[10px] text-[rgba(235,235,245,0.60)] bg-[#2C2C2E]/60 px-2 py-0.5 rounded-[8px] border border-white/[0.04]">📦 ${p.stock_quantity || 1} পিস স্টক</span>
+          <div class="flex items-center justify-between gap-3 border-b border-white/[0.06] pb-3.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-mono font-bold text-sm bg-[#2C2C2E] text-white px-3 py-1 rounded-[10px] border border-white/[0.1]">${p.model_code || 'PROD'}</span>
+              <span class="text-xs text-[rgba(235,235,245,0.70)] bg-[#2C2C2E] px-2.5 py-1 rounded-[8px] border border-white/[0.04]">📦 ${p.stock_quantity || 1} পিস ইনভেন্টরি</span>
             </div>
 
             <!-- 1-Click Instant Stock Toggle -->
-            <button type="button" onclick="toggleStockLive(${p.id}, ${p.in_stock ? 'false' : 'true'})" class="text-[11px] font-medium px-2.5 py-1 rounded-full cursor-pointer transition flex items-center gap-1.5 ${p.in_stock ? 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 hover:bg-[#30D158]/25' : 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 hover:bg-[#FF453A]/25'}">
-              <span class="w-1.5 h-1.5 rounded-full ${p.in_stock ? 'bg-[#30D158] animate-pulse' : 'bg-[#FF453A]'}"></span>
+            <button type="button" onclick="toggleStockLive(${p.id}, ${p.in_stock ? 'false' : 'true'})" class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer transition flex items-center gap-2 ${p.in_stock ? 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 hover:bg-[#30D158]/25' : 'bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30 hover:bg-[#FF453A]/25'}">
+              <span class="w-2 h-2 rounded-full ${p.in_stock ? 'bg-[#30D158] animate-pulse' : 'bg-[#FF453A]'}"></span>
               <span>${p.in_stock ? 'ইন-স্টক' : 'স্টক আউট'}</span>
             </button>
           </div>
 
-          <!-- Product Media & Details Layout -->
-          <div class="flex gap-3.5 items-start">
+          <!-- Product Media & Details Layout (Spacious) -->
+          <div class="flex gap-4 sm:gap-5 items-start">
             <!-- Product Photo with Multiple Thumbnail Switcher -->
-            <div class="shrink-0 space-y-1.5">
-              <img id="img-preview-${p.id}" src="${mainImg}" alt="${p.model_code}" class="w-24 h-28 object-cover rounded-[14px] bg-[#2C2C2E] border border-white/[0.08] shadow-sm">
-              <div class="flex items-center gap-1 justify-center">
-                <button type="button" onclick="switchCardPhoto(${p.id}, '${mainImg}')" class="w-2 h-2 rounded-full bg-white/70 hover:bg-white" title="মূল ছবি"></button>
-                ${p.detail_image_url ? `<button type="button" onclick="switchCardPhoto(${p.id}, '${p.detail_image_url}')" class="w-2 h-2 rounded-full bg-white/30 hover:bg-white" title="ডিটেইল ছবি"></button>` : ''}
-                ${p.real_image_url ? `<button type="button" onclick="switchCardPhoto(${p.id}, '${p.real_image_url}')" class="w-2 h-2 rounded-full bg-white/30 hover:bg-white" title="রিয়েল ছবি"></button>` : ''}
-              </div>
+            <div class="shrink-0 space-y-2">
+              <img id="img-preview-${p.id}" src="${mainImg}" alt="${p.model_code}" class="w-28 h-36 sm:w-32 sm:h-40 object-cover rounded-[18px] bg-[#2C2C2E] border border-white/[0.1] shadow-md transition">
+              
+              <!-- Multi-Photo Switcher Dots (Up to 8) -->
+              ${uniqueGallery.length > 1 ? `
+                <div class="flex items-center gap-1.5 justify-center flex-wrap max-w-[128px]">
+                  ${uniqueGallery.map((gUrl, gIdx) => `
+                    <button type="button" onclick="switchCardPhoto(${p.id}, '${gUrl}')" class="w-3 h-3 rounded-full bg-white/30 hover:bg-white transition" title="ছবি ${gIdx + 1}"></button>
+                  `).join('')}
+                </div>
+              ` : ''}
+              <div class="text-[11px] text-center text-[rgba(235,235,245,0.40)] font-mono font-medium">📸 ${uniqueGallery.length}টি ছবি</div>
             </div>
 
             <!-- Product Specs & Title -->
-            <div class="flex-1 min-w-0 space-y-1">
-              <h3 class="font-semibold text-white text-sm leading-snug line-clamp-2" title="${p.name}">${p.name}</h3>
+            <div class="flex-1 min-w-0 space-y-2">
+              <h3 class="font-bold text-white text-base sm:text-lg leading-snug line-clamp-2" title="${p.name}">${p.name}</h3>
               
               <!-- Pricing Engine -->
-              <div class="flex items-baseline gap-2 pt-0.5">
-                <span class="font-bold text-white text-base">৳${p.price}</span>
-                ${hasDiscount ? `<span class="text-[rgba(235,235,245,0.30)] line-through text-xs font-mono">৳${p.regular_price}</span>` : ''}
-                ${hasDiscount ? `<span class="text-[10px] text-[#30D158] font-medium bg-[#30D158]/10 px-1.5 py-0.2 rounded">ছাড়</span>` : ''}
+              <div class="flex items-baseline gap-2.5 pt-1">
+                <span class="font-extrabold text-white text-xl sm:text-2xl">৳${p.price}</span>
+                ${hasDiscount ? `<span class="text-[rgba(235,235,245,0.35)] line-through text-sm font-mono font-medium">৳${p.regular_price}</span>` : ''}
+                ${hasDiscount ? `<span class="text-xs text-[#30D158] font-semibold bg-[#30D158]/15 border border-[#30D158]/25 px-2 py-0.5 rounded-[6px]">ছাড়</span>` : ''}
               </div>
 
               <!-- Material / Fabric -->
-              <div class="text-[11px] text-[rgba(235,235,245,0.60)] flex items-center gap-1 pt-0.5">
+              <div class="text-xs sm:text-sm text-[rgba(235,235,245,0.70)] flex items-center gap-1.5 pt-1">
                 <span>✨</span>
-                <span class="truncate">${p.fabric || 'স্ট্যান্ডার্ড কোয়ালিটি'}</span>
+                <span class="truncate">${p.fabric || 'স্ট্যান্ডার্ড প্রিমিয়াম কোয়ালিটি'}</span>
               </div>
 
               <!-- Available Sizes Chips -->
-              <div class="flex items-center gap-1 flex-wrap pt-1">
-                ${sizeChips.map(sz => `<span class="text-[10px] font-mono px-2 py-0.5 rounded-[6px] bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.06]">${sz}</span>`).join('')}
+              <div class="flex items-center gap-1.5 flex-wrap pt-1.5">
+                ${sizeChips.map(sz => `<span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-[8px] bg-[#2C2C2E] text-[rgba(235,235,245,0.85)] border border-white/[0.08]">${sz}</span>`).join('')}
               </div>
             </div>
           </div>
 
           <!-- Color Swatches (if any) -->
           ${colorChips.length > 0 ? `
-            <div class="bg-[#2C2C2E] p-2.5 rounded-[14px] border border-white/[0.04] flex items-center gap-1.5 flex-wrap text-xs">
-              <span class="text-[10px] text-[rgba(235,235,245,0.30)] font-medium">রং:</span>
-              ${colorChips.map(col => `<span class="text-[11px] px-2 py-0.5 rounded-full bg-[#1C1C1E] text-white border border-white/[0.06] font-medium">${col}</span>`).join('')}
+            <div class="bg-[#2C2C2E] p-3 rounded-[16px] border border-white/[0.06] flex items-center gap-2 flex-wrap text-xs sm:text-sm">
+              <span class="text-xs text-[rgba(235,235,245,0.40)] font-semibold uppercase tracking-wider">উপলব্ধ রং:</span>
+              ${colorChips.map(col => `<span class="text-xs sm:text-sm px-3 py-1 rounded-full bg-[#1C1C1E] text-white border border-white/[0.08] font-medium">${col}</span>`).join('')}
             </div>
           ` : ''}
 
           <!-- AI Sales Intelligence Note (AI বট কাস্টমারকে যা বলবে) -->
-          <div class="bg-[#2C2C2E] p-3 rounded-[14px] border border-white/[0.06] space-y-1.5">
-            <div class="flex items-center justify-between text-[11px]">
-              <span class="font-medium text-[rgba(235,235,245,0.60)] flex items-center gap-1">
-                <span>🤖</span><span>AI বিক্রয় নোট:</span>
+          <div class="bg-[#2C2C2E] p-3.5 sm:p-4 rounded-[16px] border border-white/[0.06] space-y-2">
+            <div class="flex items-center justify-between text-xs sm:text-sm">
+              <span class="font-semibold text-[rgba(235,235,245,0.80)] flex items-center gap-1.5">
+                <span>🤖</span><span>AI বিক্রয় নোট (গ্রাহককে কনভিন্সিং তথ্য):</span>
               </span>
-              <button type="button" onclick="editAINotesPrompt(${p.id}, '${(p.short_description || '').replace(/'/g, "\\'")}')" class="text-white hover:text-white/80 text-[10px] underline font-medium cursor-pointer">
+              <button type="button" onclick="editAINotesPrompt(${p.id}, '${(p.short_description || '').replace(/'/g, "\\'")}')" class="text-white hover:underline text-xs font-semibold cursor-pointer">
                 ✏️ এডিট
               </button>
             </div>
-            <p id="ai-notes-${p.id}" class="text-xs text-[rgba(235,235,245,0.85)] leading-relaxed italic line-clamp-2">
-              ${p.short_description || 'কোনো বিশেষ নির্দেশনা দেওয়া নেই। AI স্ট্যান্ডার্ড ক্যাটালগ দেখে রিপ্লাই দেবে।'}
+            <p id="ai-notes-${p.id}" class="text-xs sm:text-sm text-[rgba(235,235,245,0.85)] leading-relaxed italic line-clamp-2">
+              ${p.short_description || 'কোনো বিশেষ নির্দেশনা দেওয়া নেই। AI স্ট্যান্ডার্ড ক্যাটালগ দেখে নিখুঁত বাংলায় উত্তর দেবে।'}
             </p>
           </div>
         </div>
 
-        <!-- Action Buttons (Apple Monochromatic Minimalist Style) -->
-        <div class="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06] text-xs mt-2">
-          <button type="button" onclick="openEditProductModalById(${p.id})" class="flex-1 bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-medium py-2 rounded-[12px] border border-white/[0.08] transition flex items-center justify-center gap-1.5 cursor-pointer">
-            <span>✏️ প্রোডাক্ট এডিট</span>
+        <!-- Action Buttons (Spacious & Clean) -->
+        <div class="flex items-center justify-between gap-3 pt-3.5 border-t border-white/[0.06] text-xs sm:text-sm mt-3">
+          <button type="button" onclick="openEditProductModalById(${p.id})" class="flex-1 bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold py-2.5 rounded-[14px] border border-white/[0.08] transition flex items-center justify-center gap-2 cursor-pointer shadow-xs">
+            <span>✏️ সম্পূর্ণ প্রোডাক্ট এডিট</span>
           </button>
-          <button type="button" onclick="deleteProductLive(${p.id}, '${p.model_code}')" class="bg-[#2C2C2E] hover:bg-[#FF453A]/20 text-[#FF453A] font-medium px-3.5 py-2 rounded-[12px] border border-[#FF453A]/20 transition flex items-center justify-center gap-1 cursor-pointer" title="মুছে ফেলুন">
+          <button type="button" onclick="openSafeDeleteModal(${p.id}, '${p.model_code}', '${p.name.replace(/'/g, "\\'")}', '${mainImg}')" class="bg-[#2C2C2E] hover:bg-[#FF453A]/20 text-[#FF453A] font-semibold px-4 py-2.5 rounded-[14px] border border-[#FF453A]/20 transition flex items-center justify-center gap-1.5 cursor-pointer" title="মুছে ফেলুন">
             <span>🗑️</span>
           </button>
         </div>
@@ -247,30 +275,30 @@ function createMerchantPortalRouter({
       const searchMeta = (o.id + ' ' + (o.model_code || '') + ' ' + (o.customer_name || '') + ' ' + (o.customer_phone || '') + ' ' + (o.address || '')).toLowerCase();
 
       return `
-      <tr class="order-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-xs" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
-        <td class="p-3.5">
-          <div class="font-mono font-medium text-white">#${o.id}</div>
-          <div class="text-[10px] text-[rgba(235,235,245,0.30)] mt-0.5">${o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) : ''}</div>
+      <tr class="order-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-sm" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
+        <td class="p-4">
+          <div class="font-mono font-bold text-white text-sm">#${o.id}</div>
+          <div class="text-xs text-[rgba(235,235,245,0.40)] mt-0.5">${o.created_at ? new Date(o.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }) : ''}</div>
         </td>
-        <td class="p-3.5">
-          <div class="font-medium text-white text-xs">${o.customer_name || 'কাস্টমার'}</div>
-          <a href="https://wa.me/${waPhone}" target="_blank" class="text-[rgba(235,235,245,0.85)] hover:text-white underline text-xs font-mono font-medium flex items-center gap-1 mt-0.5">
+        <td class="p-4">
+          <div class="font-bold text-white text-sm">${o.customer_name || 'কাস্টমার'}</div>
+          <a href="https://wa.me/${waPhone}" target="_blank" class="text-[rgba(235,235,245,0.85)] hover:text-white underline text-sm font-mono font-medium flex items-center gap-1.5 mt-0.5">
             <span>💬</span>
             <span>${o.customer_phone || ''}</span>
           </a>
         </td>
-        <td class="p-3.5 max-w-[200px]">
-          <div class="text-xs text-[rgba(235,235,245,0.60)] line-clamp-2" title="${o.address || ''}">${o.address || 'ঠিকানা দেওয়া হয়নি'}</div>
+        <td class="p-4 max-w-[220px]">
+          <div class="text-xs sm:text-sm text-[rgba(235,235,245,0.70)] line-clamp-2" title="${o.address || ''}">${o.address || 'ঠিকানা দেওয়া হয়নি'}</div>
         </td>
-        <td class="p-3.5">
-          <span class="font-mono font-medium text-white text-xs">[${o.model_code || 'PROD'}]</span>
-          <div class="text-[11px] text-[rgba(235,235,245,0.30)] mt-0.5">সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'}</div>
+        <td class="p-4">
+          <span class="font-mono font-bold text-white text-sm">[${o.model_code || 'PROD'}]</span>
+          <div class="text-xs text-[rgba(235,235,245,0.50)] mt-0.5">সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'}</div>
         </td>
-        <td class="p-3.5">
-          <span class="font-semibold text-white text-xs">৳${dueCod}</span>
+        <td class="p-4">
+          <span class="font-extrabold text-white text-base">৳${dueCod}</span>
         </td>
-        <td class="p-3.5">
-          <select onchange="updateOrderStatusLive(${o.id}, this.value)" class="text-xs font-medium rounded-[10px] px-2.5 py-1 border outline-none cursor-pointer ${
+        <td class="p-4">
+          <select onchange="updateOrderStatusLive(${o.id}, this.value)" class="text-xs sm:text-sm font-semibold rounded-[12px] px-3 py-1.5 border outline-none cursor-pointer ${
             o.status === 'Approved' ? 'bg-[#30D158]/15 text-[#30D158] border-[#30D158]/30' :
             o.status === 'Shipped' ? 'bg-white/10 text-white border-white/20' :
             o.status === 'Cancelled' ? 'bg-[#FF453A]/15 text-[#FF453A] border-[#FF453A]/30' :
@@ -282,8 +310,8 @@ function createMerchantPortalRouter({
             <option value="Cancelled" class="bg-[#1C1C1E] text-white" ${o.status === 'Cancelled' ? 'selected' : ''}>❌ Cancelled</option>
           </select>
         </td>
-        <td class="p-3.5 text-right">
-          <button type="button" onclick="copyCourierFormat(${o.id})" title="কুরিয়ার ফরম্যাট কপি" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-[11px] font-medium px-3 py-1.5 rounded-[10px] border border-white/[0.08] transition cursor-pointer">
+        <td class="p-4 text-right">
+          <button type="button" onclick="copyCourierFormat(${o.id})" title="কুরিয়ার ফরম্যাট কপি" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-[12px] border border-white/[0.08] transition cursor-pointer">
             📋 কপি
           </button>
         </td>
@@ -299,7 +327,7 @@ function createMerchantPortalRouter({
   <title>${shopName} — মার্চেন্ট কন্ট্রোল প্যানেল</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Plus Jakarta Sans", "Hind Siliguri", sans-serif;
       -webkit-font-smoothing: antialiased;
@@ -314,201 +342,247 @@ function createMerchantPortalRouter({
     }
   </style>
 </head>
-<body class="bg-[#000000] text-[rgba(235,235,245,0.60)] min-h-screen pb-24 selection:bg-white/20 selection:text-white">
+<body class="bg-[#000000] text-[rgba(235,235,245,0.70)] min-h-screen pb-24 selection:bg-white/20 selection:text-white">
   
   <!-- Apple Frosted Glass Top Navbar -->
-  <header class="apple-glass border-b border-white/[0.08] sticky top-0 z-40 px-5 py-3.5">
-    <div class="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+  <header class="apple-glass border-b border-white/[0.08] sticky top-0 z-40 px-5 sm:px-8 py-4">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
       
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-[14px] bg-[#1C1C1E] border border-white/[0.12] text-white flex items-center justify-center font-bold text-lg shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+      <div class="flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-[16px] bg-[#1C1C1E] border border-white/[0.12] text-white flex items-center justify-center font-bold text-xl shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
           🏪
         </div>
         <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-semibold text-sm sm:text-base text-white tracking-tight">${shopName}</h1>
-            <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.60)] text-[10px] font-medium px-2 py-0.5 rounded-full border border-white/[0.06]">মার্চেন্ট পোর্টাল</span>
+          <div class="flex items-center gap-2.5">
+            <h1 class="font-bold text-base sm:text-xl text-white tracking-tight">${shopName}</h1>
+            <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.70)] text-xs font-semibold px-2.5 py-0.5 rounded-full border border-white/[0.06]">মার্চেন্ট পোর্টাল</span>
           </div>
-          <div class="flex items-center gap-2 mt-0.5 text-xs text-[rgba(235,235,245,0.30)]">
+          <div class="flex items-center gap-2.5 mt-0.5 text-xs sm:text-sm text-[rgba(235,235,245,0.40)]">
             <span class="inline-flex items-center gap-1.5 ${isConnected ? 'text-[#30D158]' : 'text-[rgba(235,235,245,0.60)]'} font-medium">
-              <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-[#30D158] animate-pulse' : 'bg-[rgba(235,235,245,0.30)]'}"></span>
+              <span class="w-2 h-2 rounded-full ${isConnected ? 'bg-[#30D158] animate-pulse' : 'bg-[rgba(235,235,245,0.30)]'}"></span>
               <span>${isConnected ? 'WhatsApp বট সক্রিয় (+' + liveNum + ')' : 'বট অপেক্ষমাণ'}</span>
             </span>
             <span>•</span>
-            <span>মোট সেলস: <span class="text-white font-medium">${formatMoney(totalRevenue)}</span></span>
+            <span>মোট সেলস: <span class="text-white font-bold">${formatMoney(totalRevenue)}</span></span>
           </div>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <a href="/connect?token=${token}" target="_blank" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white/90 border border-white/[0.08] text-xs px-3 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1">
-          <span>📲 WhatsApp QR</span>
+      <div class="flex items-center gap-2.5">
+        <a href="/connect?token=${token}" target="_blank" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-[14px] border border-white/[0.08] transition flex items-center gap-1.5 shadow-xs">
+          <span>📲 WhatsApp QR লিঙ্ক</span>
         </a>
       </div>
 
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-5 py-6 space-y-6">
+  <main class="max-w-7xl mx-auto px-5 sm:px-8 py-8 space-y-8">
 
-    <!-- 4 Platform Metric Telemetry Cards (Pure White Metrics) -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">মোট প্রোডাক্ট ক্যাটালগ</div>
-        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalProducts}টি <span class="text-xs text-[#30D158] font-medium">(${inStockProducts} স্টকে)</span></div>
+    <!-- 4 Platform Metric Telemetry Cards (Large PC-friendly numbers) -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-5">
+      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট প্রোডাক্ট ক্যাটালগ</div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${totalProducts}টি <span class="text-xs sm:text-sm text-[#30D158] font-semibold">(${inStockProducts} স্টকে)</span></div>
       </div>
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">স্টক আউট আইটেম</div>
-        <div class="text-2xl font-bold ${stockOutProducts > 0 ? 'text-[#FF453A]' : 'text-white'} mt-1.5 tracking-tight">${stockOutProducts}টি</div>
+      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">স্টক আউট আইটেম</div>
+        <div class="text-2xl sm:text-3xl font-extrabold ${stockOutProducts > 0 ? 'text-[#FF453A]' : 'text-white'} mt-2 tracking-tight">${stockOutProducts}টি</div>
       </div>
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">মোট গ্রাহক অর্ডারস</div>
-        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${totalOrders}টি <span class="text-xs text-[#FF9F0A] font-medium">(${pendingOrders} পেন্ডিং)</span></div>
+      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট গ্রাহক অর্ডারস</div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${totalOrders}টি <span class="text-xs sm:text-sm text-[#FF9F0A] font-semibold">(${pendingOrders} পেন্ডিং)</span></div>
       </div>
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-        <div class="text-[rgba(235,235,245,0.30)] text-[11px] font-medium uppercase tracking-wider">মোট ইনভেন্টরি মূল্য</div>
-        <div class="text-2xl font-bold text-white mt-1.5 tracking-tight">${formatMoney(totalInventoryValue)}</div>
+      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+        <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট ইনভেন্টরি মূল্য</div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${formatMoney(totalInventoryValue)}</div>
       </div>
     </div>
 
-    <!-- Navigation Tabs (Apple Segmented Control Style) -->
-    <div class="bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[18px] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-      <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]">
+    <!-- Navigation Tabs (Apple Segmented Control Style - Larger Font) -->
+    <div class="bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[20px] flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]">
         <span>📦 প্রোডাক্টস স্টুডিও</span>
-        <span class="bg-[#3A3A3C] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">${totalProducts}</span>
+        <span class="bg-[#3A3A3C] text-white text-xs px-2.5 py-0.5 rounded-full font-bold">${totalProducts}</span>
       </button>
 
-      <button type="button" onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+      <button type="button" onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
         <span>📋 কাস্টমার অর্ডারস</span>
-        <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.30)] text-[10px] px-2 py-0.5 rounded-full font-bold">${totalOrders}</span>
+        <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.40)] text-xs px-2.5 py-0.5 rounded-full font-bold">${totalOrders}</span>
       </button>
 
-      <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
-        <span>⚙️ শপ পলিসি ও চার্জ</span>
+      <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+        <span>⚙️ অ্যাডভান্সড শপ সেটিংস ও পলিসি</span>
       </button>
     </div>
 
     <!-- TAB 1: PRODUCTS STUDIO -->
-    <section id="tab-products" class="space-y-4">
-      <div class="bg-[#1C1C1E] rounded-[24px] border border-white/[0.08] p-5.5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] space-y-4">
+    <section id="tab-products" class="space-y-6">
+      <div class="bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
         
         <!-- Search, Stock Filters & Add Product Action Bar -->
-        <div class="flex items-center justify-between border-b border-white/[0.06] pb-4 flex-wrap gap-3">
+        <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
           <div>
-            <h2 class="font-semibold text-base text-white tracking-tight flex items-center gap-2">
+            <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight flex items-center gap-2">
               <span>📦 প্রোডাক্ট ক্যাটালগ ও AI ইনভেন্টরি ম্যানেজমেন্ট</span>
             </h2>
-            <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">এখানে কোনো প্রোডাক্ট যোগ, এডিট বা স্টক পরিবর্তন করামাত্র WhatsApp AI স্বয়ংক্রিয়ভাবে আপডেট পাবে।</p>
+            <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">এখানে যেকোনো প্রোডাক্ট যোগ, এডিট বা স্টক পরিবর্তন করামাত্র WhatsApp AI তাৎক্ষণিক আপডেট পাবে।</p>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
-            <input type="text" id="prodSearch" oninput="filterProducts(this.value)" placeholder="🔍 কোড, নাম, কালার খুঁজুন..." class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs px-3.5 py-2 rounded-[12px] focus:outline-none focus:border-white/30 transition w-full sm:w-64">
+          <div class="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+            <input type="text" id="prodSearch" oninput="filterProducts(this.value)" placeholder="🔍 কোড, নাম, ফেব্রিক, কালার খুঁজুন..." class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs sm:text-sm px-4 py-2.5 rounded-[14px] focus:outline-none focus:border-white/40 transition w-full sm:w-72">
             
-            <button type="button" onclick="openAddProductModal()" class="bg-white hover:bg-[#E5E5EA] text-black font-semibold text-xs px-4 py-2 rounded-[12px] shadow-[0_2px_10px_rgba(255,255,255,0.12)] transition cursor-pointer flex items-center gap-1.5 active:scale-95">
+            <button type="button" onclick="openAddProductModal()" class="bg-white hover:bg-[#E5E5EA] text-black font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-[14px] shadow-[0_2px_12px_rgba(255,255,255,0.15)] transition cursor-pointer flex items-center gap-2 active:scale-95 shrink-0">
               <span>➕ নতুন প্রোডাক্ট যোগ করুন</span>
             </button>
           </div>
         </div>
 
         <!-- Stock Filter Buttons -->
-        <div class="flex items-center gap-2 text-xs font-medium">
-          <button type="button" onclick="filterStock('ALL')" id="filter-stock-all" class="stock-filter-btn px-3 py-1 rounded-[10px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer">সবগুলো (${totalProducts})</button>
-          <button type="button" onclick="filterStock('IN_STOCK')" id="filter-stock-instock" class="stock-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টকে আছে (${inStockProducts})</button>
-          <button type="button" onclick="filterStock('STOCK_OUT')" id="filter-stock-out" class="stock-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টক আউট (${stockOutProducts})</button>
+        <div class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold">
+          <button type="button" onclick="filterStock('ALL')" id="filter-stock-all" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer">সবগুলো (${totalProducts})</button>
+          <button type="button" onclick="filterStock('IN_STOCK')" id="filter-stock-instock" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টকে আছে (${inStockProducts})</button>
+          <button type="button" onclick="filterStock('STOCK_OUT')" id="filter-stock-out" class="stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">স্টক আউট (${stockOutProducts})</button>
         </div>
 
-        <!-- Products Grid (Apple 3-Column Responsive Grid) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5" id="productsGrid">
-          ${productCardsHtml || '<div class="col-span-full py-16 text-center text-[rgba(235,235,245,0.30)] font-medium border border-dashed border-white/[0.08] rounded-[20px]">এখনও কোনো প্রোডাক্ট যোগ করা হয়নি। উপরে "➕ নতুন প্রোডাক্ট যোগ করুন" বাটনে চাপ দিন।</div>'}
+        <!-- Products Grid (Spacious 2-column Desktop Grid: Cards do NOT stick together) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-7 lg:gap-8" id="productsGrid">
+          ${productCardsHtml || '<div class="col-span-full py-20 text-center text-[rgba(235,235,245,0.35)] font-semibold border border-dashed border-white/[0.08] rounded-[24px]">এখনও কোনো প্রোডাক্ট যোগ করা হয়নি। উপরে "➕ নতুন প্রোডাক্ট যোগ করুন" বাটনে চাপ দিন।</div>'}
         </div>
 
       </div>
     </section>
 
     <!-- TAB 2: ORDERS -->
-    <section id="tab-orders" class="hidden space-y-4">
-      <div class="bg-[#1C1C1E] rounded-[24px] border border-white/[0.08] p-5.5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] space-y-4">
-        <div class="flex items-center justify-between border-b border-white/[0.06] pb-4 flex-wrap gap-3">
+    <section id="tab-orders" class="hidden space-y-6">
+      <div class="bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
+        <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
           <div>
-            <h2 class="font-semibold text-base text-white tracking-tight">📋 কাস্টমার অর্ডারস ও ডেলিভারি পাইপলাইন</h2>
-            <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">WhatsApp AI থেকে স্বয়ংক্রিয়ভাবে সংগৃহীত কাস্টমারদের অর্ডার তালিকা।</p>
+            <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight">📋 কাস্টমার অর্ডারস ও ডেলিভারি পাইপলাইন</h2>
+            <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">WhatsApp AI থেকে স্বয়ংক্রিয়ভাবে সংগৃহীত কাস্টমারদের অর্ডার তালিকা।</p>
           </div>
-          <input type="text" id="orderSearch" oninput="filterOrders(this.value)" placeholder="🔍 নাম, ফোন, ঠিকানা খুঁজুন..." class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs px-3.5 py-2 rounded-[12px] focus:outline-none focus:border-white/30 w-full sm:w-72">
+          <input type="text" id="orderSearch" oninput="filterOrders(this.value)" placeholder="🔍 নাম, ফোন, ঠিকানা খুঁজুন..." class="bg-[#2C2C2E] border border-white/[0.08] text-white text-xs sm:text-sm px-4 py-2.5 rounded-[14px] focus:outline-none focus:border-white/40 w-full sm:w-80">
         </div>
 
         <!-- Status Filter Buttons -->
-        <div class="flex items-center gap-2 text-xs font-medium overflow-x-auto pb-1 no-scrollbar">
-          <button type="button" onclick="filterOrderStatus('ALL')" id="filter-order-all" class="order-filter-btn px-3 py-1 rounded-[10px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer">সবগুলো (${totalOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Pending')" id="filter-order-pending" class="order-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">পেন্ডিং (${pendingOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Approved')" id="filter-order-approved" class="order-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">অ্যাপ্রুভড (${approvedOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Shipped')" id="filter-order-shipped" class="order-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">শিপড (${shippedOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Cancelled')" id="filter-order-cancelled" class="order-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">বাতিল (${cancelledOrders})</button>
+        <div class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold overflow-x-auto pb-1 no-scrollbar">
+          <button type="button" onclick="filterOrderStatus('ALL')" id="filter-order-all" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer">সবগুলো (${totalOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Pending')" id="filter-order-pending" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">পেন্ডিং (${pendingOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Approved')" id="filter-order-approved" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">অ্যাপ্রুভড (${approvedOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Shipped')" id="filter-order-shipped" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">শিপড (${shippedOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Cancelled')" id="filter-order-cancelled" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">বাতিল (${cancelledOrders})</button>
         </div>
 
         <!-- Orders Table -->
-        <div class="overflow-x-auto border border-white/[0.06] rounded-[16px]">
-          <table class="w-full text-left text-[rgba(235,235,245,0.60)] text-xs">
-            <thead class="bg-[#2C2C2E] text-[rgba(235,235,245,0.30)] font-medium border-b border-white/[0.06]">
+        <div class="overflow-x-auto border border-white/[0.06] rounded-[20px]">
+          <table class="w-full text-left text-[rgba(235,235,245,0.70)] text-sm">
+            <thead class="bg-[#2C2C2E] text-[rgba(235,235,245,0.40)] font-semibold border-b border-white/[0.06]">
               <tr>
-                <th class="p-3.5">অর্ডার ID</th>
-                <th class="p-3.5">কাস্টমার</th>
-                <th class="p-3.5">ঠিকানা</th>
-                <th class="p-3.5">মডেল ও সাইজ</th>
-                <th class="p-3.5">Due COD</th>
-                <th class="p-3.5">স্ট্যাটাস</th>
-                <th class="p-3.5 text-right">কুরিয়ার টেক্সট</th>
+                <th class="p-4">অর্ডার ID</th>
+                <th class="p-4">কাস্টমার</th>
+                <th class="p-4">ঠিকানা</th>
+                <th class="p-4">মডেল ও সাইজ</th>
+                <th class="p-4">Due COD</th>
+                <th class="p-4">স্ট্যাটাস</th>
+                <th class="p-4 text-right">কুরিয়ার টেক্সট</th>
               </tr>
             </thead>
             <tbody id="ordersTableBody">
-              ${orderRowsHtml || '<tr><td colspan="7" class="p-8 text-center text-[rgba(235,235,245,0.30)] font-medium">এখনও কোনো অর্ডার আসেনি।</td></tr>'}
+              ${orderRowsHtml || '<tr><td colspan="7" class="p-10 text-center text-[rgba(235,235,245,0.35)] font-semibold">এখনও কোনো অর্ডার আসেনি।</td></tr>'}
             </tbody>
           </table>
         </div>
       </div>
     </section>
 
-    <!-- TAB 3: SETTINGS -->
-    <section id="tab-settings" class="hidden space-y-4">
-      <div class="bg-[#1C1C1E] rounded-[24px] border border-white/[0.08] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.4)] max-w-2xl mx-auto space-y-5">
-        <div class="border-b border-white/[0.06] pb-3.5">
-          <h2 class="font-semibold text-base text-white tracking-tight">⚙️ শপ সেটিংস ও ডেলিভারি পলিসি</h2>
-          <p class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">WhatsApp AI স্বয়ংক্রিয়ভাবে কাস্টমারকে এই ডেলিভারি চার্জ ও পেমেন্ট নম্বর জানাবে।</p>
+    <!-- TAB 3: ADVANCED SETTINGS -->
+    <section id="tab-settings" class="hidden space-y-6">
+      <div class="bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] max-w-3xl mx-auto space-y-6">
+        <div class="border-b border-white/[0.06] pb-4">
+          <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight">⚙️ অ্যাডভান্সড শপ সেটিংস ও পলিসি ইঞ্জিন</h2>
+          <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">WhatsApp AI স্বয়ংক্রিয়ভাবে গ্রাহকের সাথে কথা বলার সময় এই নিয়ম, অফার ও চার্জগুলো অনুসরণ করবে।</p>
         </div>
 
-        <form onsubmit="saveMerchantSettingsLive(event)" class="space-y-4">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🚚 ঢাকা ভেতরে ডেলিভারি চার্জ (টাকা)</label>
-              <input type="number" id="set_inside_fee" value="${curSettings.inside_dhaka_fee}" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-semibold p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+        <form onsubmit="saveMerchantSettingsLive(event)" class="space-y-6">
+          
+          <!-- Section 1: Delivery Charges & Free Shipping -->
+          <div class="space-y-3.5">
+            <h3 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+              <span>🚚</span><span>ডেলিভারি চার্জ ও ফ্রি ডেলিভারি শর্ত</span>
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ঢাকা ভেতরে ডেলিভারি চার্জ (টাকা)</label>
+                <input type="number" id="set_inside_fee" value="${curSettings.inside_dhaka_fee}" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-base font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ঢাকা বাইরে ডেলিভারি চার্জ (টাকা)</label>
+                <input type="number" id="set_outside_fee" value="${curSettings.outside_dhaka_fee}" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-base font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
+              </div>
             </div>
+
             <div>
-              <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🚛 ঢাকা বাইরে ডেলিভারি চার্জ (টাকা)</label>
-              <input type="number" id="set_outside_fee" value="${curSettings.outside_dhaka_fee}" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-semibold p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+              <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">🎉 ফ্রি ডেলিভারি শর্ত (ন্যূনতম অর্ডারের পরিমাণ, ৳)</label>
+              <input type="number" id="set_free_delivery_min" value="${curSettings.free_delivery_min_amount || ''}" placeholder="যেমন: 3000 (৩০০০ টাকার বেশি অর্ডারে ডেলিভারি ফ্রি)" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
+              <span class="text-xs text-[rgba(235,235,245,0.40)] mt-1 block">গ্রাহকের মোট অর্ডার এই টাকার বেশি হলে AI অটোমেটিক ডেলিভারি চার্জ ০ করে দেবে। খালি রাখলে কোনো শর্ত থাকবে না।</span>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">📱 বিকাশ নাম্বার</label>
-              <input type="text" id="set_bkash" value="${curSettings.bkash_number || ''}" placeholder="যেমন: 017XXXXXXXX" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-mono font-medium p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+          <!-- Section 2: Payments & Risk Guard -->
+          <div class="space-y-3.5 pt-4 border-t border-white/[0.06]">
+            <h3 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+              <span>🛡️</span><span>পেমেন্ট ও ফেক অর্ডার প্রটেকশন (COD Fraud Guard)</span>
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">📱 বিকাশ নাম্বার</label>
+                <input type="text" id="set_bkash" value="${curSettings.bkash_number || ''}" placeholder="যেমন: 017XXXXXXXX" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-mono font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">📱 নগদ নাম্বার</label>
+                <input type="text" id="set_nagad" value="${curSettings.nagad_number || ''}" placeholder="যেমন: 018XXXXXXXX" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-mono font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">📱 নগদ নাম্বার</label>
-              <input type="text" id="set_nagad" value="${curSettings.nagad_number || ''}" placeholder="যেমন: 018XXXXXXXX" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-mono font-medium p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+
+            <!-- Advance Fee Toggle for Outside Dhaka -->
+            <div class="bg-[#2C2C2E] p-4 rounded-[16px] border border-white/[0.06] flex items-center justify-between gap-4">
+              <div>
+                <div class="font-bold text-sm text-white">ঢাকার বাইরে ডেলিভারি চার্জ অগ্রিম গ্রহণের নিয়ম</div>
+                <div class="text-xs text-[rgba(235,235,245,0.50)] mt-0.5">সক্রিয় থাকলে AI ঢাকার বাইরের গ্রাহকদের বলবে: "অর্ডার নিশ্চিত করতে ডেলিভারি চার্জ অগ্রিম বিকাশ করুন।"</div>
+              </div>
+              <input type="checkbox" id="set_require_advance" ${extra.require_advance_outside ? 'checked' : ''} class="w-5 h-5 accent-white cursor-pointer">
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🎁 বিশেষ অফার / কম্বো ছাড়</label>
-            <input type="text" id="set_promo_offer" value="${curSettings.promo_offer || ''}" placeholder="যেমন: ২টি নিলে ডেলিভারি চার্জ ফ্রি!" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+          <!-- Section 3: AI Persona & Conversation Tone -->
+          <div class="space-y-3.5 pt-4 border-t border-white/[0.06]">
+            <h3 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+              <span>🤖</span><span>WhatsApp AI পার্সোনা ও ওয়েলকাম মেসেজ</span>
+            </h3>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">AI এজেন্টের নাম</label>
+                <input type="text" id="set_bot_name" value="${curSettings.bot_persona_name || 'AI ইনচার্জ'}" required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ডেলিভারি সময়সীমা</label>
+                <input type="text" id="set_delivery_time" value="${extra.delivery_timeline || '২-৩ কার্যদিবস'}" placeholder="যেমন: ২-৩ দিন" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">🎁 বিশেষ অফার / কম্বো প্রমো টেক্সট</label>
+              <input type="text" id="set_promo_offer" value="${curSettings.promo_offer || ''}" placeholder="যেমন: ২টি আবায়া নিলে বিশেষ ১০০ টাকা ছাড়!" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
+            </div>
+
+            <div>
+              <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">🔄 রিটার্ন ও এক্সচেঞ্জ পলিসি (AI গ্রাহককে বলবে)</label>
+              <textarea id="set_return_policy" rows="2" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none leading-relaxed">${curSettings.return_policy || 'ডেলিভারি ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।'}</textarea>
+            </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🔄 রিটার্ন ও এক্সচেঞ্জ পলিসি (AI গ্রাহককে বলবে)</label>
-            <textarea id="set_return_policy" rows="2" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] focus:border-white/30 outline-none">${curSettings.return_policy || 'ডেলিভারি ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।'}</textarea>
-          </div>
-
-          <button type="submit" id="saveSettingsBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black text-xs font-semibold py-3 rounded-[14px] shadow-[0_2px_12px_rgba(255,255,255,0.12)] transition cursor-pointer active:scale-98">
+          <button type="submit" id="saveSettingsBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black text-sm font-bold py-3.5 rounded-[16px] shadow-[0_2px_14px_rgba(255,255,255,0.15)] transition cursor-pointer active:scale-98">
             💾 সেটিংস সেভ করুন
           </button>
         </form>
@@ -518,109 +592,120 @@ function createMerchantPortalRouter({
   </main>
 
   <!-- ======================================================== -->
-  <!-- SOURCE-FULL PRODUCT STUDIO MODAL (ADD & EDIT)           -->
+  <!-- SOURCE-FULL PRODUCT STUDIO MODAL (WITH 5-8 PHOTO UPLOAD) -->
   <!-- ======================================================== -->
   <div id="productStudioModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-[#1C1C1E] border border-white/[0.12] rounded-[28px] max-w-xl w-full p-6 shadow-[0_20px_60px_rgba(0,0,0,0.8)] space-y-4 max-h-[92vh] overflow-y-auto">
+    <div class="bg-[#1C1C1E] border border-white/[0.12] rounded-[30px] max-w-2xl w-full p-6 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,0.85)] space-y-5 max-h-[92vh] overflow-y-auto">
       
-      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3.5">
-        <h3 id="modalTitle" class="font-semibold text-white text-base tracking-tight">✨ প্রোডাক্ট স্টুডিও</h3>
-        <button type="button" onclick="closeProductStudioModal()" class="w-8 h-8 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-[rgba(235,235,245,0.60)] hover:text-white font-bold cursor-pointer transition">✕</button>
+      <div class="flex items-center justify-between border-b border-white/[0.06] pb-4">
+        <h3 id="modalTitle" class="font-bold text-white text-lg tracking-tight">✨ প্রোডাক্ট স্টুডিও</h3>
+        <button type="button" onclick="closeProductStudioModal()" class="w-9 h-9 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-[rgba(235,235,245,0.70)] hover:text-white font-bold cursor-pointer transition">✕</button>
       </div>
 
-      <form id="productStudioForm" onsubmit="handleProductStudioSubmit(event)" class="space-y-3.5">
+      <form id="productStudioForm" onsubmit="handleProductStudioSubmit(event)" class="space-y-5">
         <input type="hidden" id="studio_prod_id" value="">
 
         <!-- Basic Code & Title -->
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">মডেল কোড *</label>
-            <input type="text" id="studio_code" required placeholder="যেমন: DF-105" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-mono font-bold p-2.5 rounded-[12px] focus:border-white/30 outline-none uppercase">
+            <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">মডেল কোড *</label>
+            <input type="text" id="studio_code" required placeholder="যেমন: DF-105" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-mono font-bold p-3 rounded-[14px] focus:border-white/40 outline-none uppercase">
           </div>
           <div class="col-span-2">
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">প্রোডাক্টের নাম *</label>
-            <input type="text" id="studio_name" required placeholder="যেমন: প্রিমিয়াম দুবাই চেরি রানি আবায়া" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+            <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">প্রোডাক্টের নাম *</label>
+            <input type="text" id="studio_name" required placeholder="যেমন: প্রিমিয়াম দুবাই চেরি রানি আবায়া" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-medium p-3 rounded-[14px] focus:border-white/40 outline-none">
           </div>
         </div>
 
         <!-- Pricing Engine: Regular Price & Offer Price -->
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">বিক্রয় মূল্য (টাকা) *</label>
-            <input type="number" id="studio_price" required placeholder="যেমন: 1850" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-bold p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+            <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">বিক্রয় মূল্য (টাকা) *</label>
+            <input type="number" id="studio_price" required placeholder="যেমন: 1850" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-base font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
           </div>
           <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">রেগুলার মূল্য (MRP)</label>
-            <input type="number" id="studio_regular_price" placeholder="যেমন: 2200" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+            <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">রেগুলার মূল্য (MRP)</label>
+            <input type="number" id="studio_regular_price" placeholder="যেমন: 2200" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
           </div>
           <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">স্টক সংখ্যা (পিস)</label>
-            <input type="number" id="studio_stock_qty" value="25" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+            <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">স্টক সংখ্যা (পিস)</label>
+            <input type="number" id="studio_stock_qty" value="25" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
           </div>
         </div>
 
         <!-- Sizes & Quick Presets -->
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="text-xs font-medium text-[rgba(235,235,245,0.60)]">সাইজসমূহ (কমা দিয়ে লিখুন)</label>
-            <div class="flex items-center gap-1.5 text-[10px]">
-              <span class="text-[rgba(235,235,245,0.30)]">প্রিসেট:</span>
-              <button type="button" onclick="setPresetSizes('৫০, ৫২, ৫৪, ৫৬')" class="text-white hover:underline cursor-pointer">আবায়া (৫০-৫৬)</button>
+          <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+            <label class="text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)]">সাইজসমূহ (কমা দিয়ে লিখুন)</label>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-[rgba(235,235,245,0.40)]">প্রিসেট:</span>
+              <button type="button" onclick="setPresetSizes('৫০, ৫২, ৫৪, ৫৬')" class="text-white hover:underline cursor-pointer font-medium">আবায়া (৫০-৫৬)</button>
               <span>•</span>
-              <button type="button" onclick="setPresetSizes('৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪')" class="text-white hover:underline cursor-pointer">জুতা (৩৯-৪৪)</button>
+              <button type="button" onclick="setPresetSizes('৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪')" class="text-white hover:underline cursor-pointer font-medium">জুতা (৩৯-৪৪)</button>
               <span>•</span>
-              <button type="button" onclick="setPresetSizes('স্ট্যান্ডার্ড সাইজ')" class="text-white hover:underline cursor-pointer">ফ্রি সাইজ</button>
+              <button type="button" onclick="setPresetSizes('স্ট্যান্ডার্ড সাইজ')" class="text-white hover:underline cursor-pointer font-medium">ফ্রি সাইজ</button>
             </div>
           </div>
-          <input type="text" id="studio_sizes" placeholder="যেমন: ৫০, ৫২, ৫৪, ৫৬" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-medium p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+          <input type="text" id="studio_sizes" placeholder="যেমন: ৫০, ৫২, ৫৪, ৫৬" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm font-medium p-3 rounded-[14px] focus:border-white/40 outline-none">
         </div>
 
         <!-- Colors & Fabric -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">কালার ভ্যারিয়েন্ট (কমা দিয়ে)</label>
-            <input type="text" id="studio_colors" placeholder="যেমন: জেট ব্ল্যাক, চকোলেট ব্রাউন, কফি" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+            <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">কালার ভ্যারিয়েন্ট (কমা দিয়ে)</label>
+            <input type="text" id="studio_colors" placeholder="যেমন: জেট ব্ল্যাক, চকোলেট ব্রাউন" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
           </div>
           <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">ফেব্রিক / উপাদান</label>
-            <input type="text" id="studio_fabric" placeholder="যেমন: অরিজিনাল দুবাই চেরি / জেনুইন লেদার" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/30 outline-none">
+            <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ফেব্রিক / উপাদান</label>
+            <input type="text" id="studio_fabric" placeholder="যেমন: দুবাই চেরি / কাউ লেদার" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
           </div>
         </div>
 
         <!-- AI Sales Intelligence Guideline -->
         <div>
-          <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🤖 AI বিক্রয় নির্দেশিকা (গ্রাহককে কনভিন্স করার বিশেষ পয়েন্ট)</label>
-          <textarea id="studio_ai_notes" rows="2" placeholder="যেমন: কাপড়ে কুঁচকে যায় না, ধোয়ার পর কালার ফেইড হবে না। কাস্টমার দামাদামি করলে ১০০ টাকা ছাড় দিতে পারবে।" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/30 outline-none leading-relaxed"></textarea>
+          <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">🤖 AI বিক্রয় নির্দেশিকা (গ্রাহককে কনভিন্স করার বিশেষ পয়েন্ট)</label>
+          <textarea id="studio_ai_notes" rows="2" placeholder="যেমন: কাপড়ে কুঁচকে যায় না, ধোয়ার পর কালার ফেইড হবে না। কাস্টমার দামাদামি করলে ১০০ টাকা ছাড় দিতে পারবে।" class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none leading-relaxed"></textarea>
         </div>
 
-        <!-- Image URLs with Live Preview -->
-        <div class="space-y-2">
+        <!-- DIRECT PHOTO UPLOAD STUDIO: MIN 5, MAX 8 PHOTOS -->
+        <div class="bg-[#2C2C2E] p-5 rounded-[20px] border border-white/[0.08] space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <div class="font-bold text-white text-sm flex items-center gap-2">
+                <span>📸</span><span>প্রোডাক্ট ফটো গ্যালারি</span>
+              </div>
+              <div class="text-xs text-[rgba(235,235,245,0.50)] mt-0.5">নিয়ম: প্রতিটি প্রোডাক্টে **ন্যূনতম ৫টি** এবং **সর্বোচ্চ ৮টি** ছবি আপলোড আবশ্যক।</div>
+            </div>
+            <div id="photoCountBadge" class="text-xs px-3 py-1 rounded-full font-bold bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30">
+              ০/৮ ছবি (কমপক্ষে আরও ৫টি ছবি দিন)
+            </div>
+          </div>
+
+          <!-- Drag & Drop / File Input Dropzone -->
+          <div onclick="document.getElementById('studio_file_input').click()" class="border-2 border-dashed border-white/[0.15] hover:border-white/40 bg-[#1C1C1E] p-6 rounded-[16px] text-center cursor-pointer transition space-y-2">
+            <div class="text-3xl">📤</div>
+            <div class="text-sm font-bold text-white">ছবি আপলোড করতে এখানে ক্লিক করুন (বা ফাইল ড্রপ করুন)</div>
+            <div class="text-xs text-[rgba(235,235,245,0.50)]">পিসি অথবা মোবাইল গ্যালারি থেকে একসাথে ৫ থেকে ৮টি ছবি সিলেক্ট করুন (JPG, PNG, WEBP)</div>
+          </div>
+          <input type="file" id="studio_file_input" multiple accept="image/*" class="hidden" onchange="handleStudioFilesUpload(this.files)">
+
+          <!-- Live Thumbnails Grid (Slots 1 to 8) -->
+          <div id="studioPhotosGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
+            <!-- Dynamic thumbnails injected by JS -->
+          </div>
+
+          <!-- Quick URL fallback if user prefers pasting -->
           <div>
-            <label class="block text-xs font-medium text-[rgba(235,235,245,0.60)] mb-1">🖼️ মূল ছবির সরাসরি URL *</label>
-            <input type="url" id="studio_img_main" oninput="previewStudioPhoto(this.value)" placeholder="https://..." required class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-mono p-2.5 rounded-[12px] focus:border-white/30 outline-none">
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[11px] font-medium text-[rgba(235,235,245,0.60)] mb-1">🔎 ক্লোজ-আপ / ডিটেইল ছবি URL</label>
-              <input type="url" id="studio_img_detail" placeholder="https://..." class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-mono p-2 rounded-[10px] focus:border-white/30 outline-none">
-            </div>
-            <div>
-              <label class="block text-[11px] font-medium text-[rgba(235,235,245,0.60)] mb-1">📸 রিয়েল লাইট ছবি URL</label>
-              <input type="url" id="studio_img_real" placeholder="https://..." class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs font-mono p-2 rounded-[10px] focus:border-white/30 outline-none">
-            </div>
-          </div>
-
-          <!-- Photo Live Preview Box -->
-          <div id="studioPhotoPreviewContainer" class="hidden bg-[#2C2C2E] p-2 rounded-[14px] border border-white/[0.06] flex items-center gap-3">
-            <img id="studioPhotoPreviewImg" src="" alt="preview" class="w-14 h-16 object-cover rounded-[10px] border border-white/[0.1]">
-            <div class="text-[11px] text-[rgba(235,235,245,0.60)]">
-              <span>✅ ছবির প্রিভিউ পাওয়া গেছে।</span>
+            <button type="button" onclick="document.getElementById('manualUrlBox').classList.toggle('hidden')" class="text-xs text-[rgba(235,235,245,0.50)] hover:text-white underline font-medium cursor-pointer">
+              🔗 সরাসরি ছবির লিঙ্ক (URL) পেস্ট করতে চান?
+            </button>
+            <div id="manualUrlBox" class="hidden mt-2 space-y-2">
+              <input type="url" id="studio_img_main" placeholder="মূল ছবির লিঙ্ক https://..." class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[10px] outline-none">
             </div>
           </div>
         </div>
 
-        <button type="submit" id="studioSubmitBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black font-semibold text-xs py-3 rounded-[14px] transition cursor-pointer shadow-[0_2px_12px_rgba(255,255,255,0.12)] active:scale-98 mt-2">
+        <button type="submit" id="studioSubmitBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black font-bold text-sm sm:text-base py-3.5 rounded-[16px] transition cursor-pointer shadow-[0_2px_14px_rgba(255,255,255,0.15)] active:scale-98">
           💾 প্রোডাক্ট সংরক্ষণ করুন
         </button>
       </form>
@@ -628,17 +713,70 @@ function createMerchantPortalRouter({
     </div>
   </div>
 
-  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+  <!-- ======================================================== -->
+  <!-- 3-STEP SAFE PRODUCT DELETION MODAL                       -->
+  <!-- ======================================================== -->
+  <div id="safeDeleteModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[#1C1C1E] border border-[#FF453A]/30 rounded-[28px] max-w-md w-full p-6 sm:p-7 shadow-[0_24px_70px_rgba(255,69,58,0.25)] space-y-5 text-center">
+      
+      <div class="w-14 h-14 mx-auto rounded-full bg-[#FF453A]/15 border border-[#FF453A]/30 flex items-center justify-center text-2xl text-[#FF453A]">
+        ⚠️
+      </div>
+
+      <div class="space-y-1.5">
+        <h3 class="font-extrabold text-white text-lg">পণ্য স্থায়ীভাবে মুছে ফেলার সতর্কতা</h3>
+        <p class="text-xs text-[rgba(235,235,245,0.60)] leading-relaxed">
+          এই প্রোডাক্টটি মুছে ফেললে ডাটাবেজ থেকে সম্পূর্ণ ডিলিট হবে এবং WhatsApp AI আর এই পণ্যের অর্ডার নিতে পারবে না।
+        </p>
+      </div>
+
+      <!-- Product Preview Snippet -->
+      <div class="bg-[#2C2C2E] p-3.5 rounded-[18px] border border-white/[0.06] flex items-center gap-3.5 text-left">
+        <img id="delProdImg" src="" alt="preview" class="w-14 h-16 object-cover rounded-[12px] bg-[#1C1C1E] shrink-0 border border-white/[0.1]">
+        <div class="min-w-0 flex-1">
+          <span id="delProdCode" class="font-mono font-bold text-xs bg-[#1C1C1E] text-white px-2 py-0.5 rounded border border-white/[0.08]"></span>
+          <h4 id="delProdName" class="font-bold text-white text-sm truncate mt-1"></h4>
+        </div>
+      </div>
+
+      <!-- Safety Confirmation Step -->
+      <div class="space-y-3">
+        <div class="text-xs text-[rgba(235,235,245,0.70)]">
+          নিশ্চিত করার জন্য নিচের বাটনে ক্লিক করুন:
+        </div>
+        
+        <div class="flex items-center gap-3">
+          <button type="button" onclick="closeSafeDeleteModal()" class="flex-1 bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold py-3 rounded-[14px] text-xs sm:text-sm transition cursor-pointer">
+            ✕ বাতিল
+          </button>
+          <button type="button" id="delConfirmBtn" onclick="executeSafeDelete()" class="flex-1 bg-[#FF453A] hover:bg-[#D70015] text-white font-bold py-3 rounded-[14px] text-xs sm:text-sm transition cursor-pointer shadow-[0_2px_12px_rgba(255,69,58,0.3)]">
+            নিশ্চিত মুছুন (3s)
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 pointer-events-none"></div>
 
   <script>
     const token = '${token}';
     let currentStockFilter = 'ALL';
     let currentOrderFilter = 'ALL';
 
+    // Image Upload State (Min 5, Max 8)
+    let studioUploadedImages = [];
+
+    // Safe Deletion State
+    let pendingDeleteProdId = null;
+    let deleteCountdownTimer = null;
+    let deleteSecondsLeft = 3;
+
     function showToast(msg, isSuccess = true) {
       const c = document.getElementById('toastContainer');
       const t = document.createElement('div');
-      t.className = 'bg-[#1C1C1E] text-white border border-white/[0.12] text-xs font-medium px-4 py-3 rounded-[16px] shadow-[0_10px_30px_rgba(0,0,0,0.6)] pointer-events-auto transition transform translate-y-2 opacity-0 flex items-center gap-2';
+      t.className = 'bg-[#1C1C1E] text-white border border-white/[0.12] text-xs sm:text-sm font-semibold px-5 py-3.5 rounded-[18px] shadow-[0_10px_35px_rgba(0,0,0,0.7)] pointer-events-auto transition transform translate-y-2 opacity-0 flex items-center gap-2.5';
       t.innerHTML = (isSuccess ? '<span>🟢</span> ' : '<span>⚠️</span> ') + msg;
       c.appendChild(t);
       setTimeout(() => { t.classList.remove('translate-y-2', 'opacity-0'); }, 10);
@@ -653,13 +791,13 @@ function createMerchantPortalRouter({
       document.getElementById('tab-' + tab)?.classList.remove('hidden');
 
       document.querySelectorAll('.tab-btn').forEach(b => {
-        b.className = 'tab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white';
+        b.className = 'tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white';
       });
       const activeBtn = document.getElementById('tab-btn-' + tab);
-      if (activeBtn) activeBtn.className = 'tab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]';
+      if (activeBtn) activeBtn.className = 'tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]';
     }
 
-    // Switch Card Photo
+    // Switch Card Photo Preview
     function switchCardPhoto(prodId, url) {
       const img = document.getElementById('img-preview-' + prodId);
       if (img && url) img.src = url;
@@ -709,22 +847,158 @@ function createMerchantPortalRouter({
       }
     }
 
+    // ==========================================
+    // MULTI-PHOTO UPLOAD HANDLING (MIN 5, MAX 8)
+    // ==========================================
+    function renderStudioPhotos() {
+      const grid = document.getElementById('studioPhotosGrid');
+      const badge = document.getElementById('photoCountBadge');
+      const submitBtn = document.getElementById('studioSubmitBtn');
+      grid.innerHTML = '';
+
+      studioUploadedImages.forEach((url, idx) => {
+        const slot = document.createElement('div');
+        slot.className = 'relative group aspect-square rounded-[14px] bg-[#1C1C1E] border border-white/[0.1] overflow-hidden';
+        slot.innerHTML = '<img src="' + url + '" alt="photo ' + (idx + 1) + '" class="w-full h-full object-cover">' +
+          '<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1">' +
+            '<button type="button" onclick="removeStudioPhoto(' + idx + ')" class="w-6 h-6 rounded-full bg-[#FF453A] text-white flex items-center justify-center font-bold text-xs cursor-pointer shadow-md" title="মুছে ফেলুন">✕</button>' +
+          '</div>' +
+          '<span class="absolute bottom-1 left-1 bg-black/70 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">#' + (idx + 1) + '</span>';
+        grid.appendChild(slot);
+      });
+
+      const count = studioUploadedImages.length;
+      if (count < 5) {
+        badge.className = 'text-xs px-3 py-1 rounded-full font-bold bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30';
+        badge.innerText = count + '/৮ ছবি (কমপক্ষে আরও ' + (5 - count) + 'টি ছবি দিন)';
+      } else {
+        badge.className = 'text-xs px-3 py-1 rounded-full font-bold bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30';
+        badge.innerText = '✅ ' + count + '/৮ ছবি প্রস্তুত (অনুমোদিত)';
+      }
+    }
+
+    function removeStudioPhoto(idx) {
+      studioUploadedImages.splice(idx, 1);
+      renderStudioPhotos();
+    }
+
+    async function handleStudioFilesUpload(files) {
+      if (!files || files.length === 0) return;
+      const remainingSlots = 8 - studioUploadedImages.length;
+      if (remainingSlots <= 0) {
+        alert('সর্বোচ্চ ৮টি ছবি আপলোড করা যাবে। নতুন ছবি যোগ করার আগে কিছু ছবি ডিলিট করুন।');
+        return;
+      }
+
+      const filesToUpload = Array.from(files).slice(0, remainingSlots);
+      showToast('📤 ' + filesToUpload.length + 'টি ছবি আপলোড হচ্ছে...');
+
+      for (const file of filesToUpload) {
+        try {
+          const base64 = await readFileAsBase64(file);
+          const res = await fetch('/api/portal/upload-image?token=' + token, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: base64, filename: file.name, contentType: file.type })
+          });
+          const data = await res.json();
+          if (data.success && data.url) {
+            studioUploadedImages.push(data.url);
+            renderStudioPhotos();
+          }
+        } catch (e) {
+          console.error('Upload failed:', e);
+        }
+      }
+      showToast('✅ ছবি আপলোড সম্পন্ন হয়েছে!');
+      document.getElementById('studio_file_input').value = '';
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ==========================================
+    // 3-STEP SAFE DELETION PROTOCOL
+    // ==========================================
+    function openSafeDeleteModal(id, code, name, imgUrl) {
+      pendingDeleteProdId = id;
+      deleteSecondsLeft = 3;
+      document.getElementById('delProdCode').innerText = code;
+      document.getElementById('delProdName').innerText = name;
+      document.getElementById('delProdImg').src = imgUrl;
+
+      const btn = document.getElementById('delConfirmBtn');
+      btn.innerText = 'নিশ্চিত মুছুন (3s)';
+      btn.disabled = true;
+      btn.className = 'flex-1 bg-stone-700 text-stone-400 font-bold py-3 rounded-[14px] text-xs sm:text-sm cursor-not-allowed';
+
+      document.getElementById('safeDeleteModal').classList.remove('hidden');
+
+      if (deleteCountdownTimer) clearInterval(deleteCountdownTimer);
+      deleteCountdownTimer = setInterval(() => {
+        deleteSecondsLeft--;
+        if (deleteSecondsLeft > 0) {
+          btn.innerText = 'নিশ্চিত মুছুন (' + deleteSecondsLeft + 's)';
+        } else {
+          clearInterval(deleteCountdownTimer);
+          btn.innerText = '⚠️ হ্যাঁ, নিশ্চিতভাবে মুছে ফেলুন';
+          btn.disabled = false;
+          btn.className = 'flex-1 bg-[#FF453A] hover:bg-[#D70015] text-white font-bold py-3 rounded-[14px] text-xs sm:text-sm transition cursor-pointer shadow-[0_2px_12px_rgba(255,69,58,0.3)] active:scale-95';
+        }
+      }, 1000);
+    }
+
+    function closeSafeDeleteModal() {
+      if (deleteCountdownTimer) clearInterval(deleteCountdownTimer);
+      document.getElementById('safeDeleteModal').classList.add('hidden');
+      pendingDeleteProdId = null;
+    }
+
+    async function executeSafeDelete() {
+      if (!pendingDeleteProdId) return;
+      const id = pendingDeleteProdId;
+      closeSafeDeleteModal();
+      showToast('🗑️ প্রোডাক্ট মুছে ফেলা হচ্ছে...');
+
+      try {
+        const res = await fetch('/api/portal/delete-product?token=' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ প্রোডাক্ট সফলভাবে মুছে ফেলা হয়েছে!');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('❌ এরর: ' + data.error, false);
+        }
+      } catch (e) {
+        showToast('❌ কানেকশন সমস্যা', false);
+      }
+    }
+
     // Open Modal for Add
     function openAddProductModal() {
       document.getElementById('modalTitle').innerText = '➕ নতুন প্রোডাক্ট যোগ করুন';
       document.getElementById('studio_prod_id').value = '';
       document.getElementById('productStudioForm').reset();
-      document.getElementById('studioPhotoPreviewContainer').classList.add('hidden');
+      studioUploadedImages = [];
+      renderStudioPhotos();
       document.getElementById('productStudioModal').classList.remove('hidden');
     }
 
     // Open Modal for Edit
     async function openEditProductModalById(id) {
-      const card = document.querySelector('.prod-card[data-id="' + id + '"]');
-      if (!card) return;
-
       document.getElementById('modalTitle').innerText = '✏️ প্রোডাক্ট এডিট করুন';
       document.getElementById('studio_prod_id').value = id;
+      studioUploadedImages = [];
 
       try {
         const res = await fetch('/api/portal/get-product?token=' + token + '&id=' + id);
@@ -740,10 +1014,18 @@ function createMerchantPortalRouter({
           document.getElementById('studio_colors').value = p.colors || '';
           document.getElementById('studio_fabric').value = p.fabric || '';
           document.getElementById('studio_ai_notes').value = p.short_description || '';
-          document.getElementById('studio_img_main').value = p.image_url || '';
-          document.getElementById('studio_img_detail').value = p.detail_image_url || '';
-          document.getElementById('studio_img_real').value = p.real_image_url || '';
-          previewStudioPhoto(p.image_url);
+
+          // Populate existing photos
+          const existingGallery = [
+            p.image_url,
+            p.detail_image_url,
+            p.real_image_url,
+            p.hijab_image_url,
+            p.flare_image_url,
+            ...(p.custom_attributes?.gallery_images || [])
+          ].filter(u => typeof u === 'string' && u.trim());
+          studioUploadedImages = Array.from(new Set(existingGallery)).slice(0, 8);
+          renderStudioPhotos();
         }
       } catch (e) {}
 
@@ -754,24 +1036,25 @@ function createMerchantPortalRouter({
       document.getElementById('productStudioModal').classList.add('hidden');
     }
 
-    function previewStudioPhoto(url) {
-      const c = document.getElementById('studioPhotoPreviewContainer');
-      const img = document.getElementById('studioPhotoPreviewImg');
-      if (url && url.startsWith('http')) {
-        img.src = url;
-        c.classList.remove('hidden');
-      } else {
-        c.classList.add('hidden');
-      }
-    }
-
     function setPresetSizes(sizes) {
       document.getElementById('studio_sizes').value = sizes;
     }
 
-    // Handle Studio Submit (Add or Edit)
+    // Handle Studio Submit (Enforces Min 5, Max 8 Photos)
     async function handleProductStudioSubmit(e) {
       e.preventDefault();
+
+      // Check URL fallback if any
+      const manualUrl = document.getElementById('studio_img_main')?.value?.trim();
+      if (manualUrl && !studioUploadedImages.includes(manualUrl)) {
+        studioUploadedImages.push(manualUrl);
+      }
+
+      if (studioUploadedImages.length < 5) {
+        alert('⚠️ প্রোডাক্ট সেভ করতে ন্যূনতম ৫টি ছবি আপলোড করা আবশ্যক!\n\nবর্তমানে আছে: ' + studioUploadedImages.length + 'টি ছবি। দয়া করে আরও ' + (5 - studioUploadedImages.length) + 'টি ছবি আপলোড করুন।');
+        return;
+      }
+
       const btn = document.getElementById('studioSubmitBtn');
       btn.innerText = 'সংরক্ষণ হচ্ছে...'; btn.disabled = true;
 
@@ -789,9 +1072,7 @@ function createMerchantPortalRouter({
         colors: document.getElementById('studio_colors').value.trim(),
         fabric: document.getElementById('studio_fabric').value.trim(),
         short_description: document.getElementById('studio_ai_notes').value.trim(),
-        image_url: document.getElementById('studio_img_main').value.trim(),
-        detail_image_url: document.getElementById('studio_img_detail').value.trim(),
-        real_image_url: document.getElementById('studio_img_real').value.trim()
+        gallery_images: studioUploadedImages.slice(0, 8)
       };
 
       try {
@@ -816,36 +1097,15 @@ function createMerchantPortalRouter({
       }
     }
 
-    // Delete Product
-    async function deleteProductLive(id, code) {
-      if (!confirm('আপনি কি নিশ্চিতভাবে [' + code + '] প্রোডাক্টটি মুছে ফেলতে চান?')) return;
-      try {
-        const res = await fetch('/api/portal/delete-product?token=' + token, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('🗑️ প্রোডাক্ট মুছে ফেলা হয়েছে');
-          setTimeout(() => window.location.reload(), 800);
-        } else {
-          showToast('❌ এরর: ' + data.error, false);
-        }
-      } catch (e) {
-        showToast('❌ কানেকশন সমস্যা', false);
-      }
-    }
-
     // Filter Products
     function filterStock(type) {
       currentStockFilter = type;
       document.querySelectorAll('.stock-filter-btn').forEach(b => {
-        b.className = 'stock-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer';
+        b.className = 'stock-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer';
       });
       const active = type === 'ALL' ? 'filter-stock-all' : (type === 'IN_STOCK' ? 'filter-stock-instock' : 'filter-stock-out');
       const el = document.getElementById(active);
-      if (el) el.className = 'stock-filter-btn px-3 py-1 rounded-[10px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer';
+      if (el) el.className = 'stock-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer';
       applyProductFilters();
     }
 
@@ -866,11 +1126,11 @@ function createMerchantPortalRouter({
     function filterOrderStatus(status) {
       currentOrderFilter = status;
       document.querySelectorAll('.order-filter-btn').forEach(b => {
-        b.className = 'order-filter-btn px-3 py-1 rounded-[10px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer';
+        b.className = 'order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer';
       });
       const idMap = { 'ALL': 'filter-order-all', 'Pending': 'filter-order-pending', 'Approved': 'filter-order-approved', 'Shipped': 'filter-order-shipped', 'Cancelled': 'filter-order-cancelled' };
       const el = document.getElementById(idMap[status]);
-      if (el) el.className = 'order-filter-btn px-3 py-1 rounded-[10px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer';
+      if (el) el.className = 'order-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer';
       applyOrderFilters();
     }
 
@@ -926,8 +1186,12 @@ function createMerchantPortalRouter({
       const payload = {
         inside_dhaka_fee: document.getElementById('set_inside_fee').value,
         outside_dhaka_fee: document.getElementById('set_outside_fee').value,
+        free_delivery_min_amount: document.getElementById('set_free_delivery_min').value || 0,
         bkash_number: document.getElementById('set_bkash').value.trim(),
         nagad_number: document.getElementById('set_nagad').value.trim(),
+        require_advance_outside: document.getElementById('set_require_advance').checked,
+        bot_persona_name: document.getElementById('set_bot_name').value.trim(),
+        delivery_timeline: document.getElementById('set_delivery_time').value.trim(),
         promo_offer: document.getElementById('set_promo_offer').value.trim(),
         return_policy: document.getElementById('set_return_policy').value.trim()
       };
@@ -940,7 +1204,7 @@ function createMerchantPortalRouter({
         });
         const data = await res.json();
         if (data.success) {
-          showToast('💾 সেটিংস সফলভাবে সেভ হয়েছে!');
+          showToast('💾 অ্যাডভান্সড সেটিংস সফলভাবে সেভ হয়েছে!');
         } else {
           alert('এরর: ' + (data.error || 'সমস্যা'));
         }
@@ -958,6 +1222,57 @@ function createMerchantPortalRouter({
   // ========================================================
   // PORTAL APIS (Strictly Authenticated and Scoped by Token)
   // ========================================================
+
+  // Upload Direct Image API (Base64 -> Supabase / Local Fallback)
+  router.post('/api/portal/upload-image', async (req, res) => {
+    const token = req.query.token || req.body.token;
+    const inv = await authenticateMerchantToken(token);
+    if (!inv) return res.status(401).json({ error: 'Unauthorized token' });
+
+    try {
+      const { imageBase64, filename, contentType } = req.body;
+      if (!imageBase64) {
+        return res.status(400).json({ success: false, error: 'No image data provided' });
+      }
+
+      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(cleanBase64, 'base64');
+
+      const ext = filename ? path.extname(filename) : '.jpg';
+      const cleanExt = ext && ext.length <= 5 ? ext : '.jpg';
+      const cloudFilename = `merchant_${inv.seller_id}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${cleanExt}`;
+
+      // 1. Supabase Storage
+      try {
+        const { data, error } = await supabase.storage
+          .from('product-images')
+          .upload(cloudFilename, buffer, {
+            contentType: contentType || 'image/jpeg',
+            upsert: true
+          });
+
+        if (!error && data) {
+          const publicUrl = `${process.env.SUPABASE_URL || 'https://wqzdkredzdpqxvfrzjue.supabase.co'}/storage/v1/object/public/product-images/${cloudFilename}`;
+          return res.json({ success: true, url: publicUrl });
+        }
+      } catch (sbErr) {
+        console.warn('[Portal Upload] Supabase fallback to local:', sbErr.message);
+      }
+
+      // 2. Local Fallback in /public/uploads/
+      const uploadsDir = path.join(__dirname, 'public', 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const localFilePath = path.join(uploadsDir, cloudFilename);
+      fs.writeFileSync(localFilePath, buffer);
+      const localUrl = `/uploads/${cloudFilename}`;
+      return res.json({ success: true, url: localUrl });
+    } catch (err) {
+      console.error('[Portal Upload Exception]:', err.message);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
 
   // GET single product data for Studio Edit Modal
   router.get('/api/portal/get-product', async (req, res) => {
@@ -1015,7 +1330,7 @@ function createMerchantPortalRouter({
     return res.json({ success: true, id, ai_notes });
   });
 
-  // Add Product (Comprehensive Studio Engine)
+  // Add Product (With Multi-Photo Support 5 to 8 images)
   router.post('/api/portal/add-product', async (req, res) => {
     const token = req.query.token || req.body.token;
     const inv = await authenticateMerchantToken(token);
@@ -1031,12 +1346,15 @@ function createMerchantPortalRouter({
       sizes,
       colors,
       short_description,
-      image_url,
-      detail_image_url,
-      real_image_url
+      gallery_images
     } = req.body;
 
     if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
+
+    const gallery = Array.isArray(gallery_images) ? gallery_images.filter(Boolean).slice(0, 8) : [];
+    if (gallery.length < 5) {
+      return res.status(400).json({ error: 'ন্যূনতম ৫টি ছবি আপলোড করা আবশ্যক!' });
+    }
 
     const parsedPrice = parseFloat(price);
     const regPrice = regular_price ? parseFloat(regular_price) : parsedPrice;
@@ -1053,9 +1371,12 @@ function createMerchantPortalRouter({
       sizes: sizes ? sizes.trim() : null,
       colors: colors ? colors.trim() : null,
       short_description: short_description ? short_description.trim() : null,
-      image_url: image_url ? image_url.trim() : null,
-      detail_image_url: detail_image_url ? detail_image_url.trim() : null,
-      real_image_url: real_image_url ? real_image_url.trim() : null,
+      image_url: gallery[0] || null,
+      detail_image_url: gallery[1] || null,
+      real_image_url: gallery[2] || null,
+      hijab_image_url: gallery[3] || null,
+      flare_image_url: gallery[4] || null,
+      custom_attributes: { gallery_images: gallery },
       in_stock: true
     }).select();
 
@@ -1064,7 +1385,7 @@ function createMerchantPortalRouter({
     return res.json({ success: true, product: data?.[0] });
   });
 
-  // Edit Product (Comprehensive Studio Engine)
+  // Edit Product (With Multi-Photo Support 5 to 8 images)
   router.post('/api/portal/edit-product', async (req, res) => {
     const token = req.query.token || req.body.token;
     const inv = await authenticateMerchantToken(token);
@@ -1081,9 +1402,7 @@ function createMerchantPortalRouter({
       sizes,
       colors,
       short_description,
-      image_url,
-      detail_image_url,
-      real_image_url
+      gallery_images
     } = req.body;
 
     if (!id) return res.status(400).json({ error: 'ID is required' });
@@ -1098,9 +1417,16 @@ function createMerchantPortalRouter({
     if (sizes !== undefined) updateFields.sizes = sizes.trim();
     if (colors !== undefined) updateFields.colors = colors.trim();
     if (short_description !== undefined) updateFields.short_description = short_description.trim();
-    if (image_url !== undefined) updateFields.image_url = image_url.trim();
-    if (detail_image_url !== undefined) updateFields.detail_image_url = detail_image_url.trim();
-    if (real_image_url !== undefined) updateFields.real_image_url = real_image_url.trim();
+
+    if (Array.isArray(gallery_images) && gallery_images.length >= 5) {
+      const gallery = gallery_images.filter(Boolean).slice(0, 8);
+      updateFields.image_url = gallery[0] || null;
+      updateFields.detail_image_url = gallery[1] || null;
+      updateFields.real_image_url = gallery[2] || null;
+      updateFields.hijab_image_url = gallery[3] || null;
+      updateFields.flare_image_url = gallery[4] || null;
+      updateFields.custom_attributes = { gallery_images: gallery };
+    }
 
     const { error } = await supabase
       .from('products')
@@ -1166,13 +1492,29 @@ function createMerchantPortalRouter({
     return res.json({ success: true, text: formatCourierText(ord) });
   });
 
-  // Save Settings
+  // Save Advanced Settings
   router.post('/api/portal/save-settings', async (req, res) => {
     const token = req.query.token || req.body.token;
     const inv = await authenticateMerchantToken(token);
     if (!inv) return res.status(401).json({ error: 'Unauthorized token' });
 
-    const { inside_dhaka_fee, outside_dhaka_fee, bkash_number, nagad_number, promo_offer, return_policy } = req.body;
+    const {
+      inside_dhaka_fee,
+      outside_dhaka_fee,
+      free_delivery_min_amount,
+      bkash_number,
+      nagad_number,
+      require_advance_outside,
+      bot_persona_name,
+      delivery_timeline,
+      promo_offer,
+      return_policy
+    } = req.body;
+
+    const extra = {
+      require_advance_outside: !!require_advance_outside,
+      delivery_timeline: delivery_timeline ? delivery_timeline.trim() : '২-৩ দিন'
+    };
 
     const { error } = await supabase
       .from('store_settings')
@@ -1180,10 +1522,13 @@ function createMerchantPortalRouter({
         seller_id: inv.seller_id,
         inside_dhaka_fee: Number(inside_dhaka_fee) || 80,
         outside_dhaka_fee: Number(outside_dhaka_fee) || 150,
+        free_delivery_min_amount: free_delivery_min_amount ? Number(free_delivery_min_amount) : null,
         bkash_number: bkash_number ? bkash_number.trim() : null,
         nagad_number: nagad_number ? nagad_number.trim() : null,
+        bot_persona_name: bot_persona_name ? bot_persona_name.trim() : 'AI ইনচার্জ',
         promo_offer: promo_offer ? promo_offer.trim() : null,
-        return_policy: return_policy ? return_policy.trim() : null
+        return_policy: return_policy ? return_policy.trim() : null,
+        extra_config: extra
       });
 
     if (error) return res.status(500).json({ error: error.message });
