@@ -340,12 +340,120 @@ function createMerchantPortalRouter({
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
     }
+
+    /* Apple HIG Light Mode Overrides */
+    body.light-mode {
+      background-color: #F2F2F7 !important;
+      color: #3A3A3C !important;
+    }
+    body.light-mode header.apple-glass {
+      background-color: rgba(255, 255, 255, 0.85) !important;
+      border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-mode .bg-\[\#1C1C1E\] {
+      background-color: #FFFFFF !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    }
+    body.light-mode .bg-\[\#2C2C2E\] {
+      background-color: #F2F2F7 !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+      color: #1C1C1E !important;
+    }
+    body.light-mode .bg-\[\#3A3A3C\] {
+      background-color: #E5E5EA !important;
+      color: #1C1C1E !important;
+    }
+    body.light-mode h1,
+    body.light-mode h2,
+    body.light-mode h3,
+    body.light-mode .text-white:not(.keep-white) {
+      color: #1C1C1E !important;
+    }
+    body.light-mode .bg-\[\#FF453A\],
+    body.light-mode .bg-\[\#FF453A\] *,
+    body.light-mode .bg-\[\#30D158\],
+    body.light-mode .bg-\[\#30D158\] *,
+    body.light-mode .keep-white {
+      color: #FFFFFF !important;
+    }
+    body.light-mode .text-\[rgba\(235\,235\,245\,0\.85\)\],
+    body.light-mode .text-\[rgba\(235\,235\,245\,0\.80\)\],
+    body.light-mode .text-\[rgba\(235\,235\,245\,0\.70\)\] {
+      color: #48484A !important;
+    }
+    body.light-mode .text-\[rgba\(235\,235\,245\,0\.60\)\],
+    body.light-mode .text-\[rgba\(235\,235\,245\,0\.45\)\],
+    body.light-mode .text-\[rgba\(235\,235\,245\,0\.40\)\] {
+      color: #636366 !important;
+    }
+    body.light-mode .text-\[rgba\(235\,235\,245\,0\.35\)\] {
+      color: #8E8E93 !important;
+    }
+    body.light-mode .border-white\/\[0\.08\],
+    body.light-mode .border-white\/\[0\.06\],
+    body.light-mode .border-white\/\[0\.1\],
+    body.light-mode .border-white\/\[0\.12\] {
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-mode input,
+    body.light-mode textarea,
+    body.light-mode select {
+      background-color: #F2F2F7 !important;
+      color: #1C1C1E !important;
+      border-color: rgba(0, 0, 0, 0.12) !important;
+    }
+    body.light-mode input::placeholder,
+    body.light-mode textarea::placeholder {
+      color: #8E8E93 !important;
+    }
+    body.light-mode table thead {
+      background-color: #F2F2F7 !important;
+    }
+    body.light-mode table thead th {
+      color: #636366 !important;
+    }
+    body.light-mode table tbody td {
+      border-top-color: rgba(0, 0, 0, 0.06) !important;
+    }
+    body.light-mode .tab-btn.bg-\[\#2C2C2E\] {
+      background-color: #E5E5EA !important;
+      color: #000000 !important;
+    }
+    body.light-mode .tab-btn:not(.bg-\[\#2C2C2E\]) {
+      color: #636366 !important;
+    }
+    body.light-mode .tab-btn:not(.bg-\[\#2C2C2E\]):hover {
+      color: #000000 !important;
+    }
+    body.light-mode .order-filter-btn.bg-\[\#2C2C2E\],
+    body.light-mode .stock-filter-btn.bg-\[\#2C2C2E\] {
+      background-color: #E5E5EA !important;
+      color: #000000 !important;
+    }
+    body.light-mode button.bg-white {
+      background-color: #1C1C1E !important;
+      color: #FFFFFF !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+    }
+    body.light-mode button.bg-white * {
+      color: #FFFFFF !important;
+    }
   </style>
 </head>
-<body class="bg-[#000000] text-[rgba(235,235,245,0.70)] min-h-screen pb-24 selection:bg-white/20 selection:text-white">
+<body class="bg-[#000000] text-[rgba(235,235,245,0.70)] min-h-screen pb-24 selection:bg-white/20 selection:text-white transition-colors duration-200">
+  <script>
+    (function() {
+      try {
+        if (localStorage.getItem('autodokan_merchant_theme') === 'light') {
+          document.body.classList.add('light-mode');
+        }
+      } catch(e) {}
+    })();
+  </script>
   
   <!-- Apple Frosted Glass Top Navbar -->
-  <header class="apple-glass border-b border-white/[0.08] sticky top-0 z-40 px-5 sm:px-8 py-4">
+  <header class="apple-glass border-b border-white/[0.08] sticky top-0 z-40 px-5 sm:px-8 py-4 transition-colors duration-200">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
       
       <div class="flex items-center gap-3.5">
@@ -369,6 +477,12 @@ function createMerchantPortalRouter({
       </div>
 
       <div class="flex items-center gap-2.5">
+        <!-- Dual Mode Toggle Button (Light / Dark) -->
+        <button type="button" onclick="toggleTheme()" id="themeToggleBtn" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-[14px] border border-white/[0.08] transition flex items-center gap-2 shadow-xs cursor-pointer active:scale-95" title="থিম পরিবর্তন করুন (লাইট / ডার্ক)">
+          <span id="themeToggleIcon" class="text-sm">☀️</span>
+          <span id="themeToggleText" class="hidden sm:inline">লাইট মোড</span>
+        </button>
+
         <a href="/connect?token=${token}" target="_blank" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-[14px] border border-white/[0.08] transition flex items-center gap-1.5 shadow-xs">
           <span>📲 WhatsApp QR লিঙ্ক</span>
         </a>
@@ -772,6 +886,39 @@ function createMerchantPortalRouter({
     let pendingDeleteProdId = null;
     let deleteCountdownTimer = null;
     let deleteSecondsLeft = 3;
+
+    // ==========================================
+    // THEME ENGINE (DARK / LIGHT DUAL MODE)
+    // ==========================================
+    function initTheme() {
+      const savedTheme = localStorage.getItem('autodokan_merchant_theme') || 'dark';
+      applyTheme(savedTheme, false);
+    }
+
+    function applyTheme(theme, showNotice = false) {
+      const icon = document.getElementById('themeToggleIcon');
+      const text = document.getElementById('themeToggleText');
+      if (theme === 'light') {
+        document.body.classList.add('light-mode');
+        if (icon) icon.innerText = '🌙';
+        if (text) text.innerText = 'ডার্ক মোড';
+        if (showNotice) showToast('☀️ লাইট মোড চালু হয়েছে');
+      } else {
+        document.body.classList.remove('light-mode');
+        if (icon) icon.innerText = '☀️';
+        if (text) text.innerText = 'লাইট মোড';
+        if (showNotice) showToast('🌙 ডার্ক মোড চালু হয়েছে');
+      }
+    }
+
+    function toggleTheme() {
+      const isLight = document.body.classList.contains('light-mode');
+      const newTheme = isLight ? 'dark' : 'light';
+      localStorage.setItem('autodokan_merchant_theme', newTheme);
+      applyTheme(newTheme, true);
+    }
+
+    window.addEventListener('DOMContentLoaded', initTheme);
 
     function showToast(msg, isSuccess = true) {
       const c = document.getElementById('toastContainer');
