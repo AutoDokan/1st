@@ -137,11 +137,23 @@ function createMerchantPortalRouter({
     const totalInventoryValue = products.reduce((sum, p) => sum + ((Number(p.price) || 0) * (Number(p.stock_quantity) || 1)), 0);
 
     const totalOrders = orders.length;
-    const pendingOrders = orders.filter(o => o.status === 'Pending' || o.status === 'Pending Verification').length;
-    const approvedOrders = orders.filter(o => o.status === 'Approved').length;
-    const shippedOrders = orders.filter(o => o.status === 'Shipped').length;
-    const cancelledOrders = orders.filter(o => o.status === 'Cancelled').length;
-    const totalRevenue = orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
+    const isBooked = o => o.status === 'Pending' || o.status === 'Pending Verification' || o.status === 'Booked';
+    const isConfirmed = o => o.status === 'Approved' || o.status === 'Confirmed';
+    const isShipped = o => o.status === 'Shipped' || o.status === 'In Transit' || o.status === 'Dispatched';
+    const isDelivered = o => o.status === 'Delivered' || o.status === 'Completed';
+    const isReturned = o => o.status === 'Returned';
+    const isCancelled = o => o.status === 'Cancelled';
+
+    const bookedOrders = orders.filter(isBooked).length;
+    const confirmedOrders = orders.filter(isConfirmed).length;
+    const shippedOrders = orders.filter(isShipped).length;
+    const deliveredOrders = orders.filter(isDelivered).length;
+    const returnedOrders = orders.filter(isReturned).length;
+    const cancelledOrders = orders.filter(isCancelled).length;
+
+    const validOrders = orders.filter(o => !isCancelled(o) && !isReturned(o));
+    const totalRevenue = validOrders.reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
+    const deliveredRevenue = orders.filter(isDelivered).reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
 
     // Dynamic Sales Velocity (Today vs Last 7 Days)
     const nowMs = Date.now();
@@ -150,7 +162,6 @@ function createMerchantPortalRouter({
     const todayStartMs = todayStart.getTime();
     const sevenDaysAgoMs = nowMs - (7 * 24 * 60 * 60 * 1000);
 
-    const validOrders = orders.filter(o => o.status !== 'Cancelled');
     const todayOrders = validOrders.filter(o => {
       const t = new Date(o.created_at || o.order_date || 0).getTime();
       return t >= todayStartMs;
@@ -587,14 +598,17 @@ function createMerchantPortalRouter({
         </td>
         <td class="p-4">
           <select onchange="updateOrderStatusLive(${o.id}, this.value)" class="text-xs sm:text-sm font-semibold rounded-[12px] px-3 py-1.5 border outline-none cursor-pointer ${
-            o.status === 'Approved' ? 'bg-[#30D158]/15 text-[#30D158] border-[#30D158]/30' :
-            o.status === 'Shipped' ? 'bg-white/10 text-white border-white/20' :
-            o.status === 'Cancelled' ? 'bg-[#FF453A]/15 text-[#FF453A] border-[#FF453A]/30' :
+            (o.status === 'Approved' || o.status === 'Confirmed') ? 'bg-[#30D158]/15 text-[#30D158] border-[#30D158]/30' :
+            (o.status === 'Shipped' || o.status === 'In Transit') ? 'bg-sky-500/15 text-sky-400 border-sky-500/30' :
+            (o.status === 'Delivered' || o.status === 'Completed') ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' :
+            (o.status === 'Cancelled' || o.status === 'Returned') ? 'bg-[#FF453A]/15 text-[#FF453A] border-[#FF453A]/30' :
             'bg-[#FF9F0A]/15 text-[#FF9F0A] border-[#FF9F0A]/30'
           }">
-            <option value="Pending" class="bg-[#1C1C1E] text-white" ${o.status === 'Pending' || o.status === 'Pending Verification' ? 'selected' : ''}>⏳ Pending</option>
-            <option value="Approved" class="bg-[#1C1C1E] text-white" ${o.status === 'Approved' ? 'selected' : ''}>✅ Approved</option>
-            <option value="Shipped" class="bg-[#1C1C1E] text-white" ${o.status === 'Shipped' ? 'selected' : ''}>🚚 Shipped</option>
+            <option value="Booked" class="bg-[#1C1C1E] text-white" ${(o.status === 'Booked' || o.status === 'Pending' || o.status === 'Pending Verification') ? 'selected' : ''}>📦 Booked</option>
+            <option value="Approved" class="bg-[#1C1C1E] text-white" ${(o.status === 'Approved' || o.status === 'Confirmed') ? 'selected' : ''}>✅ Confirmed</option>
+            <option value="Shipped" class="bg-[#1C1C1E] text-white" ${(o.status === 'Shipped' || o.status === 'In Transit') ? 'selected' : ''}>🚚 Shipped</option>
+            <option value="Delivered" class="bg-[#1C1C1E] text-white" ${(o.status === 'Delivered' || o.status === 'Completed') ? 'selected' : ''}>🎉 Delivered</option>
+            <option value="Returned" class="bg-[#1C1C1E] text-white" ${o.status === 'Returned' ? 'selected' : ''}>↩️ Returned</option>
             <option value="Cancelled" class="bg-[#1C1C1E] text-white" ${o.status === 'Cancelled' ? 'selected' : ''}>❌ Cancelled</option>
           </select>
         </td>
@@ -906,43 +920,46 @@ function createMerchantPortalRouter({
       <!-- Card 1: Catalog & Stock Inventory -->
       <div onclick="switchTab('products')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer transition group/c1">
         <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">ক্যাটালগ ও স্টক</span>
+          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">ক্যাটালগ ও লাইভ স্টক</span>
           <span class="w-8 h-8 rounded-full bg-[#30D158]/15 text-[#30D158] flex items-center justify-center text-sm">📦</span>
         </div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalProducts}টি <span class="text-xs sm:text-sm font-sans text-[#30D158] font-bold">(${inStockProducts} স্টকে)</span></div>
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalProducts}টি আইটেম</div>
         <div class="flex items-center gap-2 mt-2 flex-wrap text-[11px]">
-          <span class="text-[#30D158] font-medium">${lowStockProducts > 0 ? `⚠️ ${lowStockProducts}টি লো-স্টক` : '✅ সব স্টকে'}</span>
-          ${stockOutProducts > 0 ? `<span class="text-[#FF453A] font-bold">● ${stockOutProducts}টি শেষ</span>` : ''}
+          <span class="text-[#30D158] font-bold">● ${inStockProducts}টি সক্রিয় ইন-স্টক</span>
+          ${lowStockProducts > 0 ? `<span class="text-[#FF9F0A] font-semibold">⚠️ ${lowStockProducts}টি লো-স্টক</span>` : ''}
+          ${stockOutProducts > 0 ? `<span class="text-[#FF453A] font-semibold">● ${stockOutProducts}টি শেষ</span>` : ''}
         </div>
       </div>
 
-      <!-- Card 2: Orders & Pipeline -->
+      <!-- Card 2: Orders & Pipeline (Booked, Confirmed, Shipped, Delivered) -->
       <div onclick="switchTab('orders')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer transition group/c2">
         <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">গ্রাহক অর্ডারস</span>
+          <span class="text-[rgba(235,235,245,0.50)] text-xs sm:text-sm font-semibold uppercase tracking-wider">অর্ডার লাইফসাইকেল</span>
           <span class="w-8 h-8 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center text-sm">📋</span>
         </div>
-        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalOrders}টি <span class="text-xs sm:text-sm font-sans text-[#FF9F0A] font-bold">(${pendingOrders} পেন্ডিং)</span></div>
-        <div class="flex items-center gap-2 mt-2 flex-wrap text-[11px] text-[rgba(235,235,245,0.50)]">
-          <span>✓ ${approvedOrders + shippedOrders} কনফার্মড</span>
-          ${cancelledOrders > 0 ? `<span class="text-[rgba(235,235,245,0.40)]">● ${cancelledOrders} বাতিল</span>` : ''}
+        <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">${totalOrders}টি অর্ডার</div>
+        <div class="flex items-center gap-1.5 mt-2 flex-wrap text-[10px] sm:text-[11px]">
+          <span class="px-2 py-0.5 rounded-[6px] bg-[#FF9F0A]/15 text-[#FF9F0A] font-bold border border-[#FF9F0A]/20">📦 ${bookedOrders} বুকড</span>
+          <span class="px-2 py-0.5 rounded-[6px] bg-[#30D158]/15 text-[#30D158] font-bold border border-[#30D158]/20">✓ ${confirmedOrders} কনফার্মড</span>
+          <span class="px-2 py-0.5 rounded-[6px] bg-sky-500/15 text-sky-400 font-bold border border-sky-500/20">🚚 ${shippedOrders} শিপড</span>
+          <span class="px-2 py-0.5 rounded-[6px] bg-purple-500/15 text-purple-300 font-bold border border-purple-500/20">🎉 ${deliveredOrders} ডেলিভার্ড</span>
         </div>
       </div>
 
       <!-- Card 3: Sales Revenue (Interactive Today / 7-Day History) -->
-      <div onclick="openSalesHistoryModal()" class="metric-card bg-[#1C1C1E] border border-emerald-500/30 hover:border-emerald-500/60 p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(48,209,88,0.15)] cursor-pointer transition group/c3 relative overflow-hidden" title="ক্লিক করে আজকের ও গত ৭ দিনের সেলস হিস্ট্রি দেখুন">
+      <div onclick="openSalesHistoryModal()" class="metric-card bg-[#1C1C1E] border border-emerald-500/30 hover:border-emerald-500/60 p-5 sm:p-6 rounded-[24px] shadow-[0_4px_24px_rgba(48,209,88,0.15)] cursor-pointer transition group/c3 relative overflow-hidden" title="ক্লিক করে আজকের ও সেলস হিস্ট্রি দেখুন">
         <div class="flex items-center justify-between">
           <span class="text-emerald-400 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
             <span>💰</span><span>মোট বিক্রয় রেভিনিউ</span>
           </span>
           <span class="text-[10px] bg-[#30D158]/20 text-[#30D158] font-bold px-2 py-0.5 rounded-full border border-[#30D158]/30 flex items-center gap-1 group-hover/c3:bg-[#30D158] group-hover/c3:text-black transition">
-            <span>📊 হিস্ট্রি</span>
+            <span>📊 অ্যানালিটিক্স</span>
           </span>
         </div>
         <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight font-mono">৳${formatMoney(totalRevenue)}</div>
         <div class="flex items-center justify-between gap-1 mt-2 text-[11px] flex-wrap">
-          <span class="text-emerald-400 font-semibold">আজকে: ৳${Number(todayRevenue).toLocaleString('en-IN')} (${todayOrders.length})</span>
-          <span class="text-[rgba(235,235,245,0.45)]">৭ দিনে: ৳${Number(last7DaysRevenue).toLocaleString('en-IN')}</span>
+          <span class="text-emerald-400 font-semibold">আজকে: ৳${Number(todayRevenue).toLocaleString('en-IN')} (${todayOrders.length}টি)</span>
+          <span class="text-[rgba(235,235,245,0.55)] font-medium">${(last7DaysRevenue < totalRevenue && last7DaysRevenue > 0) ? `৭ দিনে: ৳${Number(last7DaysRevenue).toLocaleString('en-IN')}` : `সফল ডেলিভারি: ${deliveredOrders}টি`}</span>
         </div>
       </div>
 
@@ -1065,10 +1082,11 @@ function createMerchantPortalRouter({
         <!-- Status Filter Buttons -->
         <div class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold overflow-x-auto pb-1 no-scrollbar">
           <button type="button" onclick="filterOrderStatus('ALL')" id="filter-order-all" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer">সবগুলো (${totalOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Pending')" id="filter-order-pending" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">পেন্ডিং (${pendingOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Approved')" id="filter-order-approved" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">অ্যাপ্রুভড (${approvedOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Shipped')" id="filter-order-shipped" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">শিপড (${shippedOrders})</button>
-          <button type="button" onclick="filterOrderStatus('Cancelled')" id="filter-order-cancelled" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">বাতিল (${cancelledOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Booked')" id="filter-order-booked" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">📦 বুকড (${bookedOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Approved')" id="filter-order-approved" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">✅ কনফার্মড (${confirmedOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Shipped')" id="filter-order-shipped" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">🚚 শিপড (${shippedOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Delivered')" id="filter-order-delivered" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">🎉 ডেলিভার্ড (${deliveredOrders})</button>
+          <button type="button" onclick="filterOrderStatus('Cancelled')" id="filter-order-cancelled" class="order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer">❌ বাতিল / রিটার্ন (${cancelledOrders + returnedOrders})</button>
         </div>
 
         <!-- Orders Table -->
@@ -2782,7 +2800,15 @@ function createMerchantPortalRouter({
       document.querySelectorAll('.order-filter-btn').forEach(b => {
         b.className = 'order-filter-btn px-4 py-1.5 rounded-[12px] bg-transparent text-[rgba(235,235,245,0.60)] hover:text-white border border-transparent cursor-pointer';
       });
-      const idMap = { 'ALL': 'filter-order-all', 'Pending': 'filter-order-pending', 'Approved': 'filter-order-approved', 'Shipped': 'filter-order-shipped', 'Cancelled': 'filter-order-cancelled' };
+      const idMap = {
+        'ALL': 'filter-order-all',
+        'Booked': 'filter-order-booked',
+        'Pending': 'filter-order-booked',
+        'Approved': 'filter-order-approved',
+        'Shipped': 'filter-order-shipped',
+        'Delivered': 'filter-order-delivered',
+        'Cancelled': 'filter-order-cancelled'
+      };
       const el = document.getElementById(idMap[status]);
       if (el) el.className = 'order-filter-btn px-4 py-1.5 rounded-[12px] bg-[#2C2C2E] text-white border border-white/[0.08] cursor-pointer';
       applyOrderFilters();
@@ -2795,7 +2821,22 @@ function createMerchantPortalRouter({
       document.querySelectorAll('.order-row').forEach(r => {
         const search = r.getAttribute('data-search') || '';
         const status = r.getAttribute('data-status') || '';
-        const matchStatus = (currentOrderFilter === 'ALL') || (status === currentOrderFilter);
+        let matchStatus = false;
+        if (currentOrderFilter === 'ALL') {
+          matchStatus = true;
+        } else if (currentOrderFilter === 'Booked' || currentOrderFilter === 'Pending') {
+          matchStatus = (status === 'Pending' || status === 'Pending Verification' || status === 'Booked');
+        } else if (currentOrderFilter === 'Approved' || currentOrderFilter === 'Confirmed') {
+          matchStatus = (status === 'Approved' || status === 'Confirmed');
+        } else if (currentOrderFilter === 'Shipped') {
+          matchStatus = (status === 'Shipped' || status === 'In Transit' || status === 'Dispatched');
+        } else if (currentOrderFilter === 'Delivered') {
+          matchStatus = (status === 'Delivered' || status === 'Completed');
+        } else if (currentOrderFilter === 'Cancelled') {
+          matchStatus = (status === 'Cancelled' || status === 'Returned');
+        } else {
+          matchStatus = (status === currentOrderFilter);
+        }
         const matchSearch = !q || search.includes(q);
         r.style.display = (matchStatus && matchSearch) ? '' : 'none';
       });
@@ -2810,6 +2851,8 @@ function createMerchantPortalRouter({
         });
         const data = await res.json();
         if (data.success) {
+          const row = document.querySelector('.order-row[data-order-id="' + id + '"]');
+          if (row) row.setAttribute('data-status', status);
           showToast('✅ অর্ডার স্ট্যাটাস: ' + status);
         } else {
           showToast('❌ এরর: ' + data.error, false);
