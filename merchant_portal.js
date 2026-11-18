@@ -341,61 +341,44 @@ function createMerchantPortalRouter({
       -webkit-backdrop-filter: blur(20px) saturate(180%);
     }
 
-    /* Apple HIG Light Mode Overrides */
+    /* ========================================== */
+    /* APPLE HIG LIGHT MODE STYLES                */
+    /* ========================================== */
     body.light-mode {
       background-color: #F2F2F7 !important;
-      color: #3A3A3C !important;
+      color: #1C1C1E !important;
     }
     body.light-mode header.apple-glass {
-      background-color: rgba(255, 255, 255, 0.85) !important;
+      background-color: rgba(255, 255, 255, 0.90) !important;
       border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+      box-shadow: 0 1px 12px rgba(0, 0, 0, 0.03) !important;
     }
-    body.light-mode .bg-\[\#1C1C1E\] {
+
+    /* All White Cards in Light Mode */
+    body.light-mode .prod-card,
+    body.light-mode .metric-card,
+    body.light-mode .tab-box,
+    body.light-mode .tabs-bar,
+    body.light-mode .modal-card,
+    body.light-mode div[class*="bg-[#1C1C1E]"],
+    body.light-mode section[class*="bg-[#1C1C1E]"] {
       background-color: #FFFFFF !important;
       border-color: rgba(0, 0, 0, 0.08) !important;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
     }
-    body.light-mode .bg-\[\#2C2C2E\] {
+
+    /* Secondary Light Gray Boxes, Chips, Badges, Dropdowns, AI Notes */
+    body.light-mode div[class*="bg-[#2C2C2E]"],
+    body.light-mode span[class*="bg-[#2C2C2E]"],
+    body.light-mode p[class*="bg-[#2C2C2E]"],
+    body.light-mode thead[class*="bg-[#2C2C2E]"],
+    body.light-mode th[class*="bg-[#2C2C2E]"] {
       background-color: #F2F2F7 !important;
       border-color: rgba(0, 0, 0, 0.08) !important;
       color: #1C1C1E !important;
     }
-    body.light-mode .bg-\[\#3A3A3C\] {
-      background-color: #E5E5EA !important;
-      color: #1C1C1E !important;
-    }
-    body.light-mode h1,
-    body.light-mode h2,
-    body.light-mode h3,
-    body.light-mode .text-white:not(.keep-white) {
-      color: #1C1C1E !important;
-    }
-    body.light-mode .bg-\[\#FF453A\],
-    body.light-mode .bg-\[\#FF453A\] *,
-    body.light-mode .bg-\[\#30D158\],
-    body.light-mode .bg-\[\#30D158\] *,
-    body.light-mode .keep-white {
-      color: #FFFFFF !important;
-    }
-    body.light-mode .text-\[rgba\(235\,235\,245\,0\.85\)\],
-    body.light-mode .text-\[rgba\(235\,235\,245\,0\.80\)\],
-    body.light-mode .text-\[rgba\(235\,235\,245\,0\.70\)\] {
-      color: #48484A !important;
-    }
-    body.light-mode .text-\[rgba\(235\,235\,245\,0\.60\)\],
-    body.light-mode .text-\[rgba\(235\,235\,245\,0\.45\)\],
-    body.light-mode .text-\[rgba\(235\,235\,245\,0\.40\)\] {
-      color: #636366 !important;
-    }
-    body.light-mode .text-\[rgba\(235\,235\,245\,0\.35\)\] {
-      color: #8E8E93 !important;
-    }
-    body.light-mode .border-white\/\[0\.08\],
-    body.light-mode .border-white\/\[0\.06\],
-    body.light-mode .border-white\/\[0\.1\],
-    body.light-mode .border-white\/\[0\.12\] {
-      border-color: rgba(0, 0, 0, 0.08) !important;
-    }
+
+    /* Inputs & Textareas */
     body.light-mode input,
     body.light-mode textarea,
     body.light-mode select {
@@ -407,30 +390,58 @@ function createMerchantPortalRouter({
     body.light-mode textarea::placeholder {
       color: #8E8E93 !important;
     }
-    body.light-mode table thead {
+
+    /* Typography in Light Mode */
+    body.light-mode h1,
+    body.light-mode h2,
+    body.light-mode h3,
+    body.light-mode h4 {
+      color: #1C1C1E !important;
+    }
+    body.light-mode [class*="text-2xl"],
+    body.light-mode [class*="text-3xl"],
+    body.light-mode [class*="text-xl"] {
+      color: #000000 !important;
+    }
+    body.light-mode .text-white:not(.keep-white) {
+      color: #1C1C1E !important;
+    }
+    body.light-mode [class*="text-[rgba(235,235,245,0.85)"],
+    body.light-mode [class*="text-[rgba(235,235,245,0.80)"],
+    body.light-mode [class*="text-[rgba(235,235,245,0.70)"] {
+      color: #3A3A3C !important;
+    }
+    body.light-mode [class*="text-[rgba(235,235,245,0.60)"],
+    body.light-mode [class*="text-[rgba(235,235,245,0.45)"],
+    body.light-mode [class*="text-[rgba(235,235,245,0.40)"] {
+      color: #636366 !important;
+    }
+    body.light-mode [class*="text-[rgba(235,235,245,0.35)"] {
+      color: #8E8E93 !important;
+    }
+
+    /* Subtle Borders in Light Mode */
+    body.light-mode [class*="border-white/"],
+    body.light-mode [class*="border-white"] {
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    /* Buttons */
+    body.light-mode button[class*="bg-[#1C1C1E]"],
+    body.light-mode a[class*="bg-[#1C1C1E]"],
+    body.light-mode button[class*="bg-[#2C2C2E]"] {
       background-color: #F2F2F7 !important;
+      color: #1C1C1E !important;
+      border-color: rgba(0, 0, 0, 0.1) !important;
     }
-    body.light-mode table thead th {
-      color: #636366 !important;
-    }
-    body.light-mode table tbody td {
-      border-top-color: rgba(0, 0, 0, 0.06) !important;
-    }
-    body.light-mode .tab-btn.bg-\[\#2C2C2E\] {
+    body.light-mode button[class*="bg-[#1C1C1E]"]:hover,
+    body.light-mode a[class*="bg-[#1C1C1E]"]:hover,
+    body.light-mode button[class*="bg-[#2C2C2E]"]:hover {
       background-color: #E5E5EA !important;
       color: #000000 !important;
     }
-    body.light-mode .tab-btn:not(.bg-\[\#2C2C2E\]) {
-      color: #636366 !important;
-    }
-    body.light-mode .tab-btn:not(.bg-\[\#2C2C2E\]):hover {
-      color: #000000 !important;
-    }
-    body.light-mode .order-filter-btn.bg-\[\#2C2C2E\],
-    body.light-mode .stock-filter-btn.bg-\[\#2C2C2E\] {
-      background-color: #E5E5EA !important;
-      color: #000000 !important;
-    }
+
+    /* Primary White Buttons Inverted to Apple Dark in Light Mode */
     body.light-mode button.bg-white {
       background-color: #1C1C1E !important;
       color: #FFFFFF !important;
@@ -438,6 +449,54 @@ function createMerchantPortalRouter({
     }
     body.light-mode button.bg-white * {
       color: #FFFFFF !important;
+    }
+
+    /* Keep colored status badges vibrant */
+    body.light-mode [class*="text-[#30D158]"] {
+      color: #28CD41 !important;
+    }
+    body.light-mode [class*="text-[#FF453A]"] {
+      color: #FF3B30 !important;
+    }
+    body.light-mode [class*="text-[#FF9F0A]"] {
+      color: #FF9500 !important;
+    }
+
+    /* Tabs & Filters */
+    body.light-mode .tab-btn {
+      color: #636366 !important;
+    }
+    body.light-mode .tab-btn:hover {
+      color: #000000 !important;
+    }
+    body.light-mode .tab-btn[class*="bg-[#2C2C2E]"] {
+      background-color: #E5E5EA !important;
+      color: #000000 !important;
+      font-weight: 700 !important;
+    }
+    body.light-mode .tab-btn [class*="bg-[#3A3A3C]"] {
+      background-color: #D1D1D6 !important;
+      color: #000000 !important;
+    }
+    body.light-mode .order-filter-btn[class*="bg-[#2C2C2E]"],
+    body.light-mode .stock-filter-btn[class*="bg-[#2C2C2E]"] {
+      background-color: #E5E5EA !important;
+      color: #000000 !important;
+      font-weight: 700 !important;
+    }
+
+    /* Table */
+    body.light-mode table thead {
+      background-color: #F2F2F7 !important;
+    }
+    body.light-mode table thead th {
+      color: #636366 !important;
+    }
+    body.light-mode table tbody tr {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+    body.light-mode table tbody td {
+      color: #1C1C1E !important;
     }
   </style>
 </head>
@@ -495,26 +554,26 @@ function createMerchantPortalRouter({
 
     <!-- 4 Platform Metric Telemetry Cards (Large PC-friendly numbers) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-5">
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
         <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট প্রোডাক্ট ক্যাটালগ</div>
         <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${totalProducts}টি <span class="text-xs sm:text-sm text-[#30D158] font-semibold">(${inStockProducts} স্টকে)</span></div>
       </div>
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
         <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">স্টক আউট আইটেম</div>
         <div class="text-2xl sm:text-3xl font-extrabold ${stockOutProducts > 0 ? 'text-[#FF453A]' : 'text-white'} mt-2 tracking-tight">${stockOutProducts}টি</div>
       </div>
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
         <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট গ্রাহক অর্ডারস</div>
         <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${totalOrders}টি <span class="text-xs sm:text-sm text-[#FF9F0A] font-semibold">(${pendingOrders} পেন্ডিং)</span></div>
       </div>
-      <div class="bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
         <div class="text-[rgba(235,235,245,0.45)] text-xs sm:text-sm font-semibold uppercase tracking-wider">মোট ইনভেন্টরি মূল্য</div>
         <div class="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">${formatMoney(totalInventoryValue)}</div>
       </div>
     </div>
 
     <!-- Navigation Tabs (Apple Segmented Control Style - Larger Font) -->
-    <div class="bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[20px] flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <div class="tabs-bar bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[20px] flex items-center gap-2 overflow-x-auto no-scrollbar">
       <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]">
         <span>📦 প্রোডাক্টস স্টুডিও</span>
         <span class="bg-[#3A3A3C] text-white text-xs px-2.5 py-0.5 rounded-full font-bold">${totalProducts}</span>
@@ -532,7 +591,7 @@ function createMerchantPortalRouter({
 
     <!-- TAB 1: PRODUCTS STUDIO -->
     <section id="tab-products" class="space-y-6">
-      <div class="bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
+      <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
         
         <!-- Search, Stock Filters & Add Product Action Bar -->
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
@@ -569,7 +628,7 @@ function createMerchantPortalRouter({
 
     <!-- TAB 2: ORDERS -->
     <section id="tab-orders" class="hidden space-y-6">
-      <div class="bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
+      <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
           <div>
             <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight">📋 কাস্টমার অর্ডারস ও ডেলিভারি পাইপলাইন</h2>
@@ -611,7 +670,7 @@ function createMerchantPortalRouter({
 
     <!-- TAB 3: ADVANCED SETTINGS -->
     <section id="tab-settings" class="hidden space-y-6">
-      <div class="bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] max-w-3xl mx-auto space-y-6">
+      <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] max-w-3xl mx-auto space-y-6">
         <div class="border-b border-white/[0.06] pb-4">
           <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight">⚙️ অ্যাডভান্সড শপ সেটিংস ও পলিসি ইঞ্জিন</h2>
           <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">WhatsApp AI স্বয়ংক্রিয়ভাবে গ্রাহকের সাথে কথা বলার সময় এই নিয়ম, অফার ও চার্জগুলো অনুসরণ করবে।</p>
@@ -709,7 +768,7 @@ function createMerchantPortalRouter({
   <!-- SOURCE-FULL PRODUCT STUDIO MODAL (WITH 5-8 PHOTO UPLOAD) -->
   <!-- ======================================================== -->
   <div id="productStudioModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-[#1C1C1E] border border-white/[0.12] rounded-[30px] max-w-2xl w-full p-6 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,0.85)] space-y-5 max-h-[92vh] overflow-y-auto">
+    <div class="modal-card bg-[#1C1C1E] border border-white/[0.12] rounded-[30px] max-w-2xl w-full p-6 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,0.85)] space-y-5 max-h-[92vh] overflow-y-auto">
       
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-4">
         <h3 id="modalTitle" class="font-bold text-white text-lg tracking-tight">✨ প্রোডাক্ট স্টুডিও</h3>
@@ -831,7 +890,7 @@ function createMerchantPortalRouter({
   <!-- 3-STEP SAFE PRODUCT DELETION MODAL                       -->
   <!-- ======================================================== -->
   <div id="safeDeleteModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-[#1C1C1E] border border-[#FF453A]/30 rounded-[28px] max-w-md w-full p-6 sm:p-7 shadow-[0_24px_70px_rgba(255,69,58,0.25)] space-y-5 text-center">
+    <div class="modal-card bg-[#1C1C1E] border border-[#FF453A]/30 rounded-[28px] max-w-md w-full p-6 sm:p-7 shadow-[0_24px_70px_rgba(255,69,58,0.25)] space-y-5 text-center">
       
       <div class="w-14 h-14 mx-auto rounded-full bg-[#FF453A]/15 border border-[#FF453A]/30 flex items-center justify-center text-2xl text-[#FF453A]">
         ⚠️
