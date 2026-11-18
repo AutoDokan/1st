@@ -360,22 +360,34 @@ function createMerchantPortalRouter({
     body.light-mode .tab-box,
     body.light-mode .tabs-bar,
     body.light-mode .modal-card,
-    body.light-mode div[class*="bg-[#1C1C1E]"],
-    body.light-mode section[class*="bg-[#1C1C1E]"] {
+    body.light-mode [class*="bg-[#1C1C1E]"] {
       background-color: #FFFFFF !important;
       border-color: rgba(0, 0, 0, 0.08) !important;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+      color: #1C1C1E !important;
     }
 
     /* Secondary Light Gray Boxes, Chips, Badges, Dropdowns, AI Notes */
-    body.light-mode div[class*="bg-[#2C2C2E]"],
-    body.light-mode span[class*="bg-[#2C2C2E]"],
-    body.light-mode p[class*="bg-[#2C2C2E]"],
-    body.light-mode thead[class*="bg-[#2C2C2E]"],
-    body.light-mode th[class*="bg-[#2C2C2E]"] {
+    body.light-mode [class*="bg-[#2C2C2E]"] {
       background-color: #F2F2F7 !important;
       border-color: rgba(0, 0, 0, 0.08) !important;
       color: #1C1C1E !important;
+    }
+
+    /* Thumbnail Dots on Card */
+    body.light-mode button[onclick*="switchCardPhoto"] {
+      background-color: rgba(0, 0, 0, 0.2) !important;
+    }
+    body.light-mode button[onclick*="switchCardPhoto"]:hover {
+      background-color: rgba(0, 0, 0, 0.7) !important;
+    }
+
+    /* Delete Button on Card */
+    body.light-mode button[onclick*="openSafeDeleteModal"],
+    body.light-mode [class*="hover:bg-[#FF453A]"] {
+      background-color: #FFF2F2 !important;
+      border-color: rgba(255, 69, 58, 0.25) !important;
+      color: #FF3B30 !important;
     }
 
     /* Inputs & Textareas */
