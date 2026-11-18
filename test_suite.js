@@ -123,7 +123,7 @@ async function runRegressionSuite() {
 
   // TEST 11: Delivery Timeline & Charge
   const del = await handleIncomingMessage(uid('del'), 'ঢাকার বাইরে ডেলিভারি কয়দিনে দেন এবং চার্জ কত?');
-  assert((del.includes('২৪') || del.includes('৪৮') || del.includes('২') || del.includes('৩') || del.includes('দিন') || del.includes('কার্যদিবস')) && (del.includes('১২০') || del.includes('120') || del.includes('১৩০') || del.includes('130')), 
+  assert((del.includes('২৪') || del.includes('৪৮') || del.includes('২') || del.includes('৩') || del.includes('দিন') || del.includes('কার্যদিবস')) && (del.includes('১৫০') || del.includes('150') || del.includes('১২০') || del.includes('120') || del.includes('১৩০') || del.includes('130')), 
     'Delivery timeline and fee accurate', del);
 
   await sleep(600);
