@@ -2251,6 +2251,12 @@ app.get('/dashboard', requireAuth, async (req, res) => {
           showToast('📋 ইনভাইট লিংক কপি হয়েছে!');
         }
 
+        function copyInviteLink(url) {
+          if (!url) return;
+          navigator.clipboard.writeText(url);
+          showToast('📋 লিংক কপি হয়েছে!');
+        }
+
         async function loadSellerInvites() {
           const cont = document.getElementById('sellersListContainer');
           if (!cont) return;
@@ -2283,7 +2289,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                   '</p>' +
                 '</div>' +
                 '<div class="flex items-center gap-2">' +
-                  '<button type="button" onclick="navigator.clipboard.writeText(\'' + invUrl + '\'); showToast(\'📋 লিংক কপি হয়েছে!\')" class="bg-white border border-stone-300 hover:border-stone-400 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">' +
+                  '<button type="button" data-url="' + invUrl + '" onclick="copyInviteLink(this.dataset.url)" class="bg-white border border-stone-300 hover:border-stone-400 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">' +
                     'কপি লিংক' +
                   '</button>' +
                   '<a href="/connect?token=' + inv.invite_token + '" target="_blank" class="bg-stone-900 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">' +
