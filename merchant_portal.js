@@ -1051,7 +1051,7 @@ function createMerchantPortalRouter({
       }
 
       if (studioUploadedImages.length < 5) {
-        alert('⚠️ প্রোডাক্ট সেভ করতে ন্যূনতম ৫টি ছবি আপলোড করা আবশ্যক!\n\nবর্তমানে আছে: ' + studioUploadedImages.length + 'টি ছবি। দয়া করে আরও ' + (5 - studioUploadedImages.length) + 'টি ছবি আপলোড করুন।');
+        alert('⚠️ প্রোডাক্ট সেভ করতে ন্যূনতম ৫টি ছবি আপলোড করা আবশ্যক! বর্তমানে আছে: ' + studioUploadedImages.length + 'টি ছবি। দয়া করে আরও ' + (5 - studioUploadedImages.length) + 'টি ছবি আপলোড করুন।');
         return;
       }
 
