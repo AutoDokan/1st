@@ -1220,29 +1220,87 @@ async function checkAndSendAbandonedLeadFollowups() {
       .gt('created_at', thirtySixHoursAgo)
       .limit(6);
 
-    if (error || !abandonedLeads || abandonedLeads.length === 0) return;
+    if (!error && abandonedLeads && abandonedLeads.length > 0) {
+      for (const lead of abandonedLeads) {
+        if (!lead.customer_phone) continue;
+        const cleanPhone = lead.customer_phone.replace(/[^0-9]/g, '');
 
-    for (const lead of abandonedLeads) {
-      if (!lead.customer_phone) continue;
-      const cleanPhone = lead.customer_phone.replace(/[^0-9]/g, '');
+        // Cooldown check: At least 24 hours between automated follow-ups
+        const lastSent = followupCooldownMap.get(cleanPhone) || 0;
+        if (Date.now() - lastSent < 24 * 60 * 60 * 1000) {
+          continue;
+        }
 
-      // Cooldown check: At least 24 hours between automated follow-ups
-      const lastSent = followupCooldownMap.get(cleanPhone) || 0;
-      if (Date.now() - lastSent < 24 * 60 * 60 * 1000) {
-        continue;
+        const jid = `${cleanPhone}@s.whatsapp.net`;
+        const followupMsg = generateFollowupMessage(lead);
+
+        console.log(`[Auto Recovery] Sending polite pending order follow-up to ${cleanPhone} (Lead #${lead.id})`);
+        const sentAutoFollowup = await sock.sendMessage(jid, { text: followupMsg });
+        if (sentAutoFollowup?.key?.id) botSentMessageIds.add(sentAutoFollowup.key.id);
+        incrementStats('messages_out');
+        followupCooldownMap.set(cleanPhone, Date.now());
+
+        // Natural pause between messages
+        await new Promise(r => setTimeout(r, 4500));
       }
+    }
 
-      const jid = `${cleanPhone}@s.whatsapp.net`;
-      const followupMsg = generateFollowupMessage(lead);
+    // 2. Also check abandoned chat sessions (Customer asked questions, bot answered, but customer went silent for > 2 hours without ordering)
+    const { data: abandonedChats } = await supabase
+      .from('chat_sessions')
+      .select('id, customer_identifier, customer_phone, customer_name, messages, updated_at')
+      .eq('seller_id', CURRENT_SELLER_ID)
+      .eq('channel_type', 'WHATSAPP')
+      .is('paused_until', null)
+      .eq('needs_human_attention', false)
+      .lt('updated_at', twoHoursAgo)
+      .gt('updated_at', thirtySixHoursAgo)
+      .limit(6);
 
-      console.log(`[Auto Recovery] Sending polite follow-up to ${cleanPhone} (Lead #${lead.id})`);
-      const sentAutoFollowup = await sock.sendMessage(jid, { text: followupMsg });
-      if (sentAutoFollowup?.key?.id) botSentMessageIds.add(sentAutoFollowup.key.id);
-      incrementStats('messages_out');
-      followupCooldownMap.set(cleanPhone, Date.now());
+    if (abandonedChats && abandonedChats.length > 0) {
+      for (const chat of abandonedChats) {
+        const jid = chat.customer_identifier;
+        if (!jid) continue;
+        const cleanPhone = (chat.customer_phone || jid.split('@')[0]).replace(/[^0-9]/g, '');
 
-      // Natural pause between messages
-      await new Promise(r => setTimeout(r, 4500));
+        // Cooldown check: At least 24 hours between automated follow-ups
+        const lastSent = followupCooldownMap.get(cleanPhone) || 0;
+        if (Date.now() - lastSent < 24 * 60 * 60 * 1000) continue;
+
+        // Verify that conversation actually had customer messages (at least 2 exchanges)
+        const msgs = Array.isArray(chat.messages) ? chat.messages : [];
+        if (msgs.length < 2) continue;
+
+        // Verify last message was NOT already a follow-up
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg && typeof lastMsg.text === 'string' && lastMsg.text.includes('স্টক কিন্তু খুব দ্রুত')) {
+          continue; // Already sent follow-up
+        }
+
+        const nameStr = (chat.customer_name && !/^(কাস্টমার|গ্রাহক|customer|unknown)$/i.test(chat.customer_name.trim()))
+          ? ` ${chat.customer_name.trim()}`
+          : '';
+
+        const chatFollowupText = `আসসালামু আলাইকুম${nameStr} 😊\n\nআপনি কি আমাদের আবায়া বা বোরকা কালেকশন নিয়ে আর কিছু জানতে চেয়েছিলেন? আপনার কোনো প্রশ্ন বা সাইজ নিয়ে কোনো দ্বিধা থাকলে নিঃসংকোচে জানাতে পারেন, সাহায্য করতে পারলে খুশি হব। 😊`;
+
+        console.log(`[Auto Recovery] Sending polite chat follow-up to ${jid}`);
+        const sentFollow = await sock.sendMessage(jid, { text: chatFollowupText });
+        if (sentFollow?.key?.id) botSentMessageIds.add(sentFollow.key.id);
+        incrementStats('messages_out');
+        followupCooldownMap.set(cleanPhone, Date.now());
+
+        // Update chat_sessions history
+        const updatedMsgs = [...msgs, {
+          role: 'assistant',
+          text: chatFollowupText,
+          timestamp: new Date().toISOString()
+        }];
+        await supabase.from('chat_sessions')
+          .update({ messages: updatedMsgs, updated_at: new Date().toISOString() })
+          .eq('id', chat.id);
+
+        await new Promise(r => setTimeout(r, 4500));
+      }
     }
   } catch (err) {
     console.error('[Auto Follow-up Error]:', err.message);
@@ -2515,12 +2573,6 @@ async function startSellerSession(sellerId) {
 
       if (!messageContent.trim()) return;
 
-      // Immediate Blue Tick & Composing Presence
-      try {
-        await sSock.readMessages([msg.key]);
-        await sSock.sendPresenceUpdate('composing', remoteJid);
-      } catch (e) {}
-
       const bufferKey = `${sellerId}:${remoteJid}`;
       let bState = customerMessageStates.get(bufferKey);
       if (!bState) {
@@ -2538,6 +2590,10 @@ async function startSellerSession(sellerId) {
         bState.texts = [];
 
         try {
+          // Natural delayed Blue Tick (as human opens conversation)
+          if (bState.lastKey) {
+            try { await sSock.readMessages([bState.lastKey]); } catch (e) {}
+          }
           await sSock.sendPresenceUpdate('composing', remoteJid);
           const replyText = await handleIncomingMessage(remoteJid, combined, sellerId);
           const cleanReply = typeof cleanHumanFormatting === 'function' ? cleanHumanFormatting(replyText) : replyText;
@@ -3496,13 +3552,10 @@ async function connectToWhatsApp() {
         processedIncomingMsgIds.set(msgId, Date.now());
       }
 
-      // Immediate Read Receipt (Blue Tick) & Immediate Composing Presence
-      if (sock) {
-        try {
-          await sock.readMessages([msg.key]);
-          await sock.sendPresenceUpdate('composing', remoteJid);
-        } catch (e) {}
-      }
+      // Natural Blue Tick Timing:
+      // We deliberately do NOT send an instant 0ms read receipt here.
+      // Instead, read receipt (blue tick) is marked naturally after debounce in processCustomerBuffer,
+      // perfectly simulating a human taking 1.5-2 seconds to open the chat before typing!
 
       // 3. WhatsApp Voice Note & Push-To-Talk (PTT) Deep Unwrapping
       let unwrappedMsg = msg.message;
