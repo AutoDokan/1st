@@ -1,3 +1,10 @@
+// Global Process Crash Prevention (Catches Baileys / WhatsApp WebSocket timeouts and rejections)
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Engine Process Safety] Caught Unhandled Rejection:', reason?.message || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Engine Process Safety] Caught Uncaught Exception:', err?.message || err);
+});
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -1557,6 +1564,11 @@ async function startSellerSession(sellerId) {
         const id = sSock.user?.id || '';
         const num = id.split(':')[0] || id.split('@')[0];
         sellerNumbers.set(sellerId, num);
+        if (sellerId === CURRENT_SELLER_ID) {
+          sock = sSock;
+          connectionStatus = 'connected';
+          connectedNumber = num;
+        }
         console.log(`[Multi-Seller] ${sellerId} connected successfully as +${num}`);
 
         try {
@@ -2514,358 +2526,8 @@ async function processCustomerBuffer(remoteJid) {
 }
 
 async function connectToWhatsApp() {
-  try {
-    console.log('[WhatsApp] Initializing connection with Supabase state...');
-    connectionStatus = 'connecting';
-
-    const { state, saveCreds } = await useSupabaseAuthState(
-      SUPABASE_URL,
-      SUPABASE_KEY,
-      'autodokan_seller_1'
-    );
-
-    sock = makeWASocket({
-      auth: state,
-      printQRInTerminal: false,
-      logger: pino({ level: 'silent' }),
-      browser: Browsers.ubuntu('Chrome'),
-      syncFullHistory: false,
-      connectTimeoutMs: 60000,
-      defaultQueryTimeoutMs: 60000,
-      keepAliveIntervalMs: 30000
-    });
-
-    sock.ev.on('creds.update', saveCreds);
-
-    sock.ev.on('connection.update', (update) => {
-      const { connection, lastDisconnect, qr } = update;
-
-      if (qr) {
-        currentQR = qr;
-        connectionStatus = 'waiting_for_qr_scan';
-        console.log('[WhatsApp] New QR code generated. Access /qr to scan.');
-      }
-
-      if (connection === 'close') {
-        const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-        connectionStatus = 'disconnected';
-        currentQR = null;
-        console.log(`[WhatsApp] Connection closed (status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
-        if (shouldReconnect) {
-          setTimeout(connectToWhatsApp, 3000);
-        }
-      } else if (connection === 'open') {
-        connectionStatus = 'connected';
-        currentQR = null;
-        const id = sock.user?.id || '';
-        connectedNumber = id.split(':')[0] || id.split('@')[0];
-        console.log(`[WhatsApp] Connected successfully as +${connectedNumber}`);
-      }
-    });
-
-    // WhatsApp Call Event Listener (Auto text on Missed/Rejected Call with 10-min cooldown)
-    sock.ev.on('call', async (callEvents) => {
-      if (!Array.isArray(callEvents)) return;
-      for (const call of callEvents) {
-        const fromJid = call.from;
-        if (!fromJid || fromJid.includes('@g.us')) continue;
-        const now = Date.now();
-        const lastCall = lastCallReplyTime.get(fromJid) || 0;
-        if (now - lastCall > 10 * 60 * 1000) {
-          lastCallReplyTime.set(fromJid, now);
-          console.log(`[WhatsApp Call Event] Detected call from ${fromJid}. Sending auto-reply in 3s...`);
-          setTimeout(async () => {
-            try {
-              if (sock) {
-                await sock.sendPresenceUpdate('composing', fromJid);
-                await new Promise(r => setTimeout(r, 1800));
-                const callReply = "এই নম্বরে কল রিসিভ করা সম্ভব হচ্ছে না, যা জানার দরকার এখানে মেসেজে লিখে দিন আমি দেখছি";
-                const sent = await sock.sendMessage(fromJid, { text: callReply });
-                if (sent?.key?.id) botSentMessageIds.add(sent.key.id);
-                await sock.sendPresenceUpdate('paused', fromJid);
-                incrementStats('messages_out');
-              }
-            } catch (e) {
-              console.warn('[Call Auto-Reply Error]:', e.message);
-            }
-          }, 3000);
-        }
-      }
-    });
-
-    // Inbound Message Listener with Human-Like Debounce & Typing
-    sock.ev.on('messages.upsert', async (m) => {
-      const msg = m.messages[0];
-      if (!msg) return;
-
-      const remoteJid = msg.key.remoteJid;
-      if (!remoteJid || remoteJid.includes('@g.us') || remoteJid === 'status@broadcast') return;
-
-      // 1. Owner Human Takeover Check:
-      if (msg.key.fromMe) {
-        if (botSentMessageIds.has(msg.key.id)) {
-          return; // Ignore message sent by our bot
-        }
-        // Extract substantive text typed by merchant
-        const ownerText = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || '').trim();
-        // CRITICAL GUARD: WhatsApp emits protocol packets, read receipts, libsignal session syncs,
-        // and empty echoes with fromMe=true. NEVER trigger human takeover unless merchant actually typed substantive text!
-        if (!ownerText || ownerText.length < 2) {
-          return;
-        }
-        console.log(`[Human Takeover] Seller manually sent a message to ${remoteJid}: "${ownerText}". Pausing bot for 15 minutes.`);
-        await pauseCustomerForHumanTakeover(remoteJid, 15, 'HUMAN_TAKEOVER', ownerText);
-        return;
-      }
-
-      if (m.type !== 'notify' && m.type !== 'append') return;
-
-      // 2. Message Deduplication (15-min TTL):
-      const msgId = msg.key.id;
-      if (msgId) {
-        if (processedIncomingMsgIds.has(msgId)) {
-          return; // Duplicate upsert event ignored
-        }
-        processedIncomingMsgIds.set(msgId, Date.now());
-      }
-
-      // Natural Blue Tick Timing:
-      // We deliberately do NOT send an instant 0ms read receipt here.
-      // Instead, read receipt (blue tick) is marked naturally after debounce in processCustomerBuffer,
-      // perfectly simulating a human taking 1.5-2 seconds to open the chat before typing!
-
-      // 3. WhatsApp Voice Note & Push-To-Talk (PTT) Deep Unwrapping
-      let unwrappedMsg = msg.message;
-      while (unwrappedMsg && (unwrappedMsg.ephemeralMessage || unwrappedMsg.viewOnceMessage || unwrappedMsg.viewOnceMessageV2 || unwrappedMsg.documentWithCaptionMessage)) {
-        unwrappedMsg = unwrappedMsg.ephemeralMessage?.message || 
-                       unwrappedMsg.viewOnceMessage?.message || 
-                       unwrappedMsg.viewOnceMessageV2?.message || 
-                       unwrappedMsg.documentWithCaptionMessage?.message;
-      }
-
-      // Silently ignore stickers & reactions
-      if (unwrappedMsg?.reactionMessage || unwrappedMsg?.stickerMessage) {
-        return;
-      }
-
-      // Location Message Guardrail (ZERO EMOJI)
-      if (unwrappedMsg?.locationMessage || unwrappedMsg?.liveLocationMessage) {
-        const now = Date.now();
-        const lastSent = lastVoiceReplyTime.get(remoteJid) || 0;
-        if (now - lastSent > 45000 && sock) {
-          lastVoiceReplyTime.set(remoteJid, now);
-          const locReply = "ম্যাপের পিনে কুরিয়ার ম্যান অনেক সময় ঠিকানা চিনতে ভুল করে, একটু কষ্ট করে বাসা/রোড, এলাকা, থানা আর জেলার নামটা লিখে দেন";
-          await sock.sendPresenceUpdate('composing', remoteJid);
-          await new Promise(r => setTimeout(r, 1800));
-          const sentLoc = await sock.sendMessage(remoteJid, { text: locReply });
-          if (sentLoc?.key?.id) botSentMessageIds.add(sentLoc.key.id);
-          await sock.sendPresenceUpdate('paused', remoteJid);
-          incrementStats('messages_out');
-        }
-        return;
-      }
-
-      let messageContent =
-        unwrappedMsg?.conversation ||
-        unwrappedMsg?.extendedTextMessage?.text ||
-        '';
-
-      // Check for media captions if main text is empty
-      if (!messageContent.trim()) {
-        const imgCap = unwrappedMsg?.imageMessage?.caption;
-        if (imgCap && imgCap.trim()) {
-          messageContent = `[Customer attached an image]: ${imgCap.trim()}`;
-        } else {
-          messageContent = unwrappedMsg?.videoMessage?.caption ||
-                           unwrappedMsg?.documentMessage?.caption ||
-                           '';
-        }
-      }
-
-      // Check for WhatsApp Quoted Message Context (Swipe-to-Reply on images or previous chats)
-      let quotedContextText = '';
-      const contextInfo = unwrappedMsg?.extendedTextMessage?.contextInfo;
-      if (contextInfo) {
-        const quotedStanzaId = contextInfo.stanzaId;
-        const trackedMedia = quotedStanzaId ? botSentMediaTracking.get(quotedStanzaId) : null;
-        if (trackedMedia) {
-          quotedContextText = `[Customer replied to image of Model: ${trackedMedia.model_code} (${trackedMedia.name}) | Price: ৳${trackedMedia.price}]: `;
-        } else if (contextInfo.quotedMessage) {
-          const qm = contextInfo.quotedMessage;
-          const quotedText = qm.conversation || 
-                             qm.extendedTextMessage?.text || 
-                             qm.imageMessage?.caption || 
-                             qm.videoMessage?.caption || '';
-          if (quotedText.trim()) {
-            const allCached = (typeof getAllCachedProducts === 'function') ? getAllCachedProducts() : [];
-            let matchedCode = null;
-            for (const p of allCached) {
-              if (p.model_code && quotedText.toLowerCase().includes(p.model_code.toLowerCase())) {
-                matchedCode = p;
-                break;
-              }
-            }
-            if (matchedCode) {
-              quotedContextText = `[Customer replied to image/message of model ${matchedCode.model_code} (${matchedCode.name})]: `;
-            } else {
-              const shortQuote = quotedText.substring(0, 80).replace(/\n/g, ' ');
-              quotedContextText = `[Customer quoted: "${shortQuote}"]: `;
-            }
-          }
-        }
-      }
-
-      if (quotedContextText) {
-        messageContent = quotedContextText + messageContent;
-      }
-
-      // 1. Voice / Audio Note Processing with Free Gemini Native Audio + Groq Whisper Fallback (Section 4)
-      const isAudio = !!(unwrappedMsg?.audioMessage || unwrappedMsg?.pttMessage);
-      if (isAudio && !messageContent.trim()) {
-        const audioSeconds = unwrappedMsg?.audioMessage?.seconds || unwrappedMsg?.pttMessage?.seconds || 0;
-        console.log(`[WhatsApp Voice Note] Received from ${remoteJid} (Duration: ${audioSeconds}s)`);
-
-        let transcribed = null;
-        if (audioSeconds <= 90) {
-          try {
-            await sock.sendPresenceUpdate('recording', remoteJid);
-            const audioBuffer = await downloadMediaMessage(msg, 'buffer', {});
-            if (audioBuffer && audioBuffer.length > 0) {
-              // 1. Try Google Gemini Native Multimodal STT first (#1 Primary)
-              if (typeof transcribeAudioWithGemini === 'function') {
-                transcribed = await transcribeAudioWithGemini(audioBuffer);
-              }
-              // 2. Fallback to Groq Whisper if Gemini fails or rate limits (#2 Failover)
-              if (!transcribed && typeof transcribeAudioWithGroq === 'function') {
-                transcribed = await transcribeAudioWithGroq(audioBuffer);
-              }
-            }
-          } catch (audioErr) {
-            console.warn('[WhatsApp Audio Download/Transcribe Error]:', audioErr.message);
-          }
-        }
-
-        if (transcribed && transcribed.trim()) {
-          console.log(`[WhatsApp Voice Transcribed -> Text Buffer] From: ${remoteJid} | "${transcribed.trim()}"`);
-          messageContent = transcribed.trim();
-        } else {
-          const fallbackExcuse = "একটু শোরগোলের কারণে ভয়েসটি স্পষ্ট বুঝতে পারিনি, একটু কষ্ট করে আবার বলবেন বা লিখে দেবেন প্লিজ?";
-          try {
-            await sock.sendPresenceUpdate('composing', remoteJid);
-            await new Promise(r => setTimeout(r, 1500));
-            const sentExcuse = await sock.sendMessage(remoteJid, { text: fallbackExcuse });
-            if (sentExcuse?.key?.id) botSentMessageIds.add(sentExcuse.key.id);
-            await sock.sendPresenceUpdate('paused', remoteJid);
-            incrementStats('messages_out');
-          } catch (e) {
-            console.error('[Voice Fallback Send Error]:', e.message);
-          }
-          return;
-        }
-      }
-
-      // 2. Negative Media Guardrails for Images, Videos and Documents
-      const isImage = !!unwrappedMsg?.imageMessage;
-      const isVideo = !!unwrappedMsg?.videoMessage;
-      const isDoc = !!unwrappedMsg?.documentMessage;
-
-      if ((isImage || isVideo || isDoc) && !messageContent.trim()) {
-        console.log(`[WhatsApp Non-Text Media] Media received from ${remoteJid} (isImage: ${isImage})`);
-        const now = Date.now();
-        const lastSent = lastVoiceReplyTime.get(remoteJid) || 0;
-        if (now - lastSent > 45000 && sock) {
-          lastVoiceReplyTime.set(remoteJid, now);
-          let mediaReply = '';
-          if (isImage) {
-            const imageReplies = [
-              "নেট স্লো থাকায় ছবিটা ক্লিয়ার ওপেন হচ্ছে না, ড্রেসের নাম বা মডেল কোডটা একটু লিখে বলেন",
-              "ছবিটা এখান থেকে লোড হচ্ছে না ঠিকমতো, কোন ডিজাইন বা পেমেন্টের বিষয়ে বলছেন একটু লিখে দেন",
-              "ছবিটা পরিষ্কার দেখা যাচ্ছে না, একটু কষ্ট করে মডেলের নাম বা কী জানতে চাচ্ছেন লিখে দিন"
-            ];
-            mediaReply = imageReplies[Math.floor(Math.random() * imageReplies.length)];
-          } else {
-            mediaReply = "ফাইলটা এখান থেকে ওপেন হতে সময় নিচ্ছে, কী বিষয় ছিল একটু মেসেজে লিখে বলবেন?";
-          }
-
-          try {
-            await sock.sendPresenceUpdate('composing', remoteJid);
-            await new Promise(r => setTimeout(r, 1800));
-            const sentMedia = await sock.sendMessage(remoteJid, { text: mediaReply });
-            if (sentMedia?.key?.id) botSentMessageIds.add(sentMedia.key.id);
-            await sock.sendPresenceUpdate('paused', remoteJid);
-            incrementStats('messages_out');
-          } catch (e) {
-            console.error('[Media Reply Error]:', e.message);
-          }
-        }
-        return;
-      }
-
-      if (!messageContent.trim()) {
-        return;
-      }
-
-      console.log(`[WhatsApp Received Fragment] From: ${remoteJid} | "${messageContent}"`);
-      incrementStats('messages_in');
-      if (!activeConversations.has(remoteJid)) {
-        activeConversations.add(remoteJid);
-        incrementStats('total_conversations');
-      }
-
-      // Check Human Takeover before scheduling buffer
-      if (await isCustomerPaused(remoteJid)) {
-        console.log(`[Human Takeover Active] Bot is paused for ${remoteJid}. Dropping inbound message from queue.`);
-        return;
-      }
-
-      // Multi-Customer Concurrent Buffer with 3500ms debounce and 8000ms max cap
-      let userState = customerMessageStates.get(remoteJid);
-      if (!userState) {
-        userState = {
-          texts: [],
-          debounceTimer: null,
-          firstMsgAt: null,
-          isProcessing: false,
-          pendingQueue: [],
-          lastKey: msg.key
-        };
-        customerMessageStates.set(remoteJid, userState);
-      } else {
-        userState.lastKey = msg.key;
-      }
-
-      if (userState.isProcessing) {
-        // Customer typed while previous turn is still generating/sending
-        userState.pendingQueue.push(messageContent);
-        console.log(`[WhatsApp Queued During Processing] From: ${remoteJid} | Queued: "${messageContent}"`);
-      } else {
-        userState.texts.push(messageContent);
-        if (!userState.firstMsgAt) {
-          userState.firstMsgAt = Date.now();
-        }
-
-        const elapsed = Date.now() - userState.firstMsgAt;
-        if (elapsed >= MAX_WAIT_MS) {
-          // Reached 8-second max wait cap
-          if (userState.debounceTimer) clearTimeout(userState.debounceTimer);
-          userState.debounceTimer = null;
-          processCustomerBuffer(remoteJid);
-        } else {
-          // Reset 3.5s debounce window
-          if (userState.debounceTimer) clearTimeout(userState.debounceTimer);
-          userState.debounceTimer = setTimeout(() => {
-            processCustomerBuffer(remoteJid);
-          }, DEBOUNCE_DELAY_MS);
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('[WhatsApp Error] Init failed:', error);
-    connectionStatus = 'error: ' + error.message;
-    setTimeout(connectToWhatsApp, 5000);
-  }
+  console.log('[WhatsApp] Unified: Delegating connectToWhatsApp to startSellerSession(' + CURRENT_SELLER_ID + ')');
+  return startSellerSession(CURRENT_SELLER_ID);
 }
 
 process.on('SIGTERM', () => {
@@ -2887,19 +2549,25 @@ async function restoreAllConnectedSellers() {
       .select('seller_id, shop_name, status')
       .eq('status', 'CONNECTED');
 
+    const startedSet = new Set();
     if (!error && connectedSellers && connectedSellers.length > 0) {
       console.log(`[Multi-Seller Boot] Restoring ${connectedSellers.length} connected seller(s)...`);
       for (const s of connectedSellers) {
+        startedSet.add(s.seller_id);
         startSellerSession(s.seller_id);
       }
     }
+    // Ensure default primary seller is always initiated if not already
+    if (!startedSet.has(CURRENT_SELLER_ID)) {
+      startSellerSession(CURRENT_SELLER_ID);
+    }
   } catch (err) {
     console.error('[Multi-Seller Boot Error]:', err.message);
+    startSellerSession(CURRENT_SELLER_ID);
   }
 }
 
 app.listen(PORT, () => {
   console.log(`[AutoDokan Engine] Server listening on port ${PORT}`);
-  connectToWhatsApp();
   restoreAllConnectedSellers();
 });
