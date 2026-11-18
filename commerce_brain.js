@@ -53,10 +53,10 @@ groqKeys.forEach((k, idx) => {
 });
 
 // ==========================================
-// 2. Dynamic Store Settings, Catalog & Memory Cache
+// 2. Dynamic Multi-Tenant Store Settings, Catalog & Memory Cache
 // ==========================================
 
-let storeSettings = {
+const defaultStoreSettings = {
   shop_name: 'Dawah Fashion',
   business_category: 'modest_fashion',
   bot_persona_name: 'Zara',
@@ -71,6 +71,14 @@ let storeSettings = {
   promo_offer: '',
   extra_config: {}
 };
+
+let storeSettings = { ...defaultStoreSettings };
+
+// Multi-Tenant Isolated Memory Vault
+const sellerSettingsCache = new Map(); // sellerId -> settings object
+const sellerProductsCache = new Map(); // sellerId -> [ products array ]
+const sellerProductsTextCache = new Map(); // sellerId -> prompt catalog text
+const sellerPromotionsTextCache = new Map(); // sellerId -> promo text
 
 let cachedProductsText = '';
 let cachedProductList = [];
@@ -111,7 +119,7 @@ if (initialGeminiKey) {
 const sessionCache = new Map(); // customerIdentifier -> sessionState
 
 async function refreshSettingsFromDB(sellerId = 'autodokan_seller_1') {
-  if (!supabase) return storeSettings;
+  if (!supabase) return sellerSettingsCache.get(sellerId) || storeSettings;
   try {
     const { data, error } = await supabase
       .from('store_settings')
@@ -120,18 +128,23 @@ async function refreshSettingsFromDB(sellerId = 'autodokan_seller_1') {
       .maybeSingle();
 
     if (!error && data) {
-      storeSettings = {
-        ...storeSettings,
+      const merged = {
+        ...defaultStoreSettings,
         ...data,
         inside_dhaka_fee: Number(data.inside_dhaka_fee) || 80,
         outside_dhaka_fee: Number(data.outside_dhaka_fee) || 150
       };
-      console.log(`[Store Settings Loaded] Shop: ${storeSettings.shop_name} | Inside: ৳${storeSettings.inside_dhaka_fee} | Outside: ৳${storeSettings.outside_dhaka_fee} | Promo: ${storeSettings.promo_offer || 'None'}`);
+      sellerSettingsCache.set(sellerId, merged);
+      if (sellerId === 'autodokan_seller_1') {
+        storeSettings = merged;
+      }
+      console.log(`[Store Settings Loaded] Seller: ${sellerId} | Shop: ${merged.shop_name} | Inside: ৳${merged.inside_dhaka_fee} | Outside: ৳${merged.outside_dhaka_fee} | Promo: ${merged.promo_offer || 'None'}`);
+      return merged;
     }
   } catch (err) {
-    console.warn('[Store Settings Refresh Error]:', err.message);
+    console.warn(`[Store Settings Refresh Error for ${sellerId}]:`, err.message);
   }
-  return storeSettings;
+  return sellerSettingsCache.get(sellerId) || storeSettings;
 }
 
 function getProductImageUrls(product) {
@@ -177,7 +190,7 @@ function getProductColors(p) {
 
 async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
   await refreshSettingsFromDB(sellerId);
-  if (!supabase) return cachedProductList;
+  if (!supabase) return sellerProductsCache.get(sellerId) || cachedProductList;
   try {
     // 1. Fetch ALL products for seller (both in_stock = true AND in_stock = false)
     const { data: prods, error: prodErr } = await supabase
@@ -188,9 +201,9 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
       .order('id', { ascending: true });
 
     if (!prodErr && prods && prods.length > 0) {
-      cachedProductList = prods;
-      cachedProductsText = prods.map((p, idx) => {
-        const code = p.model_code || `DF-${100 + idx + 1}`;
+      sellerProductsCache.set(sellerId, prods);
+      const sText = prods.map((p, idx) => {
+        const code = p.model_code || `P-${100 + idx + 1}`;
         const price = p.price || 2200;
         const colorStr = getProductColors(p);
         const details = [
@@ -206,6 +219,13 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
         return `${idx + 1}. [${code}] ${p.name} | ৳${price} | ${stock} (${details}) | [${imgText}]`;
       }).join('\n');
 
+      sellerProductsTextCache.set(sellerId, sText);
+
+      if (sellerId === 'autodokan_seller_1') {
+        cachedProductList = prods;
+        cachedProductsText = sText;
+      }
+
       console.log(`[Products Sync] Loaded ${prods.length} products for ${sellerId}`);
     }
 
@@ -217,14 +237,21 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
         .eq('seller_id', sellerId)
         .eq('is_active', true);
 
+      const curStore = sellerSettingsCache.get(sellerId) || storeSettings;
       if (promos && promos.length > 0) {
-        cachedPromotionsText = promos.map(pr => 
+        const promoText = promos.map(pr => 
           `• [অফার: ${pr.title}] কোড: ${pr.promo_code || 'N/A'}, ছাড়: ৳${pr.discount_value}, নির্দেশনা: ${pr.ai_instruction}`
         ).join('\n');
-      } else if (storeSettings.promo_offer) {
-        cachedPromotionsText = `• [চলমান স্টোর অফার]: ${storeSettings.promo_offer}`;
+        sellerPromotionsTextCache.set(sellerId, promoText);
+        if (sellerId === 'autodokan_seller_1') cachedPromotionsText = promoText;
+      } else if (curStore.promo_offer) {
+        const promoText = `• [চলমান স্টোর অফার]: ${curStore.promo_offer}`;
+        sellerPromotionsTextCache.set(sellerId, promoText);
+        if (sellerId === 'autodokan_seller_1') cachedPromotionsText = promoText;
       } else {
-        cachedPromotionsText = 'বর্তমানে কোনো অতিরিক্ত ডিসকাউন্ট বা প্রোমো কোড অফার সক্রিয় নেই।';
+        const promoText = 'বর্তমানে কোনো অতিরিক্ত ডিসকাউন্ট বা প্রোমো কোড অফার সক্রিয় নেই।';
+        sellerPromotionsTextCache.set(sellerId, promoText);
+        if (sellerId === 'autodokan_seller_1') cachedPromotionsText = promoText;
       }
     } catch (e) {}
 
@@ -646,34 +673,48 @@ function isOrderStatusInquiry(text) {
   return /(?:অর্ডার.*(?:খবর|কোথায়|স্ট্যাটাস|কবে|পাবো|আটকে)|পার্সেল.*(?:কোথায়|কবে|আটকে)|ট্র্যাকিং|tracking|order\s*status|courier.*(?:code|id|tracking)|কুরিয়ারে\s*দিয়েছেন|আমার\s*মালটা)/i.test(t);
 }
 
-function getProductByCode(code) {
+function getProductByCode(code, sellerId = null) {
   if (!code) return null;
   const clean = code.toUpperCase().trim();
+  if (sellerId && sellerProductsCache.has(sellerId)) {
+    const p = sellerProductsCache.get(sellerId).find(p => p.model_code && p.model_code.toUpperCase().trim() === clean);
+    if (p) return p;
+  }
+  for (const prods of sellerProductsCache.values()) {
+    const p = prods.find(p => p.model_code && p.model_code.toUpperCase().trim() === clean);
+    if (p) return p;
+  }
   return cachedProductList.find(p => p.model_code && p.model_code.toUpperCase().trim() === clean) || null;
 }
 
-function getAllCachedProducts() {
-  return cachedProductList;
+function getAllCachedProducts(sellerId = 'autodokan_seller_1') {
+  return sellerProductsCache.get(sellerId) || cachedProductList;
 }
 
 // ==========================================
 // 5. Complete Real-Human System Prompt Builder
 // ==========================================
 
-function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = '', userText = '') {
-  const shopName = storeSettings.shop_name || 'আমাদের শপ';
-  const insideFee = storeSettings.inside_dhaka_fee || 80;
-  const outsideFee = storeSettings.outside_dhaka_fee || 120;
-  const bkashNum = storeSettings.bkash_number || '';
-  const nagadNum = storeSettings.nagad_number || '';
-  const advanceRequired = storeSettings.advance_delivery_charge_required !== false;
+function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = '', userText = '', sellerId = 'autodokan_seller_1') {
+  const sSettings = sellerSettingsCache.get(sellerId) || storeSettings;
+  const shopName = sSettings.shop_name || 'আমাদের শপ';
+  const personaName = sSettings.bot_persona_name || '';
+  const insideFee = sSettings.inside_dhaka_fee || 80;
+  const outsideFee = sSettings.outside_dhaka_fee || 120;
+  const bkashNum = sSettings.bkash_number || '';
+  const nagadNum = sSettings.nagad_number || '';
+  const advanceRequired = sSettings.advance_delivery_charge_required !== false;
   const paymentMethods = [];
   if (bkashNum) paymentMethods.push(`বিকাশ (${bkashNum})`);
   if (nagadNum) paymentMethods.push(`নগদ (${nagadNum})`);
   const paymentMethodText = paymentMethods.length > 0 ? paymentMethods.join(' বা ') : 'বিকাশ বা নগদ';
 
-  const distinctCategories = Array.isArray(cachedProductList)
-    ? [...new Set(cachedProductList.map(p => p.category || (p.custom_attributes && p.custom_attributes.category)).filter(Boolean))]
+  const sProducts = sellerProductsCache.get(sellerId) || cachedProductList;
+  const sProductsText = sellerProductsTextCache.get(sellerId) || cachedProductsText;
+  const sPromotionsText = sellerPromotionsTextCache.get(sellerId) || cachedPromotionsText;
+
+  const distinctCategories = Array.isArray(sProducts)
+    ? [...new Set(sProducts.map(p => p.category || (p.custom_attributes && p.custom_attributes.category)).filter(Boolean))]
     : [];
 
   const dynamicPlaybook = typeof getDynamicPlaybookGuidance === 'function' ? getDynamicPlaybookGuidance(userText) : '';
@@ -684,7 +725,7 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
   return `
 [SESSION STATE]: AlreadyGreeted=${sessionState.hasGreeted ? 'true' : 'false'}, Stage=${sessionState.stage || 'BROWSING'}, ActiveModel=${activeModelCode}, CatalogOverviewSent=${sessionState.catalogSent ? 'true' : 'false'}, TimeGapSinceLastMsg=${timeGapInfo}${recentOrderText ? `\n[RECENT ORDER]: ${recentOrderText}` : ''}
 
-তুমি "${shopName}"-এর অভিজ্ঞ শপ ইনচার্জ ও আসল সেলসম্যান, সরাসরি হোয়াটসঅ্যাপে কাস্টমারের সাথে কথা বলছ। কোনো এআই বা হেল্পডেস্ক সাপোর্ট এজেন্ট নও। তোমার লক্ষ্য কাস্টমারের সাথে আপন মানুষের মতো আন্তরিক সম্পর্ক তৈরি করা এবং সঠিক পণ্যটি বেছে দিতে সাহায্য করে বিক্রয় নিশ্চিত করা। ১-৩ লাইনে সংক্ষিপ্ত, আকর্ষণীয় ও মার্জিত বাংলাদেশি বাংলায় পূর্ণাঙ্গ বাক্যে উত্তর দাও। কোনো কথা বা বাক্য মাঝপথে কাটা রাখবে না।
+তুমি "${shopName}"-এর অভিজ্ঞ শপ ইনচার্জ ও আসল সেলসম্যান${personaName ? ` (তোমার নাম ${personaName})` : ''}, সরাসরি হোয়াটসঅ্যাপে কাস্টমারের সাথে কথা বলছ। কোনো এআই বা হেল্পডেস্ক সাপোর্ট এজেন্ট নও। তোমার লক্ষ্য কাস্টমারের সাথে আপন মানুষের মতো আন্তরিক সম্পর্ক তৈরি করা এবং সঠিক পণ্যটি বেছে দিতে সাহায্য করে বিক্রয় নিশ্চিত করা। ১-৩ লাইনে সংক্ষিপ্ত, আকর্ষণীয় ও মার্জিত বাংলাদেশি বাংলায় পূর্ণাঙ্গ বাক্যে উত্তর দাও। কোনো কথা বা বাক্য মাঝপথে কাটা রাখবে না।
 
 কঠোর শিষ্টাচার ও ভাষা:
 ১. "ভাই", "ভাইয়া", "আপু", "স্যার/ম্যাম" সম্পূর্ণ নিষিদ্ধ; সর্বদা সম্মানসূচক "আপনি/আপনার" বলবে। বাক্যের শুরুতে রোবটের মতো অহেতুক "জি," বসাবে না, বিশেষ করে ব্যক্তিগত বা সাধারণ প্রশ্নে সরাসরি স্বাভাবিক ভাষায় কথা বলবে।
@@ -755,8 +796,8 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 ২. সরাসরি ব্যক্তিগত গালাগালি এলে শান্তভাবে বলো: "দয়া করে শালীনভাবে কথা বলুন।"
 
 [LIVE PRODUCTS]:
-${cachedProductsText || 'বর্তমানে পণ্য সক্রিয় আছে।'}
-${cachedPromotionsText ? `\n[PROMOTIONS]: ${cachedPromotionsText}` : ''}
+${sProductsText || 'বর্তমানে পণ্য সক্রিয় আছে।'}
+${sPromotionsText ? `\n[PROMOTIONS]: ${sPromotionsText}` : ''}
 ${dynamicPlaybook ? `\n[PLAYBOOK]:\n${dynamicPlaybook}` : ''}
 `.trim();
 }
@@ -1007,11 +1048,12 @@ async function transcribeAudioWithGroq(audioBuffer) {
 }
 
 // Fallback generator for extreme network failure or quick resolution
-function generateSmartFallback(userText, isFirstMessage, session = null, recentOrder = null) {
+function generateSmartFallback(userText, isFirstMessage, session = null, recentOrder = null, sellerId = 'autodokan_seller_1') {
   const t = (userText || '').toLowerCase().trim();
-  const shopName = storeSettings.shop_name || 'Dawah Fashion';
-  const insideFee = storeSettings.inside_dhaka_fee || 80;
-  const outsideFee = storeSettings.outside_dhaka_fee || 150;
+  const sSettings = sellerSettingsCache.get(sellerId) || storeSettings;
+  const shopName = sSettings.shop_name || 'আমাদের শপ';
+  const insideFee = sSettings.inside_dhaka_fee || 80;
+  const outsideFee = sSettings.outside_dhaka_fee || 150;
   const greeting = (isFirstMessage && (!session || !session.hasGreeted)) ? `আসসালামু আলাইকুম! ${shopName}-এ স্বাগতম। ` : 'জি, ';
 
   // 0. Smart Gibberish & Accidental Text Guard
@@ -1310,6 +1352,9 @@ JSON Format:
 
 async function handleIncomingMessage(senderId, userText, explicitSellerId = null) {
   const sellerId = explicitSellerId || 'autodokan_seller_1';
+  if (!sellerSettingsCache.has(sellerId) || !sellerProductsCache.has(sellerId)) {
+    await refreshProductsFromDB(sellerId);
+  }
   const session = await getCustomerSession(sellerId, 'WHATSAPP', senderId);
 
   // 1. Auto Human-Alert Escalation Check (Only flags dashboard, bot remains active!)
@@ -1369,7 +1414,7 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
   extractAndSaveOrderLead(senderId, userText, session.messages, session);
 
   // Build Context-Aware Real-Human Prompt with Dynamic Playbook & Live Order Data
-  const systemPrompt = buildSystemPrompt(isFirstMessage, session, recentOrderText, userText);
+  const systemPrompt = buildSystemPrompt(isFirstMessage, session, recentOrderText, userText, sellerId);
 
   // Conversational message history for LLM (trimmed to last 14 turns)
   const chatHistory = session.messages.slice(-14).map(m => ({
@@ -1379,7 +1424,7 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
 
   // Hybrid Router
   const complexity = classifyMessageComplexity(userText, session.messages.length);
-  console.log(`[AI Pipeline] Route: ${complexity} | Sender: ${senderId}`);
+  console.log(`[AI Pipeline] Route: ${complexity} | Sender: ${senderId} | Seller: ${sellerId}`);
 
   // Call Primary Gemini (#1) or Secondary Groq (#2)
   let aiReply = null;
@@ -1393,7 +1438,7 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
   }
   if (!aiReply) {
     console.log('[AI Pipeline] LLM engines offline or cooling down, generating smart fallback...');
-    aiReply = generateSmartFallback(userText, isFirstMessage, session, latestOrder);
+    aiReply = generateSmartFallback(userText, isFirstMessage, session, latestOrder, sellerId);
   }
 
   // Strip banned corporate phrases
@@ -1421,13 +1466,13 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
     if (promisesPhotoInReply) {
       if (activeModel) {
         aiReply += ` [SEND_ALL_IMAGES:${activeModel}]`;
-      } else if (isAskingForCatalogOverview(userText) || /কালেকশন|বোরকা|ডিজাইন|সব|ছবি|পিক|chobi|pic|poc/i.test(userText)) {
+      } else if (isAskingForCatalogOverview(userText) || /কালেকশন|বোরকা|জুতা|ডিজাইন|সব|ছবি|পিক|chobi|pic|poc/i.test(userText)) {
         aiReply += ' [SEND_CATALOG_OVERVIEW]';
       }
     } else if (isAskingForImage(userText)) {
       if (activeModel) {
         aiReply += ` [SEND_ALL_IMAGES:${activeModel}]`;
-      } else if (isAskingForCatalogOverview(userText) || /কালেকশন|বোরকা|ডিজাইন|সব|ছবি|পিক|chobi|pic|poc/i.test(userText)) {
+      } else if (isAskingForCatalogOverview(userText) || /কালেকশন|বোরকা|জুতা|ডিজাইন|সব|ছবি|পিক|chobi|pic|poc/i.test(userText)) {
         aiReply += ' [SEND_CATALOG_OVERVIEW]';
       }
     }
@@ -1458,7 +1503,7 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
   aiReply = cleanHumanFormatting(aiReply);
 
   // Defensive Anti-Truncation Polish
-  const curShop = storeSettings.shop_name || 'আমাদের শপ';
+  const curShop = (sellerSettingsCache.get(sellerId) || storeSettings).shop_name || 'আমাদের শপ';
   if (aiReply.trim() === 'স্বাগ' || aiReply.trim() === 'স্বাগতম') {
     aiReply = `${curShop}-এ স্বাগতম! আমাদের নতুন কালেকশন দেখতে পারেন।`;
   } else if (aiReply.endsWith('আমাদের কা')) {
@@ -1489,9 +1534,9 @@ module.exports = {
   handleIncomingMessage,
   refreshProductsFromDB,
   refreshSettingsFromDB,
-  getStoreSettings: () => storeSettings,
+  getStoreSettings: (sellerId = 'autodokan_seller_1') => sellerSettingsCache.get(sellerId) || storeSettings,
   getProductByCode,
-  getAllCachedProducts,
+  getAllCachedProducts: (sellerId = 'autodokan_seller_1') => sellerProductsCache.get(sellerId) || cachedProductList,
   getProductImageUrls,
   getProductColors,
   extractAndSaveOrderLead,

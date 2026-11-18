@@ -907,12 +907,13 @@ app.post('/api/products/:id/toggle-stock', requireAuth, async (req, res) => {
 // Live Interactive AI Bot Simulator / Test Bench Endpoint
 app.post('/api/test-bot', requireAuth, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, seller_id } = req.body;
     if (!message || !message.trim()) {
       return res.status(400).json({ success: false, error: 'মেসেজ খালি হতে পারবে না' });
     }
+    const targetSeller = seller_id || CURRENT_SELLER_ID;
     const startTime = Date.now();
-    const reply = await handleIncomingMessage('test_bench_user_01700000000', message.trim());
+    const reply = await handleIncomingMessage('test_bench_user_01700000000', message.trim(), targetSeller);
     const durationMs = Date.now() - startTime;
 
     // Detect any photo tags sent by bot
@@ -3198,7 +3199,7 @@ async function processCustomerBuffer(remoteJid) {
       await sock.sendPresenceUpdate('composing', remoteJid);
     }
 
-    const replyText = await handleIncomingMessage(remoteJid, combinedText);
+    const replyText = await handleIncomingMessage(remoteJid, combinedText, CURRENT_SELLER_ID);
 
     // Helper to send individual WhatsApp photo with caption
     async function sendWaPhoto(url, caption) {
