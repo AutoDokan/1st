@@ -278,9 +278,33 @@ async function runRegressionSuite() {
   assert(apniSanitized.includes('আপনি') && apniSanitized.includes('আপনার'), 
     'Clean human sanitizer strictly preserves respectful "আপনি" and "আপনার" pronouns', apniSanitized);
 
+  // TEST 31: Product Intelligence Studio Structured Specs Formatting
+  const dummyRichProduct = {
+    model_code: 'DF-999',
+    name: 'লুক্স সুপ্রিম আবায়া',
+    price: 2500,
+    fabric: 'দুবাই চেরি',
+    sizes: '৫০, ৫২, ৫৪, ৫৬',
+    colors: 'জেট ব্ল্যাক, চকোলেট ব্রাউন',
+    short_description: 'বিশেষ গিফট অফার',
+    hijab_included: true,
+    custom_attributes: {
+      transparency: '100% নন-ট্রান্সপারেন্ট',
+      package_type: '২ পিস সেট',
+      hijab_details: 'ম্যাচিং চেরি হিজাব ফ্রি',
+      body_fit: 'বডি ৩৬-৪৬',
+      flare_inches: '১২০ ইঞ্চি',
+      color_guarantee: true,
+      wrinkle_free: true
+    }
+  };
+  const testSysPrompt = buildSystemPrompt('test_rich_specs');
+  assert(testSysPrompt.includes('Zero Hallucination Specs') && testSysPrompt.includes('নন-ট্রান্সপারেন্ট'), 
+    'System prompt includes Product Intelligence Zero Hallucination rules', testSysPrompt.substring(0, 300));
+
   console.log('\n========================================');
   if (failedTests === 0) {
-    console.log('   ALL 30 RIGOROUS REGRESSION TESTS PASSED!  ');
+    console.log('   ALL 31 RIGOROUS REGRESSION TESTS PASSED!  ');
     console.log('========================================\n');
     process.exit(0);
   } else {
