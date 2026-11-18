@@ -1012,10 +1012,10 @@ function createMerchantPortalRouter({
           <span id="themeToggleText" class="hidden sm:inline">লাইট</span>
         </button>
 
-        <!-- Logout Button -->
-        <button type="button" onclick="logoutMerchantPortal()" class="bg-[#1C1C1E] hover:bg-[#FF453A]/15 text-[rgba(235,235,245,0.70)] hover:text-[#FF453A] text-xs sm:text-sm font-semibold p-2 sm:px-3 sm:py-1.5 rounded-[12px] border border-white/[0.08] hover:border-[#FF453A]/30 transition flex items-center gap-1 shadow-xs cursor-pointer active:scale-95" title="লগআউট">
-          <span>🚪</span>
-          <span class="hidden sm:inline">লগআউট</span>
+        <!-- Settings Gear Button (Opens Pro Settings Drawer with all options & logout at bottom) -->
+        <button type="button" onclick="openSettingsDrawer()" id="navSettingsBtn" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-[12px] border border-white/[0.12] transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 group" title="শপ সেটিংস ও কন্ট্রোল প্যানেল">
+          <span class="text-sm transition-transform duration-300 group-hover:rotate-90">⚙️</span>
+          <span class="hidden sm:inline">সেটিংস</span>
         </button>
       </div>
 
@@ -1037,8 +1037,8 @@ function createMerchantPortalRouter({
           <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] text-[11px] px-2 py-0.5 rounded-full font-bold">${totalOrders}</span>
         </button>
 
-        <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
-          <span>⚙️ শপ সেটিংস ও পলিসি</span>
+        <button type="button" onclick="openSettingsDrawer()" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+          <span>⚙️ শপ সেটিংস</span>
         </button>
       </div>
 
@@ -1206,168 +1206,92 @@ function createMerchantPortalRouter({
       </div>
     </section>
 
-    <!-- TAB 3: ADVANCED SETTINGS -->
+    <!-- TAB 3: ADVANCED SETTINGS OVERVIEW HUB -->
     <section id="tab-settings" class="hidden space-y-6">
-      <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] max-w-3xl mx-auto space-y-7">
+      <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] max-w-3xl mx-auto space-y-6">
         
         <div class="border-b border-white/[0.06] pb-4 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight flex items-center gap-2">
-              <span>⚙️ শপ সেটিংস ও AI পলিসি ইঞ্জিন</span>
+              <span>⚙️ শপ সেটিংস ও AI পলিসি হাব</span>
             </h2>
-            <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">WhatsApp AI স্বয়ংক্রিয়ভাবে গ্রাহকের সাথে কথা বলার সময় এই নিয়ম, অফার ও চার্জগুলো অনুসরণ করবে।</p>
+            <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">সব সেটিংস এখন ড্রয়ার প্যানেল থেকে যেকোনো সময় এক ক্লিকে এডিট বা আপডেট করতে পারেন।</p>
           </div>
-          <div class="flex items-center gap-2 bg-[#2C2C2E] px-3 py-1.5 rounded-[12px] border border-white/[0.06] text-xs font-semibold">
-            <span class="w-2 h-2 rounded-full ${isConnected ? 'bg-[#30D158] animate-pulse' : 'bg-[rgba(235,235,245,0.30)]'}"></span>
-            <span class="${isConnected ? 'text-[#30D158]' : 'text-[rgba(235,235,245,0.60)]'}">${isConnected ? 'WhatsApp লাইভ' : 'সংযোগ বিচ্ছিন্ন'}</span>
-          </div>
+          <button type="button" onclick="openSettingsDrawer()" class="bg-white hover:bg-[#E5E5EA] active:scale-95 text-black font-extrabold text-xs sm:text-sm px-4 py-2.5 rounded-[14px] shadow-[0_2px_14px_rgba(255,255,255,0.15)] transition cursor-pointer flex items-center gap-2">
+            <span>⚙️ সেটিংস প্যানেল খুলুন</span>
+          </button>
         </div>
 
-        <!-- 1. Dedicated WhatsApp Connection Hub (With PIN Security Gate) -->
-        <div class="bg-gradient-to-br from-[#242426] via-[#1C1C1E] to-[#242426] p-5 sm:p-6 rounded-[22px] border border-white/[0.08] shadow-sm space-y-4">
-          <div class="flex items-center justify-between gap-3 flex-wrap border-b border-white/[0.06] pb-3.5">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-[14px] bg-[#30D158]/15 border border-[#30D158]/30 text-[#30D158] flex items-center justify-center text-xl shadow-xs">
-                📲
-              </div>
-              <div>
-                <h3 class="font-bold text-sm sm:text-base text-white tracking-tight">WhatsApp AI সংযোগ ও সেশন নিয়ন্ত্রণ</h3>
-                <div class="text-xs text-[rgba(235,235,245,0.50)] flex items-center gap-2 mt-0.5">
-                  <span>${isConnected ? 'সক্রিয় নম্বর: +' + (liveNum || 'সংযুক্ত') : 'কোনো WhatsApp অ্যাকাউন্ট বর্তমানে সংযুক্ত নেই'}</span>
-                  ${isConnected ? '<span class="text-[#30D158] font-bold">● সেশন অ্যাক্টিভ</span>' : ''}
-                </div>
-              </div>
+        <!-- Live Snapshot Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          <!-- WhatsApp Tile -->
+          <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-[rgba(235,235,245,0.50)] font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span>📱</span><span>WhatsApp AI সেশন</span>
+              </span>
+              <span class="w-2 h-2 rounded-full ${isConnected ? 'bg-[#30D158] animate-pulse' : 'bg-red-400'}"></span>
             </div>
-
-            <!-- PIN Protected QR Action Button -->
-            <button type="button" onclick="openQrSecurityModal()" class="bg-[#30D158] hover:bg-[#34C759] active:scale-95 text-black font-extrabold text-xs sm:text-sm px-4 py-2.5 rounded-[14px] shadow-[0_2px_14px_rgba(48,209,88,0.25)] transition flex items-center gap-2 cursor-pointer">
-              <span>🔐</span>
-              <span>QR পরিবর্তন / রিকানেক্ট করুন</span>
+            <div class="font-extrabold text-white text-sm sm:text-base">${isConnected ? 'সক্রিয় (+' + (liveNum || '') + ')' : 'বট অপেক্ষমাণ'}</div>
+            <p class="text-xs text-[rgba(235,235,245,0.50)] leading-relaxed">২৪/৭ অটোমেটিক গ্রাহকের সাথে কথা বলে অর্ডার নেয়।</p>
+            <button type="button" onclick="openQrSecurityModal()" class="text-xs text-[#30D158] hover:underline font-bold pt-1 inline-flex items-center gap-1 cursor-pointer">
+              <span>🔐 QR পরিবর্তন করুন →</span>
             </button>
           </div>
 
-          <div class="flex items-start gap-2 text-xs text-[rgba(235,235,245,0.50)] bg-[#1C1C1E] p-3 rounded-[12px] border border-white/[0.04]">
-            <span class="text-amber-400 text-sm leading-none shrink-0">🛡️</span>
-            <span>অননুমোদিত কেউ যেন WhatsApp বিচ্ছিন্ন করতে না পারে, সেজন্য QR পরিবর্তন সিকিউরিটি পিন দ্বারা সুরক্ষিত। QR ওপেন করতে শপ সিকিউরিটি পিন প্রয়োজন।</span>
+          <!-- Security PIN Tile -->
+          <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-[rgba(235,235,245,0.50)] font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span>🔐</span><span>সিকিউরিটি পিন</span>
+              </span>
+              <span class="text-amber-400 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded font-bold">লকড</span>
+            </div>
+            <div class="font-extrabold font-mono text-white text-sm sm:text-base">•••• (${curSecurityPin})</div>
+            <p class="text-xs text-[rgba(235,235,245,0.50)] leading-relaxed">WhatsApp QR পরিবর্তন ও গুরুত্বপূর্ণ অ্যাকশন সুরক্ষিত রাখে।</p>
+            <button type="button" onclick="openSettingsDrawer()" class="text-xs text-amber-400 hover:underline font-bold pt-1 inline-flex items-center gap-1 cursor-pointer">
+              <span>✏️ পিন পরিবর্তন করুন →</span>
+            </button>
           </div>
+
+          <!-- Delivery Tile -->
+          <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-[rgba(235,235,245,0.50)] font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span>🚚</span><span>ডেলিভারি চার্জ</span>
+              </span>
+              <span class="text-sky-400 text-[11px] bg-sky-500/10 px-2 py-0.5 rounded font-bold">শিপিং</span>
+            </div>
+            <div class="font-bold text-white text-sm">ঢাকা: ৳${curSettings.inside_dhaka_fee} • ঢাকা বাইরে: ৳${curSettings.outside_dhaka_fee}</div>
+            <p class="text-xs text-[rgba(235,235,245,0.50)] leading-relaxed">ফ্রি শিপিং: ${curSettings.free_delivery_min_amount ? '৳' + curSettings.free_delivery_min_amount + ' এর বেশি অর্ডারে' : 'প্রযোজ্য নয়'} • ডেলিভারি: ${extra.delivery_timeline || '২-৩ দিন'}</p>
+          </div>
+
+          <!-- Payment Tile -->
+          <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-[rgba(235,235,245,0.50)] font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <span>🛡️</span><span>পেমেন্ট ও Fraud Guard</span>
+              </span>
+              <span class="text-emerald-400 text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded font-bold">সক্রিয়</span>
+            </div>
+            <div class="font-bold text-white text-xs font-mono">বিকাশ: ${curSettings.bkash_number || 'নাই'} | নগদ: ${curSettings.nagad_number || 'নাই'}</div>
+            <p class="text-xs text-[rgba(235,235,245,0.50)] leading-relaxed">ঢাকার বাইরে ডেলিভারি চার্জ অগ্রিম নেওয়া: ${extra.require_advance_outside ? '✅ চালু' : '❌ বন্ধ'}</p>
+          </div>
+
         </div>
 
-        <form onsubmit="saveMerchantSettingsLive(event)" class="space-y-6">
-
-          <!-- Section 2: Security PIN Settings -->
-          <div class="bg-[#242426]/60 p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-3.5">
-            <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
-              <h3 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                <span class="text-amber-400">🔐</span><span>শপ সিকিউরিটি পিন (Security PIN)</span>
-              </h3>
-              <span class="text-[11px] text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded-[6px] font-semibold">অ্যাডমিন অ্যাক্সেস গার্ড</span>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">৪ থেকে ৮ ডিজিট সিকিউরিটি পিন *</label>
-              <div class="max-w-xs">
-                <input type="text" id="set_security_pin" value="${curSecurityPin}" maxlength="12" required class="w-full bg-[#1C1C1E] border border-white/[0.1] text-white text-base font-mono font-bold p-3 rounded-[14px] focus:border-[#30D158] outline-none">
-              </div>
-              <span class="text-xs text-[rgba(235,235,245,0.40)] mt-1.5 block">WhatsApp QR পরিবর্তন ও স্পর্শকাতর সেটিংস এক্সেস করতে এই পিনটি ব্যবহার করা হবে (ডিফল্ট: 1234)।</span>
-            </div>
+        <!-- Banner to Open Drawer -->
+        <div class="bg-gradient-to-r from-emerald-500/10 via-[#2C2C2E] to-blue-500/10 p-5 rounded-[22px] border border-white/[0.08] flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div class="font-bold text-white text-sm sm:text-base">যেকোনো সেটিংস এডিট বা আপডেট করতে চান?</div>
+            <div class="text-xs text-[rgba(235,235,245,0.60)] mt-0.5">টপ নেভবারের ⚙️ সেটিংস আইকন চাপুন অথবা নিচের বাটনে ক্লিক করুন।</div>
           </div>
-
-          <!-- Section 3: Delivery Charges & Free Shipping -->
-          <div class="bg-[#242426]/60 p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-3.5">
-            <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
-              <h3 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                <span class="text-sky-400">🚚</span><span>ডেলিভারি চার্জ ও ফ্রি ডেলিভারি পলিসি</span>
-              </h3>
-              <span class="text-[11px] text-sky-400/80 bg-sky-500/10 px-2 py-0.5 rounded-[6px] font-semibold">কুরিয়ার ও শিপিং</span>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ঢাকা ভেতরে ডেলিভারি চার্জ (টাকা)</label>
-                <input type="number" id="set_inside_fee" value="${curSettings.inside_dhaka_fee}" required class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-base font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ঢাকা বাইরে ডেলিভারি চার্জ (টাকা)</label>
-                <input type="number" id="set_outside_fee" value="${curSettings.outside_dhaka_fee}" required class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-base font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">🎉 ফ্রি ডেলিভারি শর্ত (ন্যূনতম অর্ডারের পরিমাণ, ৳)</label>
-                <input type="number" id="set_free_delivery_min" value="${curSettings.free_delivery_min_amount || ''}" placeholder="যেমন: 3000" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none font-bold">
-                <span class="text-xs text-[rgba(235,235,245,0.40)] mt-1 block">এই টাকার বেশি অর্ডারে AI চার্জ ০ টাকা ধরবে (খালি রাখলে ফ্রি প্রযোজ্য নয়)।</span>
-              </div>
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ডেলিভারি সময়সীমা</label>
-                <input type="text" id="set_delivery_time" value="${extra.delivery_timeline || '২-৩ কার্যদিবস'}" placeholder="যেমন: ২-৩ দিন" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
-                <span class="text-xs text-[rgba(235,235,245,0.40)] mt-1 block">গ্রাহক জানতে চাইলে AI এই ডেলিভারি সময় উল্লেখ করবে।</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Section 4: Payments & COD Fraud Guard -->
-          <div class="bg-[#242426]/60 p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-3.5">
-            <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
-              <h3 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                <span class="text-emerald-400">🛡️</span><span>পেমেন্ট গেটওয়ে ও ফেক অর্ডার প্রটেকশন (COD Fraud Guard)</span>
-              </h3>
-              <span class="text-[11px] text-emerald-400/80 bg-emerald-500/10 px-2 py-0.5 rounded-[6px] font-semibold">ক্যাশলেস ও প্রটেকশন</span>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">📱 বিকাশ নাম্বার</label>
-                <input type="text" id="set_bkash" value="${curSettings.bkash_number || ''}" placeholder="যেমন: 017XXXXXXXX" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-mono font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">📱 নগদ নাম্বার</label>
-                <input type="text" id="set_nagad" value="${curSettings.nagad_number || ''}" placeholder="যেমন: 018XXXXXXXX" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-mono font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
-              </div>
-            </div>
-
-            <!-- Advance Fee Toggle for Outside Dhaka -->
-            <div class="bg-[#1C1C1E] p-4 rounded-[16px] border border-white/[0.06] flex items-center justify-between gap-4">
-              <div>
-                <div class="font-bold text-sm text-white">ঢাকার বাইরে ডেলিভারি চার্জ অগ্রিম গ্রহণের নিয়ম</div>
-                <div class="text-xs text-[rgba(235,235,245,0.50)] mt-0.5">সক্রিয় থাকলে AI ঢাকার বাইরের গ্রাহকদের বলবে: "অর্ডার নিশ্চিত করতে ডেলিভারি চার্জ অগ্রিম বিকাশ করুন।"</div>
-              </div>
-              <input type="checkbox" id="set_require_advance" ${extra.require_advance_outside ? 'checked' : ''} class="w-5 h-5 accent-[#30D158] cursor-pointer">
-            </div>
-          </div>
-
-          <!-- Section 5: AI Persona, Offers & Customer Policies -->
-          <div class="bg-[#242426]/60 p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-3.5">
-            <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
-              <h3 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                <span class="text-purple-400">🤖</span><span>WhatsApp AI পার্সোনা, প্রমো অফার ও পলিসি</span>
-              </h3>
-              <span class="text-[11px] text-purple-400/80 bg-purple-500/10 px-2 py-0.5 rounded-[6px] font-semibold">গ্রাহক সন্তুষ্টি</span>
-            </div>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">AI এজেন্টের নাম</label>
-                <input type="text" id="set_bot_name" value="${curSettings.bot_persona_name || 'Zara'}" required class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-bold p-3 rounded-[14px] focus:border-white/40 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">🎁 বিশেষ অফার / কম্বো প্রমো টেক্সট</label>
-                <input type="text" id="set_promo_offer" value="${curSettings.promo_offer || ''}" placeholder="যেমন: ২টি আবায়া নিলে বিশেষ ১০০ টাকা ছাড়!" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">🔄 রিটার্ন ও এক্সচেঞ্জ পলিসি (AI গ্রাহককে বলবে)</label>
-              <textarea id="set_return_policy" rows="2" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none leading-relaxed">${curSettings.return_policy || 'ডেলিভারি ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।'}</textarea>
-            </div>
-
-            <div>
-              <label class="block text-xs sm:text-sm font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">✨ কাপড় ও প্রডাক্টের যত্ন / ওয়াশ কেয়ার গাইডলাইন</label>
-              <input type="text" id="set_wash_care" value="${extra.wash_care || 'ড্রাই ওয়াশ বা শ্যাম্পু দিয়ে আলতো করে ধোয়ার পরামর্শ দিন।'}" placeholder="যেমন: ড্রাই ওয়াশ বা শ্যাম্পু দিয়ে ধোয়ার পরামর্শ" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[14px] focus:border-white/40 outline-none">
-            </div>
-          </div>
-
-          <button type="submit" id="saveSettingsBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black text-sm font-extrabold py-3.5 rounded-[16px] shadow-[0_2px_14px_rgba(255,255,255,0.15)] transition cursor-pointer active:scale-98">
-            💾 শপ সেটিংস ও পলিসি সেভ করুন
+          <button type="button" onclick="openSettingsDrawer()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-[12px] border border-white/[0.1] transition cursor-pointer flex items-center gap-1.5 shadow-xs active:scale-95">
+            <span>⚙️ সেটিংস প্যানেল ওপেন করুন</span>
           </button>
-        </form>
+        </div>
+
       </div>
     </section>
 
@@ -2231,6 +2155,178 @@ function createMerchantPortalRouter({
     </div>
   </div>
 
+  <!-- ======================================================== -->
+  <!-- PRO-LEVEL SLIDE-OVER SETTINGS DRAWER                     -->
+  <!-- ======================================================== -->
+  <div id="settingsDrawerBackdrop" onclick="closeSettingsDrawer()" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+
+  <aside id="settingsDrawer" class="fixed top-0 right-0 h-full w-full sm:w-[480px] z-50 bg-[#1C1C1E] border-l border-white/[0.1] shadow-[-16px_0_60px_rgba(0,0,0,0.85)] flex flex-col transform translate-x-full transition-transform duration-300 ease-out text-left select-none">
+    
+    <!-- Drawer Header -->
+    <div class="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between gap-3 bg-[#1C1C1E]/95 backdrop-blur-md shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-[14px] bg-[#2C2C2E] border border-white/[0.1] flex items-center justify-center text-lg text-white shadow-xs">
+          ⚙️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="font-bold text-base text-white tracking-tight">শপ ও ইউজার সেটিংস</h2>
+            <span class="bg-[#2C2C2E] text-[10px] text-[#30D158] font-bold px-2 py-0.5 rounded-full border border-white/[0.06]">Pro Hub</span>
+          </div>
+          <p class="text-[11px] text-[rgba(235,235,245,0.50)] mt-0.5">${shopName} • ${isConnected ? '🟢 WhatsApp লাইভ' : '⚪ বট অপেক্ষমাণ'}</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeSettingsDrawer()" class="w-9 h-9 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[rgba(235,235,245,0.70)] hover:text-white flex items-center justify-center text-sm transition cursor-pointer active:scale-95" title="বন্ধ করুন (Esc)">
+        ✕
+      </button>
+    </div>
+
+    <!-- Drawer Scrollable Body -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar">
+      <form id="drawerSettingsForm" onsubmit="saveMerchantSettingsLive(event)" class="space-y-4">
+        
+        <!-- SECTION 1: WhatsApp AI Bot & Secure QR Hub -->
+        <div class="bg-[#242426] p-4 rounded-[18px] border border-white/[0.06] space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-400 text-sm">📲</span>
+              <h3 class="font-bold text-xs sm:text-sm text-white">WhatsApp AI সেশন ও কিউআর</h3>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isConnected ? 'bg-[#30D158]/15 text-[#30D158]' : 'bg-[rgba(235,235,245,0.1)] text-[rgba(235,235,245,0.6)]'}">
+              ${isConnected ? 'সক্রিয় (+'+liveNum+')' : 'অপেক্ষমাণ'}
+            </span>
+          </div>
+
+          <p class="text-xs text-[rgba(235,235,245,0.60)] leading-relaxed">
+            WhatsApp বট স্বয়ংক্রিয়ভাবে গ্রাহকের মেসেজের উত্তর দেয় ও অর্ডার নিশ্চিত করে।
+          </p>
+
+          <button type="button" onclick="openQrSecurityModal()" class="w-full bg-[#30D158] hover:bg-[#34C759] active:scale-98 text-black font-extrabold text-xs sm:text-sm py-2.5 rounded-[12px] transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_12px_rgba(48,209,88,0.25)]">
+            <span>🔐</span>
+            <span>QR পরিবর্তন / রিকানেক্ট করুন</span>
+          </button>
+        </div>
+
+        <!-- SECTION 2: Security PIN Settings -->
+        <div class="bg-[#242426] p-4 rounded-[18px] border border-white/[0.06] space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-amber-400 text-sm">🔐</span>
+              <h3 class="font-bold text-xs sm:text-sm text-white">সিকিউরিটি পিন (Security PIN)</h3>
+            </div>
+            <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-semibold">অ্যাডমিন গার্ড</span>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1">৪ থেকে ৮ ডিজিট সিকিউরিটি পিন *</label>
+            <input type="text" id="set_security_pin" value="${curSecurityPin}" maxlength="12" required class="w-full bg-[#1C1C1E] border border-white/[0.1] text-white text-base font-mono font-bold p-2.5 rounded-[12px] focus:border-[#30D158] outline-none">
+            <span class="text-[11px] text-[rgba(235,235,245,0.40)] mt-1 block">WhatsApp QR পরিবর্তন করতে এই পিনটি প্রয়োজন (ডিফল্ট: 1234)।</span>
+          </div>
+        </div>
+
+        <!-- SECTION 3: Delivery Charges & Shipping Policy -->
+        <div class="bg-[#242426] p-4 rounded-[18px] border border-white/[0.06] space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-sky-400 text-sm">🚚</span>
+              <h3 class="font-bold text-xs sm:text-sm text-white">ডেলিভারি চার্জ ও ফ্রি শিপিং</h3>
+            </div>
+            <span class="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded font-semibold">শিপিং রেটস</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">ঢাকা ভেতরে (৳) *</label>
+              <input type="number" id="set_inside_fee" value="${curSettings.inside_dhaka_fee}" required class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-bold p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">ঢাকা বাইরে (৳) *</label>
+              <input type="number" id="set_outside_fee" value="${curSettings.outside_dhaka_fee}" required class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-bold p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">🎉 ফ্রি ডেলিভারি শর্ত (ন্যূনতম অর্ডার, ৳)</label>
+            <input type="number" id="set_free_delivery_min" value="${curSettings.free_delivery_min_amount || ''}" placeholder="যেমন: 3000 (খালি রাখলে ফ্রি প্রযোজ্য নয়)" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-bold p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">ডেলিভারি সময়সীমা</label>
+            <input type="text" id="set_delivery_time" value="${extra.delivery_timeline || '২-৩ কার্যদিবস'}" placeholder="যেমন: ২-৩ কার্যদিবস" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+          </div>
+        </div>
+
+        <!-- SECTION 4: Payment Gateways & COD Fraud Guard -->
+        <div class="bg-[#242426] p-4 rounded-[18px] border border-white/[0.06] space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-400 text-sm">🛡️</span>
+              <h3 class="font-bold text-xs sm:text-sm text-white">পেমেন্ট গেটওয়ে ও Fraud Guard</h3>
+            </div>
+            <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-semibold">COD Guard</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">📱 বিকাশ নাম্বার</label>
+              <input type="text" id="set_bkash" value="${curSettings.bkash_number || ''}" placeholder="017XXXXXXXX" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs font-mono font-bold p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">📱 নগদ নাম্বার</label>
+              <input type="text" id="set_nagad" value="${curSettings.nagad_number || ''}" placeholder="018XXXXXXXX" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs font-mono font-bold p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+            </div>
+          </div>
+          <div class="bg-[#1C1C1E] p-3 rounded-[12px] border border-white/[0.04] flex items-center justify-between gap-3">
+            <div>
+              <div class="font-bold text-xs text-white">ঢাকার বাইরে ডেলিভারি চার্জ অগ্রিম গ্রহণ</div>
+              <div class="text-[10px] text-[rgba(235,235,245,0.45)]">AI ঢাকার বাইরের গ্রাহককে ডেলিভারি চার্জ অগ্রিম বিকাশ করতে বলবে</div>
+            </div>
+            <input type="checkbox" id="set_require_advance" ${extra.require_advance_outside ? 'checked' : ''} class="w-4 h-4 accent-[#30D158] cursor-pointer">
+          </div>
+        </div>
+
+        <!-- SECTION 5: AI Persona, Offers & Policies -->
+        <div class="bg-[#242426] p-4 rounded-[18px] border border-white/[0.06] space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2">
+              <span class="text-purple-400 text-sm">🤖</span>
+              <h3 class="font-bold text-xs sm:text-sm text-white">WhatsApp AI পার্সোনা ও পলিসি</h3>
+            </div>
+            <span class="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded font-semibold">AI ব্রেন</span>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">AI এজেন্টের নাম *</label>
+            <input type="text" id="set_bot_name" value="${curSettings.bot_persona_name || 'Zara'}" required class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs font-bold p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">🎁 বিশেষ অফার / কম্বো প্রমো টেক্সট</label>
+            <input type="text" id="set_promo_offer" value="${curSettings.promo_offer || ''}" placeholder="যেমন: ২টি আবায়া নিলে বিশেষ ১০০ টাকা ছাড়!" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">🔄 রিটার্ন ও এক্সচেঞ্জ পলিসি</label>
+            <textarea id="set_return_policy" rows="2" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/40 outline-none leading-relaxed">${curSettings.return_policy || 'ডেলিভারি ম্যানের সামনে চেক করে নেওয়ার সুযোগ আছে।'}</textarea>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">✨ কাপড় ও প্রডাক্টের যত্ন / ওয়াশ কেয়ার</label>
+            <input type="text" id="set_wash_care" value="${extra.wash_care || 'ড্রাই ওয়াশ বা শ্যাম্পু দিয়ে আলতো করে ধোয়ার পরামর্শ দিন।'}" placeholder="যেমন: ড্রাই ওয়াশ বা শ্যাম্পু দিয়ে ধোয়ার পরামর্শ" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] focus:border-white/40 outline-none">
+          </div>
+        </div>
+
+        <button type="submit" id="saveSettingsBtn" class="w-full bg-white hover:bg-[#E5E5EA] text-black text-xs sm:text-sm font-extrabold py-3.5 rounded-[14px] shadow-[0_2px_14px_rgba(255,255,255,0.15)] transition cursor-pointer active:scale-98">
+          💾 শপ সেটিংস ও পলিসি সেভ করুন
+        </button>
+      </form>
+    </div>
+
+    <!-- Drawer Footer (Pinned at Bottom with Logout) -->
+    <div class="p-4 sm:p-5 border-t border-white/[0.08] bg-[#1C1C1E]/95 backdrop-blur-md shrink-0 space-y-2">
+      <!-- Logout Option at the very bottom -->
+      <button type="button" onclick="logoutMerchantPortal()" class="w-full bg-[#FF453A]/10 hover:bg-[#FF453A]/20 active:scale-98 text-[#FF453A] font-bold text-xs sm:text-sm py-3 rounded-[14px] border border-[#FF453A]/25 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs" title="মার্চেন্ট পোর্টাল থেকে লগআউট করুন">
+        <span>🚪</span>
+        <span>মার্চেন্ট অ্যাকাউন্ট লগআউট</span>
+      </button>
+      <div class="text-[10px] text-[rgba(235,235,245,0.35)] text-center font-mono">
+        AutoDokan AI Enterprise • Merchant ID: #${inv.seller_id}
+      </div>
+    </div>
+
+  </aside>
+
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 pointer-events-none"></div>
 
   <script>
@@ -2316,6 +2412,42 @@ function createMerchantPortalRouter({
       closeQrSecurityModal();
       window.open('/connect?token=' + encodeURIComponent(token), '_blank');
     }
+
+    // ==========================================
+    // PRO SETTINGS SLIDE-OVER DRAWER ENGINE
+    // ==========================================
+    function openSettingsDrawer() {
+      const drawer = document.getElementById('settingsDrawer');
+      const backdrop = document.getElementById('settingsDrawerBackdrop');
+      if (drawer && backdrop) {
+        backdrop.classList.remove('hidden');
+        backdrop.classList.remove('pointer-events-none');
+        setTimeout(() => {
+          backdrop.classList.remove('opacity-0');
+          drawer.classList.remove('translate-x-full');
+        }, 15);
+      }
+    }
+
+    function closeSettingsDrawer() {
+      const drawer = document.getElementById('settingsDrawer');
+      const backdrop = document.getElementById('settingsDrawerBackdrop');
+      if (drawer && backdrop) {
+        backdrop.classList.add('opacity-0');
+        drawer.classList.add('translate-x-full');
+        setTimeout(() => {
+          backdrop.classList.add('hidden');
+          backdrop.classList.add('pointer-events-none');
+        }, 300);
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeSettingsDrawer();
+        closeQrSecurityModal();
+      }
+    });
 
     // ==========================================
     // PERSISTENCE & LOGOUT ENGINE
