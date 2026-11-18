@@ -304,6 +304,14 @@ function createMerchantPortalRouter({
       const waPhone = cleanPhone.startsWith('880') ? cleanPhone : (cleanPhone.startsWith('0') ? '88' + cleanPhone : '880' + cleanPhone);
       const searchMeta = (o.id + ' ' + (o.model_code || '') + ' ' + (o.customer_name || '') + ' ' + (o.customer_phone || '') + ' ' + (o.address || '')).toLowerCase();
 
+      // Dynamic Actor / Confirmed By Resolution (AI vs Merchant/Manual)
+      const isManual = (o.order_notes || '').toLowerCase().includes('manual') || o.source_channel === 'MANUAL';
+      const botPersona = curSettings.bot_persona_name || 'AI ইনচার্জ';
+      const confirmedByTitle = isManual ? '👤 মার্চেন্ট নিজে' : `🤖 ${botPersona} (AI)`;
+      const confirmedByBadge = isManual 
+        ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' 
+        : 'bg-[#30D158]/15 text-[#30D158] border-[#30D158]/30';
+
       return `
       <tr class="order-row border-b border-white/[0.04] hover:bg-[#2C2C2E]/40 transition text-sm" data-order-id="${o.id}" data-status="${o.status || 'Pending'}" data-search="${searchMeta}">
         <td class="p-4">
@@ -312,20 +320,31 @@ function createMerchantPortalRouter({
         </td>
         <td class="p-4">
           <div class="font-bold text-white text-sm">${o.customer_name || 'কাস্টমার'}</div>
-          <a href="https://wa.me/${waPhone}" target="_blank" class="text-[rgba(235,235,245,0.85)] hover:text-white underline text-sm font-mono font-medium flex items-center gap-1.5 mt-0.5">
-            <span>💬</span>
-            <span>${o.customer_phone || ''}</span>
-          </a>
+          <div class="text-xs text-[rgba(235,235,245,0.60)] font-mono mt-0.5">📞 ${o.customer_phone || ''}</div>
+          <!-- Distinct WhatsApp Origin Badge -->
+          <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <a href="https://wa.me/${waPhone}" target="_blank" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] bg-[#30D158]/15 border border-[#30D158]/30 text-[#30D158] text-[11px] font-mono font-bold hover:bg-[#30D158]/25 transition" title="গ্রাহকের সাথে হোয়াটসঅ্যাপে চ্যাট করুন">
+              <span>💬 WhatsApp:</span>
+              <span>${o.customer_phone || ''}</span>
+            </a>
+          </div>
         </td>
         <td class="p-4 max-w-[220px]">
-          <div class="text-xs sm:text-sm text-[rgba(235,235,245,0.70)] line-clamp-2" title="${o.address || ''}">${o.address || 'ঠিকানা দেওয়া হয়নি'}</div>
+          <div class="text-xs sm:text-sm text-[rgba(235,235,245,0.85)] line-clamp-2" title="${o.address || ''}">
+            <span>📍 ${o.address || 'ঠিকানা দেওয়া হয়নি'}</span>
+          </div>
         </td>
         <td class="p-4">
           <span class="font-mono font-bold text-white text-sm">[${o.model_code || 'PROD'}]</span>
           <div class="text-xs text-[rgba(235,235,245,0.50)] mt-0.5">সাইজ: ${o.length_size || 'স্ট্যান্ডার্ড'}</div>
         </td>
         <td class="p-4">
-          <span class="font-extrabold text-white text-base">৳${dueCod}</span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] text-xs font-semibold border ${confirmedByBadge}">
+            <span>${confirmedByTitle}</span>
+          </span>
+        </td>
+        <td class="p-4">
+          <span class="font-extrabold text-white text-base font-mono">৳${dueCod}</span>
         </td>
         <td class="p-4">
           <select onchange="updateOrderStatusLive(${o.id}, this.value)" class="text-xs sm:text-sm font-semibold rounded-[12px] px-3 py-1.5 border outline-none cursor-pointer ${
@@ -341,9 +360,14 @@ function createMerchantPortalRouter({
           </select>
         </td>
         <td class="p-4 text-right">
-          <button type="button" onclick="copyCourierFormat(${o.id})" title="কুরিয়ার ফরম্যাট কপি" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-[12px] border border-white/[0.08] transition cursor-pointer">
-            📋 কপি
-          </button>
+          <div class="inline-flex items-center gap-1.5 justify-end">
+            <button type="button" onclick="printOrderMemo(${o.id})" title="কাস্টমার ক্যাশ মেমো / পার্সেল স্লিপ প্রিন্ট" class="bg-[#2C2C2E] hover:bg-white hover:text-black text-white text-xs font-semibold px-2.5 py-1.5 rounded-[10px] border border-white/[0.1] transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95">
+              <span>🖨️ মেমো</span>
+            </button>
+            <button type="button" onclick="copyCourierFormat(${o.id})" title="কুরিয়ার ফরম্যাট কপি" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[rgba(235,235,245,0.80)] hover:text-white text-xs font-semibold px-2.5 py-1.5 rounded-[10px] border border-white/[0.08] transition cursor-pointer">
+              📋
+            </button>
+          </div>
         </td>
       </tr>
       `;
@@ -540,6 +564,49 @@ function createMerchantPortalRouter({
     body.light-mode table tbody td {
       color: #1C1C1E !important;
     }
+
+    /* ======================================================== */
+    /* CLEAN THERMAL POS & A4 PRINT MEDIA STYLES                */
+    /* ======================================================== */
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #printableMemoModal,
+      #printableMemoModal * {
+        visibility: visible !important;
+      }
+      #printableMemoModal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: #FFFFFF !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+      }
+      #printableMemoModal > div {
+        background: #FFFFFF !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        max-width: 100% !important;
+      }
+      #memoPrintContent {
+        background: #FFFFFF !important;
+        color: #000000 !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 10px !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-[#000000] text-[rgba(235,235,245,0.70)] min-h-screen pb-24 selection:bg-white/20 selection:text-white transition-colors duration-200">
@@ -691,19 +758,20 @@ function createMerchantPortalRouter({
         <!-- Orders Table -->
         <div class="overflow-x-auto border border-white/[0.06] rounded-[20px]">
           <table class="w-full text-left text-[rgba(235,235,245,0.70)] text-sm">
-            <thead class="bg-[#2C2C2E] text-[rgba(235,235,245,0.40)] font-semibold border-b border-white/[0.06]">
+            <thead class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] font-semibold border-b border-white/[0.06] text-xs uppercase tracking-wider">
               <tr>
-                <th class="p-4">অর্ডার ID</th>
-                <th class="p-4">কাস্টমার</th>
-                <th class="p-4">ঠিকানা</th>
+                <th class="p-4">অর্ডার নং</th>
+                <th class="p-4">প্রাপক ও হোয়াটসঅ্যাপ</th>
+                <th class="p-4">ডেলিভারি ঠিকানা</th>
                 <th class="p-4">মডেল ও সাইজ</th>
+                <th class="p-4">কনফার্মকারী</th>
                 <th class="p-4">Due COD</th>
                 <th class="p-4">স্ট্যাটাস</th>
-                <th class="p-4 text-right">কুরিয়ার টেক্সট</th>
+                <th class="p-4 text-right">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody id="ordersTableBody">
-              ${orderRowsHtml || '<tr><td colspan="7" class="p-10 text-center text-[rgba(235,235,245,0.35)] font-semibold">এখনও কোনো অর্ডার আসেনি।</td></tr>'}
+              ${orderRowsHtml || '<tr><td colspan="8" class="p-10 text-center text-[rgba(235,235,245,0.35)] font-semibold">এখনও কোনো অর্ডার আসেনি।</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -968,6 +1036,38 @@ function createMerchantPortalRouter({
   </div>
 
   <!-- ======================================================== -->
+  <!-- PRINTABLE CASH MEMO / PARCEL SLIP MODAL                   -->
+  <!-- ======================================================== -->
+  <div id="printableMemoModal" class="hidden fixed inset-0 z-[999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto" onclick="closeMemoModal(event)">
+    <div class="bg-[#1C1C1E] rounded-[24px] border border-white/[0.12] p-5 sm:p-6 max-w-lg w-full text-white space-y-4 shadow-2xl relative my-auto" onclick="event.stopPropagation()">
+      <!-- Modal Header (no-print) -->
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3 no-print">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🖨️</span>
+          <span class="font-bold text-sm sm:text-base text-white">কাস্টমার ক্যাশ মেমো / পার্সেল স্লিপ</span>
+        </div>
+        <button type="button" onclick="closeMemoModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-[#FF453A] text-white flex items-center justify-center font-bold text-sm cursor-pointer transition">✕</button>
+      </div>
+
+      <!-- Printable Memo Content Box -->
+      <div id="memoPrintContent" class="bg-white text-black p-5 sm:p-6 rounded-[16px] shadow-sm font-sans space-y-3">
+        <!-- Injected dynamically by printOrderMemo(orderId) -->
+      </div>
+
+      <!-- Modal Footer (no-print) -->
+      <div class="flex items-center justify-between pt-2 border-t border-white/[0.08] no-print">
+        <span class="text-xs text-[rgba(235,235,245,0.60)]">থার্মাল বা সাধারণ যেকোনো প্রিন্টারে প্রিন্টযোগ্য</span>
+        <div class="flex items-center gap-2.5">
+          <button type="button" onclick="closeMemoModal()" class="px-4 py-2 rounded-[12px] bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm cursor-pointer transition">বন্ধ করুন</button>
+          <button type="button" onclick="window.print()" class="px-5 py-2 rounded-[12px] bg-[#30D158] hover:bg-[#34C759] active:scale-95 text-black font-bold text-xs sm:text-sm cursor-pointer transition flex items-center gap-2 shadow-md">
+            <span>🖨️ এখনই প্রিন্ট করুন</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
   <!-- 3-STEP SAFE PRODUCT DELETION MODAL                       -->
   <!-- ======================================================== -->
   <div id="safeDeleteModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -1016,6 +1116,7 @@ function createMerchantPortalRouter({
 
   <script>
     const token = '${token}';
+    window.portalOrders = ${JSON.stringify(orders)};
     let currentStockFilter = 'ALL';
     let currentOrderFilter = 'ALL';
 
@@ -1672,6 +1773,122 @@ function createMerchantPortalRouter({
       } catch (e) {
         showToast('❌ কপি করা যায়নি', false);
       }
+    }
+
+    // Printable Customer Cash Memo & Packing Slip (User request)
+    function printOrderMemo(orderId) {
+      const order = (window.portalOrders || []).find(o => o.id === orderId);
+      if (!order) {
+        alert('অর্ডার তথ্য পাওয়া যায়নি');
+        return;
+      }
+
+      const prodPrice = Number(order.total_bdt) || 0;
+      const dueCod = Number(order.due_cod) || prodPrice;
+      const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }) : 'তারিখ অনুপলব্ধ';
+      const cleanPhone = (order.customer_phone || '').replace(/[^0-9]/g, '');
+      const waPhone = cleanPhone.startsWith('880') ? '+' + cleanPhone : (cleanPhone.startsWith('0') ? '+88' + cleanPhone : '+880' + cleanPhone);
+
+      const isManual = (order.order_notes || '').toLowerCase().includes('manual') || order.source_channel === 'MANUAL';
+      const botPersona = '${(curSettings.bot_persona_name || 'AI ইনচার্জ').replace(/'/g, "\\'")}';
+      const confirmedByText = isManual ? '👤 মার্চেন্ট নিজে (ম্যানুয়াল এন্ট্রি)' : '🤖 ' + botPersona + ' (WhatsApp AI)';
+
+      const storeHelpline = '${(sellerPhone ? '+' + sellerPhone : '').replace(/'/g, "\\'")}';
+      const currentShopName = '${shopName.replace(/'/g, "\\'")}';
+
+      let memoHtml = '' +
+        '<div class="text-center border-b border-dashed border-gray-400 pb-3 mb-3">' +
+          '<h2 class="text-2xl font-black text-gray-900 tracking-wider">' + currentShopName + '</h2>' +
+          '<p class="text-xs font-semibold text-gray-600 mt-0.5">অফিসিয়াল ক্যাশ মেমো ও পার্সেল চালান</p>' +
+          (storeHelpline ? '<p class="text-xs text-gray-500 font-mono mt-0.5">WhatsApp হেল্পলাইন: ' + storeHelpline + '</p>' : '') +
+        '</div>' +
+
+        '<div class="flex justify-between items-center text-xs text-gray-700 py-1 border-b border-gray-200">' +
+          '<div><span class="font-bold text-gray-900">ইনভয়েস নং:</span> <span class="font-mono font-bold">#' + currentShopName.substring(0, 2).toUpperCase() + '-INV-' + order.id + '</span></div>' +
+          '<div><span class="font-bold text-gray-900">তারিখ:</span> ' + orderDate + '</div>' +
+        '</div>' +
+
+        '<!-- Channel Origin & Order Creator -->' +
+        '<div class="bg-gray-50 p-2.5 rounded-[10px] border border-gray-200 text-xs space-y-1 my-2.5">' +
+          '<div class="flex justify-between items-center">' +
+            '<span class="text-gray-600">অর্ডার প্ল্যাটফর্ম:</span>' +
+            '<span class="font-bold text-green-700">🟢 ' + (order.source_channel || 'WHATSAPP') + '</span>' +
+          '</div>' +
+          '<div class="flex justify-between items-center">' +
+            '<span class="text-gray-600">যে হোয়াটসঅ্যাপ থেকে অর্ডার কনফার্ম হয়েছে:</span>' +
+            '<span class="font-mono font-bold text-gray-900">' + waPhone + '</span>' +
+          '</div>' +
+          '<div class="flex justify-between items-center">' +
+            '<span class="text-gray-600">অর্ডার কনফার্মকারী / প্রসেসর:</span>' +
+            '<span class="font-bold text-gray-900">' + confirmedByText + '</span>' +
+          '</div>' +
+        '</div>' +
+
+        '<!-- Recipient & Delivery Details -->' +
+        '<div class="my-2.5 text-xs bg-gray-50 p-3 rounded-[10px] border border-gray-200 space-y-1">' +
+          '<div class="font-bold text-gray-900 border-b border-gray-200 pb-1 mb-1 text-[11px] uppercase tracking-wider">ডেলিভারি ও প্রাপকের তথ্য:</div>' +
+          '<div class="font-bold text-sm text-gray-900">' + (order.customer_name || 'সম্মানিত গ্রাহক') + '</div>' +
+          '<div class="text-gray-800 leading-relaxed"><span class="font-medium text-gray-600">ঠিকানা:</span> ' + (order.address || 'ঠিকানা দেওয়া হয়নি') + '</div>' +
+          '<div class="font-mono font-bold text-gray-900"><span class="font-medium text-gray-600 font-sans">ডেলিভারি মোবাইল:</span> ' + (order.customer_phone || '') + '</div>' +
+        '</div>' +
+
+        '<!-- Ordered Items Table -->' +
+        '<table class="w-full text-xs text-left my-2.5 border-collapse">' +
+          '<thead>' +
+            '<tr class="border-y border-gray-300 bg-gray-100 font-bold text-gray-800">' +
+              '<th class="py-2 px-2">মডেল</th>' +
+              '<th class="py-2 px-2">প্রোডাক্ট বিবরণ</th>' +
+              '<th class="py-2 px-2">সাইজ</th>' +
+              '<th class="py-2 px-2 text-center">পরিমাণ</th>' +
+              '<th class="py-2 px-2 text-right">মূল্য</th>' +
+            '</tr>' +
+          '</thead>' +
+          '<tbody>' +
+            '<tr class="border-b border-gray-200">' +
+              '<td class="py-2.5 px-2 font-mono font-bold text-gray-900">[' + (order.model_code || 'PROD') + ']</td>' +
+              '<td class="py-2.5 px-2 text-gray-800 font-medium">' + (order.product_details || 'পোশাক') + '</td>' +
+              '<td class="py-2.5 px-2 font-mono text-gray-700">' + (order.length_size || 'স্ট্যান্ডার্ড') + '</td>' +
+              '<td class="py-2.5 px-2 text-center font-mono font-bold">১</td>' +
+              '<td class="py-2.5 px-2 text-right font-mono font-bold text-gray-900">৳' + prodPrice.toLocaleString('en-IN') + '</td>' +
+            '</tr>' +
+          '</tbody>' +
+        '</table>' +
+
+        '<!-- Financial Summary -->' +
+        '<div class="border-t border-dashed border-gray-400 pt-2.5 space-y-1 text-xs">' +
+          '<div class="flex justify-between text-gray-700">' +
+            '<span>প্রোডাক্ট মোট মূল্য:</span>' +
+            '<span class="font-mono">৳' + prodPrice.toLocaleString('en-IN') + '</span>' +
+          '</div>' +
+          '<div class="flex justify-between text-gray-700">' +
+            '<span>ডেলিভারি চার্জ:</span>' +
+            '<span class="font-mono">৳' + Number(order.delivery_fee || 0).toLocaleString('en-IN') + '</span>' +
+          '</div>' +
+          (order.advance_paid > 0 ? (
+            '<div class="flex justify-between text-green-700 font-bold">' +
+              '<span>অগ্রিম পেমেন্ট সমন্বয়:</span>' +
+              '<span class="font-mono">-৳' + Number(order.advance_paid).toLocaleString('en-IN') + '</span>' +
+            '</div>'
+          ) : '') +
+          '<div class="flex justify-between items-center text-sm font-black text-gray-900 pt-2 border-t border-gray-300">' +
+            '<span>ক্যাশ কালেকশন (Due COD):</span>' +
+            '<span class="text-lg font-black font-mono text-gray-900">৳' + dueCod.toLocaleString('en-IN') + '</span>' +
+          '</div>' +
+        '</div>' +
+
+        '<!-- Policy & Footer Note -->' +
+        '<div class="mt-4 pt-2.5 border-t border-gray-200 text-[10px] text-gray-500 text-center leading-relaxed">' +
+          '<p class="font-semibold text-gray-700">কুরিয়ারের সামনে পার্সেল চেক করে বুঝে মূল্য পরিশোধ করুন।</p>' +
+          '<p class="text-[9px] text-gray-400 mt-1 font-mono">AutoDokan Intelligent E-Commerce Engine</p>' +
+        '</div>';
+
+      document.getElementById('memoPrintContent').innerHTML = memoHtml;
+      document.getElementById('printableMemoModal').classList.remove('hidden');
+    }
+
+    function closeMemoModal(e) {
+      if (e && e.target && e.target.id !== 'printableMemoModal' && !e.target.closest('button')) return;
+      document.getElementById('printableMemoModal').classList.add('hidden');
     }
 
     async function saveMerchantSettingsLive(e) {

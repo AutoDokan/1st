@@ -1232,8 +1232,11 @@ function generateSmartFallback(userText, isFirstMessage, session = null, recentO
 // 7. Order Lead & Customer Context Extractor
 // ==========================================
 
-async function extractAndSaveOrderLead(senderPhone, fullText, conversationHistory, session) {
+async function extractAndSaveOrderLead(senderPhone, fullText, conversationHistory, session, explicitSellerId = null) {
   if (!supabase || !senderPhone || senderPhone.startsWith('unit_user_')) return;
+  const activeSellerId = explicitSellerId || 'autodokan_seller_1';
+  const botPersona = sellerSettingsCache.get(activeSellerId)?.bot_persona_name || 'Zara';
+  const confirmedNote = `Confirmed by WhatsApp AI (${botPersona})`;
 
   // Save 50% API Quota: ONLY call LLM extraction when strong lead indicators exist
   const hasPhone = /(?:01[3-9]\d{8}|০১[৩-৯][০-৯]{8})/i.test(fullText);
@@ -1345,8 +1348,9 @@ JSON Format:
 
       if (existing) {
         await supabase.from('orders').update({
-          seller_id: 'autodokan_seller_1',
+          seller_id: activeSellerId,
           source_channel: 'WHATSAPP',
+          order_notes: confirmedNote,
           model_code: detectedCode || existing.model_code,
           customer_name: parsed.customer_name || existing.customer_name,
           address: parsed.address || existing.address,
@@ -1361,8 +1365,9 @@ JSON Format:
         }).eq('id', existing.id);
       } else {
         await supabase.from('orders').insert({
-          seller_id: 'autodokan_seller_1',
+          seller_id: activeSellerId,
           source_channel: 'WHATSAPP',
+          order_notes: confirmedNote,
           customer_phone: targetPhone,
           model_code: detectedCode || null,
           customer_name: parsed.customer_name || null,
@@ -1430,7 +1435,7 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
 
   // 3. Payment Verification Regex (Save/update order lead + NO PAUSE + transparent verification message)
   if (/(?:পাঠিয়ে\s*দিয়েছি|পাঠালাম|সেন্ড\s*করলাম|দিলাম|paid|sent)/i.test(userText) && /(?:বিকাশ|নগদ|টাকা|চার্জ|ডিজিট|লাস্ট|trx|trxid)/i.test(userText)) {
-    extractAndSaveOrderLead(senderId, userText, session.messages, session);
+    extractAndSaveOrderLead(senderId, userText, session.messages, session, sellerId);
     if (supabase && senderId && !senderId.startsWith('unit_user_')) {
       supabase.from('chat_sessions').update({
         needs_human_attention: true,
@@ -1449,7 +1454,7 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
   });
 
   // Extract order/lead in background
-  extractAndSaveOrderLead(senderId, userText, session.messages, session);
+  extractAndSaveOrderLead(senderId, userText, session.messages, session, sellerId);
 
   // Build Context-Aware Real-Human Prompt with Dynamic Playbook & Live Order Data
   const systemPrompt = buildSystemPrompt(isFirstMessage, session, recentOrderText, userText, sellerId);
