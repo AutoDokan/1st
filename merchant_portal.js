@@ -1010,78 +1010,36 @@ function createMerchantPortalRouter({
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5">
 
-    <!-- 4 Platform Metric Telemetry Cards (Ultra-Compact Apple Widget Strip - Zero Duplication) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
-      
-      <!-- Card 1: Catalog & Stock -->
-      <div onclick="switchTab('products')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(0,0,0,0.3)] cursor-pointer transition group/c1">
-        <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-[11px] sm:text-xs font-semibold uppercase tracking-wider">📦 ক্যাটালগ ও স্টক</span>
-          <span class="text-xs text-[#30D158] font-bold">● স্টকে আছে</span>
-        </div>
-        <div class="text-xl sm:text-2xl font-extrabold text-white mt-1 tracking-tight font-mono">${totalProducts}টি পণ্য</div>
-        <div class="text-[11px] text-[rgba(235,235,245,0.55)] mt-1 truncate">
-          ${inStockProducts}টি সক্রিয় ইন-স্টক ${lowStockProducts > 0 ? `• ⚠️ ${lowStockProducts}টি লো-স্টক` : ''} ${stockOutProducts > 0 ? `• ${stockOutProducts}টি আউট` : ''}
-        </div>
+    <!-- Navigation Tabs (Apple Segmented Control Style - Direct, Sleek & Zero Clutter) -->
+    <div class="tabs-bar bg-[#1C1C1E] border border-white/[0.08] p-1.5 rounded-[18px] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]">
+          <span>📦 প্রোডাক্টস স্টুডিও</span>
+          <span class="bg-[#3A3A3C] text-white text-[11px] px-2 py-0.5 rounded-full font-bold">${totalProducts}</span>
+        </button>
+
+        <button type="button" onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+          <span>📋 কাস্টমার অর্ডারস</span>
+          <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] text-[11px] px-2 py-0.5 rounded-full font-bold">${totalOrders}</span>
+        </button>
+
+        <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+          <span>⚙️ শপ সেটিংস ও পলিসি</span>
+        </button>
       </div>
 
-      <!-- Card 2: Orders Pipeline -->
-      <div onclick="switchTab('orders')" class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-white/[0.2] p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(0,0,0,0.3)] cursor-pointer transition group/c2">
-        <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-[11px] sm:text-xs font-semibold uppercase tracking-wider">📋 কাস্টমার অর্ডারস</span>
-          <span class="text-xs text-blue-400 font-bold">লাইভ</span>
+      <!-- Quick KPI summary pills embedded right in the tab bar on the right -->
+      <div class="hidden md:flex items-center gap-2.5 pr-2 text-xs font-medium shrink-0">
+        <div onclick="openSalesHistoryModal()" class="cursor-pointer hover:opacity-85 transition flex items-center gap-1.5 bg-[#2C2C2E]/70 px-3 py-1.5 rounded-[12px] border border-emerald-500/25 text-emerald-400" title="ক্লিক করে বিক্রয় হিস্ট্রি ও অ্যানালিটিক্স দেখুন">
+          <span>💰 বিক্রয়:</span>
+          <span class="font-bold font-mono">৳${formatMoney(totalRevenue)}</span>
+          <span class="text-[10px] text-emerald-300 font-normal">(${todayOrders.length > 0 ? 'আজকে ৳' + Number(todayRevenue).toLocaleString('en-IN') : 'হিস্ট্রি'})</span>
         </div>
-        <div class="text-xl sm:text-2xl font-extrabold text-white mt-1 tracking-tight font-mono">${totalOrders}টি অর্ডার</div>
-        <div class="text-[11px] text-[rgba(235,235,245,0.55)] mt-1 truncate">
-          ${bookedOrders}টি বুকড • ${confirmedOrders}টি কনফার্মড ${shippedOrders > 0 ? `• ${shippedOrders}টি শিপড` : ''}
-        </div>
-      </div>
-
-      <!-- Card 3: Sales Revenue -->
-      <div onclick="openSalesHistoryModal()" class="metric-card bg-[#1C1C1E] border border-emerald-500/25 hover:border-emerald-500/50 p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(48,209,88,0.1)] cursor-pointer transition group/c3 relative overflow-hidden" title="ক্লিক করে আজকের ও সেলস হিস্ট্রি দেখুন">
-        <div class="flex items-center justify-between">
-          <span class="text-emerald-400 text-[11px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-            <span>💰 মোট বিক্রয় রেভিনিউ</span>
-          </span>
-          <span class="text-[10px] bg-[#30D158]/15 text-[#30D158] font-bold px-1.5 py-0.2 rounded-full border border-[#30D158]/25">
-            অ্যানালিটিক্স ↗
-          </span>
-        </div>
-        <div class="text-xl sm:text-2xl font-extrabold text-white mt-1 tracking-tight font-mono">৳${formatMoney(totalRevenue)}</div>
-        <div class="text-[11px] text-emerald-400/90 mt-1 truncate font-medium">
-          আজকে: ৳${Number(todayRevenue).toLocaleString('en-IN')} (${todayOrders.length}টি) ${last7DaysRevenue > 0 && last7DaysRevenue < totalRevenue ? `• ৭ দিনে: ৳${Number(last7DaysRevenue).toLocaleString('en-IN')}` : ''}
+        <div class="flex items-center gap-1.5 bg-[#2C2C2E]/70 px-3 py-1.5 rounded-[12px] border border-cyan-500/25 text-cyan-400" title="ওয়্যারহাউজ স্টক সম্পদ">
+          <span>💎 ইনভেন্টরি:</span>
+          <span class="font-bold font-mono">৳${formatMoney(totalInventoryValue)}</span>
         </div>
       </div>
-
-      <!-- Card 4: Inventory Asset Value -->
-      <div class="metric-card bg-[#1C1C1E] border border-white/[0.08] hover:border-cyan-500/30 p-3.5 sm:p-4 rounded-[18px] shadow-[0_2px_12px_rgba(0,0,0,0.3)] transition">
-        <div class="flex items-center justify-between">
-          <span class="text-[rgba(235,235,245,0.50)] text-[11px] sm:text-xs font-semibold uppercase tracking-wider">💎 ইনভেন্টরি সম্পদ</span>
-          <span class="text-[11px] text-cyan-400 font-mono font-bold">স্টক ভ্যালু</span>
-        </div>
-        <div class="text-xl sm:text-2xl font-extrabold text-cyan-400 mt-1 tracking-tight font-mono">৳${formatMoney(totalInventoryValue)}</div>
-        <div class="text-[11px] text-[rgba(235,235,245,0.50)] mt-1 truncate">
-          ওয়্যারহাউজের বর্তমান পণ্যের বাজারমূল্য
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Navigation Tabs (Apple Segmented Control Style - Sleek & Compact) -->
-    <div class="tabs-bar bg-[#1C1C1E] border border-white/[0.08] p-1 rounded-[16px] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-      <button type="button" onclick="switchTab('products')" id="tab-btn-products" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]">
-        <span>📦 প্রোডাক্টস স্টুডিও</span>
-        <span class="bg-[#3A3A3C] text-white text-[11px] px-2 py-0.5 rounded-full font-bold">${totalProducts}</span>
-      </button>
-
-      <button type="button" onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
-        <span>📋 কাস্টমার অর্ডারস</span>
-        <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] text-[11px] px-2 py-0.5 rounded-full font-bold">${totalOrders}</span>
-      </button>
-
-      <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
-        <span>⚙️ শপ সেটিংস ও পলিসি</span>
-      </button>
     </div>
 
     <!-- TAB 1: PRODUCTS STUDIO -->
@@ -1089,12 +1047,16 @@ function createMerchantPortalRouter({
       <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
         
         <!-- Search, Stock Filters & Add Product Action Bar -->
-        <div class="flex items-center justify-between border-b border-white/[0.06] pb-5 flex-wrap gap-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between border-b border-white/[0.06] pb-5 gap-4">
           <div>
             <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight flex items-center gap-2">
               <span>📦 প্রোডাক্ট ক্যাটালগ ও AI ইনভেন্টরি ম্যানেজমেন্ট</span>
             </h2>
-            <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">এখানে যেকোনো প্রোডাক্ট যোগ, এডিট বা স্টক পরিবর্তন করামাত্র WhatsApp AI তাৎক্ষণিক আপডেট পাবে।</p>
+            <div class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1 flex items-center gap-2.5 flex-wrap">
+              <span>মোট <strong class="text-white font-bold">${totalProducts}টি</strong> পণ্য (<strong class="text-[#30D158] font-bold">${inStockProducts}টি স্টকে সক্রিয়</strong>)</span>
+              <span>•</span>
+              <span class="text-cyan-400 font-bold font-mono">ইনভেন্টরি সম্পদ: ৳${formatMoney(totalInventoryValue)}</span>
+            </div>
           </div>
 
           <div class="flex items-center gap-3 flex-wrap w-full sm:w-auto">
@@ -1164,10 +1126,14 @@ function createMerchantPortalRouter({
         <div class="flex flex-col lg:flex-row lg:items-center justify-between border-b border-white/[0.06] pb-5 gap-4">
           <div>
             <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight">📋 কাস্টমার অর্ডারস ও ডেলিভারি পাইপলাইন</h2>
-            <div id="filteredOrderCountDisplay" class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1 flex items-center gap-2">
-              <span>মোট ${totalOrders}টি অর্ডার</span>
+            <div id="filteredOrderCountDisplay" class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1 flex items-center gap-2 flex-wrap">
+              <span>মোট <strong class="text-white font-bold">${totalOrders}টি</strong> অর্ডার</span>
               <span>•</span>
-              <span>COD: ৳${Number(validOrders.reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0)).toLocaleString('en-IN')}</span>
+              <span class="text-emerald-400 font-bold font-mono">মোট বিক্রয়: ৳${formatMoney(totalRevenue)}</span>
+              <span>•</span>
+              <button type="button" onclick="openSalesHistoryModal()" class="text-[11px] text-emerald-400 underline hover:text-white cursor-pointer font-semibold flex items-center gap-1">
+                <span>📊 সেলস অ্যানালিটিক্স</span>
+              </button>
             </div>
           </div>
 
