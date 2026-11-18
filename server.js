@@ -2761,8 +2761,8 @@ app.get('/connect', async (req, res) => {
       </div>
     </div>
 
-    <!-- Instructions -->
-    <div class="bg-stone-50 rounded-2xl p-4 text-left border border-stone-200 text-xs text-stone-600 space-y-1.5 font-medium">
+    <!-- Instructions / Next Steps Card -->
+    <div id="instructionCard" class="bg-stone-50 rounded-2xl p-4 text-left border border-stone-200 text-xs text-stone-600 space-y-1.5 font-medium transition-all">
       <div class="font-extrabold text-stone-800 mb-1">কীভাবে কানেক্ট করবেন:</div>
       <div>১. আপনার ফোনের WhatsApp ওপেন করুন</div>
       <div>২. Settings বা থ্রি-ডট থেকে <b>Linked Devices</b> এ যান</div>
@@ -2789,15 +2789,40 @@ app.get('/connect', async (req, res) => {
         const statusText = document.getElementById('statusText');
         const qrImg = document.getElementById('qrImage');
         const placeholder = document.getElementById('qrPlaceholder');
+        const instructionCard = document.getElementById('instructionCard');
 
         const curStatus = (data.status || '').toLowerCase();
 
         if (curStatus === 'connected') {
+          const numDisplay = data.number ? (data.number.startsWith('+') ? data.number : '+' + data.number) : '';
+          const rawNum = (data.number || '').replace(/[^0-9]/g, '');
+
           banner.className = 'bg-emerald-50 border border-emerald-300 text-emerald-900 p-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2';
-          statusText.innerText = '🎉 হোয়াটসঅ্যাপ সফলভাবে কানেক্ট হয়েছে! নম্বর: ' + (data.number || '');
+          statusText.innerText = '🎉 হোয়াটসঅ্যাপ সফলভাবে কানেক্ট হয়েছে! নম্বর: ' + numDisplay;
           qrImg.classList.add('hidden');
           placeholder.classList.remove('hidden');
-          placeholder.innerHTML = '<span class="text-4xl">✅</span><span class="text-emerald-800 font-black text-sm mt-1">কানেকশন সক্রিয় আছে</span>';
+          
+          var phtml = '<div class="flex flex-col items-center justify-center text-center p-3 space-y-3 w-full">';
+          phtml += '<div class="w-14 h-14 bg-emerald-100 border border-emerald-300 rounded-full flex items-center justify-center text-2xl shadow-xs">✅</div>';
+          phtml += '<div><h3 class="font-black text-stone-900 text-base sm:text-lg">অভিনন্দন! আপনার দোকান রেডি</h3>';
+          phtml += '<p class="text-xs text-stone-500 font-semibold mt-0.5">' + (data.shop_name || 'দোকান') + ' • AI সেলস এজেন্ট ২৪/৭ লাইভ</p></div>';
+          phtml += '<div class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold px-3 py-1.5 rounded-xl">';
+          phtml += '<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>কানেকশন সক্রিয় ও অটো-রিপ্লাই সচল আছে</span></div>';
+          phtml += '<a href="https://wa.me/' + rawNum + '?text=' + encodeURIComponent('হ্যালো, আপনাদের পণ্যগুলো দেখান') + '" target="_blank" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition text-xs sm:text-sm cursor-pointer">';
+          phtml += '<span>📱 অন্য ফোন থেকে টেস্ট মেসেজ পাঠান</span><span>↗</span></a></div>';
+          placeholder.innerHTML = phtml;
+
+          if (instructionCard) {
+            instructionCard.className = 'bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-left text-xs text-emerald-950 space-y-2 font-medium';
+            var ihtml = '<div class="font-extrabold text-emerald-900 text-sm flex items-center gap-1.5"><span>📌</span><span>পরবর্তী করণীয় (আপনার কাজ সম্পূর্ণ!):</span></div>';
+            ihtml += '<div class="space-y-1.5 text-stone-700 text-[12px] leading-relaxed">';
+            ihtml += '<div>১. <b>আপনি এই পেজটি এখন নিশ্চিন্তে বন্ধ করতে পারেন।</b> কানেকশন ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে চালু থাকবে।</div>';
+            ihtml += '<div>২. এখন যেকোনো ব্যক্তি বা কাস্টমার আপনার এই নম্বরে <b>(' + numDisplay + ')</b> মেসেজ পাঠালেই AI নিজে থেকেই কথা বলে ক্যাটালগ দেখাবে এবং ডেলিভারি অ্যাড্রেস নিয়ে অর্ডার কনফার্ম করবে।</div>';
+            ihtml += '<div>৩. টেস্ট করার জন্য অন্য যেকোনো হোয়াটসঅ্যাপ থেকে এখনই মেসেজ পাঠিয়ে AI-এর সাথে কথা বলুন!</div>';
+            ihtml += '</div>';
+            instructionCard.innerHTML = ihtml;
+          }
+
           if (pollInterval) clearInterval(pollInterval);
         } else if (data.has_qr) {
           banner.className = 'bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2';
