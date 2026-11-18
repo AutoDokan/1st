@@ -1356,8 +1356,11 @@ setInterval(checkAndSendAbandonedLeadFollowups, 25 * 60 * 1000);
 // ==========================================
 // Dedicated Super Admin Executive Command Center Router
 // ==========================================
+app.use('/dashboard', requireAuth);
+app.use('/admin', requireAuth);
+app.use('/api/admin', requireAuth);
 const { createSuperAdminRouter } = require('./superadmin_dashboard');
-app.use('/', requireAuth, createSuperAdminRouter({
+app.use('/', createSuperAdminRouter({
   supabase,
   sellerStatuses,
   sellerNumbers,
