@@ -116,7 +116,7 @@ if (initialGeminiKey) {
 }
 
 // Two-Tier Persistent Memory Cache (RAM Cache + Supabase chat_sessions)
-const sessionCache = new Map(); // customerIdentifier -> sessionState
+const sessionCache = new Map(); // "${sellerId}:${customerId}" -> sessionState
 
 async function refreshSettingsFromDB(sellerId = 'autodokan_seller_1') {
   if (!supabase) return sellerSettingsCache.get(sellerId) || storeSettings;
@@ -250,8 +250,19 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
         const stock = p.in_stock === false ? 'স্টক আউট' : 'স্টকে আছে';
         const imgUrls = getProductImageUrls(p);
         const imgCount = imgUrls.length;
-        const imgText = imgCount > 1 ? `${imgCount}টি অ্যালবাম ছবি আছে` : (imgCount === 1 ? '১টি ছবি আছে' : 'ছবি প্রক্রিয়াধীন');
-        return `${idx + 1}. [${code}] ${p.name} | ৳${price} | ${stock} (${details}) | [${imgText}]`;
+        const imgText = imgCount > 1 
+          ? `${imgCount}টি অ্যালবাম ছবি ডাটাবেজে যুক্ত আছে` 
+          : (imgCount === 1 
+              ? '১টি ছবি ডাটাবেজে যুক্ত আছে' 
+              : 'ছবি ডাটাবেজে এখনো আপলোড করা হয়নি (ছবি শূন্য)');
+
+        let advanceBookingNotice = '';
+        if (cAttr.advance_active) {
+          const advAmt = cAttr.advance_amount || 200;
+          const shipRule = cAttr.advance_shipping_rule === 'shipping_included' ? 'ডেলিভারি চার্জ সহ' : 'ডেলিভারি চার্জ ছাড়া আলাদা';
+          advanceBookingNotice = ` [অগ্রিম বুকিং বাধ্যতামূলক: ৳${advAmt} অগ্রিম প্রযোজ্য (${shipRule})]`;
+        }
+        return `${idx + 1}. [${code}] ${p.name} | ৳${price} | ${stock} (${details})${advanceBookingNotice} | [${imgText}]`;
       }).join('\n');
 
       sellerProductsTextCache.set(sellerId, sText);
@@ -353,17 +364,37 @@ function getDynamicPlaybookGuidance(userText) {
   return topMatches.map(h => `• [${h.scenario_tag}]: "${h.customer_trigger_example}" -> ${h.human_reply_guideline}`).join('\n');
 }
 
-// Initial Sync
-refreshProductsFromDB('autodokan_seller_1');
-setInterval(() => refreshProductsFromDB('autodokan_seller_1'), 60 * 1000);
+// Multi-Tenant Dynamic Background Sync (All Active Registered Sellers in DB)
+async function syncAllActiveSellers() {
+  if (!supabase) return;
+  try {
+    const { data: sellers, error } = await supabase.from('seller_invites').select('seller_id');
+    if (!error && Array.isArray(sellers) && sellers.length > 0) {
+      for (const row of sellers) {
+        if (row.seller_id) {
+          await refreshProductsFromDB(row.seller_id);
+        }
+      }
+    } else {
+      await refreshProductsFromDB('autodokan_seller_1');
+    }
+  } catch (err) {
+    console.warn('[Multi-Seller Sync Error]:', err.message);
+  }
+}
+
+// Initial Sync across all active tenants
+syncAllActiveSellers();
+setInterval(syncAllActiveSellers, 45 * 1000);
 
 // ==========================================
 // 3. Persistent Two-Tier Memory Helpers
 // ==========================================
 
 async function getCustomerSession(sellerId = 'autodokan_seller_1', channelType = 'WHATSAPP', customerId) {
-  if (sessionCache.has(customerId)) {
-    return sessionCache.get(customerId);
+  const sessionKey = `${sellerId}:${customerId}`;
+  if (sessionCache.has(sessionKey)) {
+    return sessionCache.get(sessionKey);
   }
 
   const defaultSession = {
@@ -377,7 +408,7 @@ async function getCustomerSession(sellerId = 'autodokan_seller_1', channelType =
   };
 
   if (!supabase) {
-    sessionCache.set(customerId, defaultSession);
+    sessionCache.set(sessionKey, defaultSession);
     return defaultSession;
   }
 
@@ -422,19 +453,20 @@ async function getCustomerSession(sellerId = 'autodokan_seller_1', channelType =
         imagesSentForModels: Array.from(new Set(sentModels)),
         deliveryFeeMentioned: msgs.some(m => m.role === 'assistant' && (m.content.includes('ডেলিভারি চার্জ') || m.content.includes('৮০') || m.content.includes('১৫০')))
       };
-      sessionCache.set(customerId, loadedSession);
+      sessionCache.set(sessionKey, loadedSession);
       return loadedSession;
     }
   } catch (err) {
     console.warn('[Session Fetch Error]:', err.message);
   }
 
-  sessionCache.set(customerId, defaultSession);
+  sessionCache.set(sessionKey, defaultSession);
   return defaultSession;
 }
 
 async function saveCustomerSession(sellerId = 'autodokan_seller_1', channelType = 'WHATSAPP', customerId, session) {
-  sessionCache.set(customerId, session);
+  const sessionKey = `${sellerId}:${customerId}`;
+  sessionCache.set(sessionKey, session);
   if (!supabase) return;
 
   const trimmedMessages = session.messages.slice(-16);
@@ -450,11 +482,6 @@ async function saveCustomerSession(sellerId = 'autodokan_seller_1', channelType 
       stage: session.stage || 'BROWSING',
       messages: trimmedMessages,
       customer_notes: session.customer_notes || '',
-      metadata: {
-        lastViewedModel: session.lastViewedModel || null,
-        hasGreeted: session.hasGreeted,
-        stage: session.stage
-      },
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }, { onConflict: 'seller_id,channel_type,customer_identifier' });
@@ -715,15 +742,14 @@ function getProductByCode(code, sellerId = null) {
     const p = sellerProductsCache.get(sellerId).find(p => p.model_code && p.model_code.toUpperCase().trim() === clean);
     if (p) return p;
   }
-  for (const prods of sellerProductsCache.values()) {
-    const p = prods.find(p => p.model_code && p.model_code.toUpperCase().trim() === clean);
-    if (p) return p;
-  }
-  return cachedProductList.find(p => p.model_code && p.model_code.toUpperCase().trim() === clean) || null;
+  return null;
 }
 
-function getAllCachedProducts(sellerId = 'autodokan_seller_1') {
-  return sellerProductsCache.get(sellerId) || cachedProductList;
+function getAllCachedProducts(sellerId = null) {
+  if (sellerId && sellerProductsCache.has(sellerId)) {
+    return sellerProductsCache.get(sellerId);
+  }
+  return [];
 }
 
 // ==========================================
@@ -750,9 +776,9 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
   if (nagadNum) paymentMethods.push(`নগদ (${nagadNum})`);
   const paymentMethodText = paymentMethods.length > 0 ? paymentMethods.join(' বা ') : 'বিকাশ বা নগদ';
 
-  const sProducts = sellerProductsCache.get(sellerId) || cachedProductList;
-  const sProductsText = sellerProductsTextCache.get(sellerId) || cachedProductsText;
-  const sPromotionsText = sellerPromotionsTextCache.get(sellerId) || cachedPromotionsText;
+  const sProducts = sellerProductsCache.get(sellerId) || [];
+  const sProductsText = sellerProductsTextCache.get(sellerId) || 'বর্তমানে এই শপে কোনো সক্রিয় পণ্য নেই।';
+  const sPromotionsText = sellerPromotionsTextCache.get(sellerId) || '';
 
   const category = (sSettings.business_category || '').toLowerCase();
   
@@ -821,7 +847,8 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
 ৩. কোনো রোবটিক ইমোজি (🌸, 😊), হেল্পডেস্কের বুলি ("কীভাবে সাহায্য/সহযোগিতা করতে পারি?") বা সাধু ভাষা ("উপলব্ধ আছে", "প্রয়োজনীয়তা") সম্পূর্ণ নিষিদ্ধ। সর্বদা লোকাল স্বাভাবিক বাংলা ব্যবহার করবে: "স্টকে আছে", "ইন-স্টকে অ্যাভেইলেবল আছে", "অফার প্রাইস"।
 ৪. সালাম ও কুশল বিনিময়ের খাঁটি সেলসম্যান নিয়ম:
    - কাস্টমার সালাম দিলে ("আসসালামু আলাইকুম"): সরাসরি উত্তর দাও: "ওয়ালাইকুম আসসালাম! ${shopName}-এ স্বাগতম।" কাস্টমার নিজে "কেমন আছেন" না জিজ্ঞেস করলে নিজ থেকে কখনোই "ভালো আছি" বলবে না। কাস্টমার "কেমন আছেন" জিজ্ঞেস করলে উত্তর দাও: "আলহামদুলিল্লাহ ভালো আছি, আপনি কেমন আছেন?"
-   - কাস্টমার "Hi" বা "Hello" দিলে: আন্তরিক সালাম দিয়ে বলো: "আসসালামু আলাইকুম! ${shopName}-এ স্বাগতম। আমাদের কিছু ট্রেন্ডিং কালেকশন চলছে, দেখতে চাইলে জানাতে পারেন।"
+   - কাস্টমার "Hi", "Hello", "হাই" বা "সালাম" দিলে: অত্যন্ত মার্জিত ও আন্তরিক ভাষায় সালাম ও স্বাগতম জানাও: "আসসালামু আলাইকুম! ${shopName}-এ স্বাগতম। আপনাকে কীভাবে সহযোগিতা করতে পারি?"
+     (ভুলেও নিজ থেকে হুট করে 'ট্রেন্ডিং কালেকশন দেখবেন কি না' বলবে না! কাস্টমার নিজে কী খুঁজছেন বা কী জানতে চান, আগে সেটি শুনতে হবে এবং নিজের বুদ্ধি খাটিয়ে প্রাসঙ্গিক উত্তর দাও।)
    - কাস্টমার শুরুতেই কোনো প্রশ্ন বা কালেকশন চাইলে (যেমন "বোরকা আছে?", "কালেকশন দেখান" বা "দাম কত"): সালাম ও শপের নাম দিয়ে সরাসরি উত্তর দাও। "আমি কি ছবি পাঠাব?" বলে কখনো অনুমতি খুঁজবে না।
    - দীর্ঘ সময় (২+ ঘণ্টা) পর কাস্টমার ফিরে এলে: নতুন করে আন্তরিক কুশল বিনিময় করো এবং আগে যে মডেলটি দেখছিল তা বুকিং করতে চায় নাকি নতুন কোনো কালেকশন দেখতে চায় জানতে চাও।
 ৫. কাস্টমার না চাইলে আগে থেকে বড় বিবরণ বা মূল্য ঢালবে না।
@@ -834,7 +861,9 @@ function buildSystemPrompt(isFirstMessage, sessionState = {}, recentOrderText = 
      ? `আমাদের শপে ${distinctCategories.join(', ')} ক্যাটাগরির পণ্য রয়েছে। কাস্টমার কালেকশন দেখতে চাইলে কোন ক্যাটাগরি দেখতে চান জানতে চাও।`
      : `কাস্টমার কালেকশন দেখতে চাইলে ওভারভিউ পাঠাও: [SEND_CATALOG_OVERVIEW] এবং উৎসাহ নিয়ে বলো: "আমাদের সেরা কালেকশনের ছবিগুলো পাঠিয়েছি। ডিজাইনগুলো দেখে কোনটি আপনার বেশি পছন্দ হচ্ছে জানান, সেটির বিস্তারিত ও অফার প্রাইস জানিয়ে দিচ্ছি!"`}
 ২. নির্দিষ্ট মডেল ও অ্যালবাম:
-   - কাস্টমার নির্দিষ্ট কোনো একটি মডেল পছন্দ করলে বা সেটির ছবি দেখতে চাইলে (যেমন কোড বা নাম উল্লেখ করে, বা ছবিতে সোয়াইপ/কোট রিপ্লাই দিলে): অবশ্যই শুধুমাত্র সেই ১টি মডেলের অ্যালবাম ট্যাগ পাঠাও: [SEND_ALL_IMAGES:MODEL_CODE]। ভুলেও বলবে না "১টি ছবিই আছে"। বলবে: "এই মডেলটির সুন্দর কিছু ছবি পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:MODEL_CODE], দেখে জানান কেমন লাগছে।"
+   - কাস্টমার নির্দিষ্ট কোনো একটি মডেল পছন্দ করলে বা সেটির ছবি দেখতে চাইলে (যেমন কোড বা নাম উল্লেখ করে, বা ছবিতে সোয়াইপ/কোট রিপ্লাই দিলে):
+     * ছবি সংক্রান্ত সতর্কতা ও সততা: যদি কোনো পণ্যের পাশে [ছবি ডাটাবেজে এখনো আপলোড করা হয়নি (ছবি শূন্য)] লেখা থাকে, তবে ভুলেও বলবে না "ছবি পাঠিয়েছি" বা কোনো ছবি ট্যাগ পাঠাবে না! সরাসরি বলবে: "এই মডেলটির ছবি এখনও সিস্টেমে আপলোড করা হয়নি, খুব শীঘ্রই যুক্ত হবে ইনশাআল্লাহ।"
+     * শুধুমাত্র যে পণ্যের ছবি ডাটাবেজে যুক্ত আছে, সেটির জন্যই অ্যালবাম ট্যাগ পাঠাও: [SEND_ALL_IMAGES:MODEL_CODE]। বলবে: "এই মডেলটির সুন্দর কিছু ছবি পাঠিয়ে দিচ্ছি [SEND_ALL_IMAGES:MODEL_CODE], দেখে জানান কেমন লাগছে।"
    - এক টার্নে কখনোই একের অধিক মডেলের অ্যালবাম ট্যাগ পাঠাবে না।
    - কাস্টমার নির্দিষ্ট মডেল উল্লেখ না করে যদি বলে "Eta koto" বা "এটার দাম কত": ActiveModel জানা থাকলে সরাসরি সেটির দাম ও অফার বলো; আর জানা না থাকলে বলো: "কোন মডেলটির দাম জানতে চাচ্ছেন একটু নাম বা কোড বলুন, আমি এখনই দাম জানিয়ে দিচ্ছি।"
 ৩. সাইজ নির্ধারণ ও পরামর্শ (কঠোর সেলস প্রটোকল):
@@ -1376,15 +1405,31 @@ JSON Format:
 
     const parsed = JSON.parse(rawJson || '{}');
     if (parsed.is_order_or_lead && (parsed.customer_phone || parsed.address || (parsed.product_name && parsed.length_size))) {
-      const targetPhone = parsed.customer_phone || senderPhone.split('@')[0];
-      const isOutsideDhaka = parsed.address && !/(ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|বসুন্ধরা|যাত্রাবাড়ী|মতিঝিল|বাড্ডা|খিলগাঁও|মহাখালী|তেজগাঁও|ফার্মগেট|আজিমপুর|পুরান ঢাকা)/i.test(parsed.address);
-      const deliveryFee = parsed.delivery_fee || (isOutsideDhaka ? storeSettings.outside_dhaka_fee : storeSettings.inside_dhaka_fee);
+      // Validate 11-digit Bangladeshi mobile number
+      const rawDigits = ((parsed.customer_phone || senderPhone || '').split('@')[0]).replace(/\D/g, '');
+      const validBdPhone = /(?:01[3-9]\d{8})/.test(rawDigits) ? rawDigits.match(/(01[3-9]\d{8})/)[1] : (rawDigits.length === 11 ? rawDigits : null);
+      const targetPhone = validBdPhone || rawDigits;
 
-      const detectedCode = parsed.model_code || detectModelFromText(fullText) || (conversationHistory ? detectModelFromText(conversationHistory.map(m => m.content).join(' ')) : null);
-      const matchedProd = getProductByCode(detectedCode);
-      const prodPrice = matchedProd ? matchedProd.price : (Number(parsed.total_bdt) || 2200);
+      // Validate meaningful address
+      const rawAddr = (parsed.address || '').trim();
+      const isMeaningfulAddress = rawAddr.length >= 6 && /(?:ঢাকা|dhaka|চট্টগ্রাম|খুলনা|রাজশাহী|সিলেট|বরিশাল|রংপুর|ময়মনসিংহ|থানা|জেলা|রোড|বাসা|গ্রাম|উপজেলা|বাজার|মোড়|মিরপুর|উত্তরা|গুলশান|ধানমন্ডি|বসুন্ধরা|গাজীপুর|নারায়ণগঞ্জ|কুমিল্লা|বগুড়া|হাউজ|house|road|sector|block|thana|district|flat|floor)/i.test(rawAddr);
+
+      // Do NOT create fake orders if both valid phone and meaningful address are absent
+      if (!validBdPhone && !isMeaningfulAddress) {
+        return;
+      }
+
+      const sSettings = sellerSettingsCache.get(activeSellerId) || storeSettings;
+      const insideFee = Number(sSettings.inside_dhaka_fee) || 80;
+      const outsideFee = Number(sSettings.outside_dhaka_fee) || 150;
+      const isOutsideDhaka = rawAddr && !/(ঢাকা|dhaka|মিরপুর|উত্তরা|গুলশান|বনানী|ধানমন্ডি|মোহাম্মদপুর|বসুন্ধরা|যাত্রাবাড়ী|মতিঝিল|বাড্ডা|খিলগাঁও|মহাখালী|তেজগাঁও|ফার্মগেট|আজিমপুর|পুরান ঢাকা)/i.test(rawAddr);
+      const deliveryFee = parsed.delivery_fee || (isOutsideDhaka ? outsideFee : insideFee);
+
+      const detectedCode = parsed.model_code || detectModelFromText(fullText, activeSellerId) || (conversationHistory ? detectModelFromText(conversationHistory.map(m => m.content).join(' '), activeSellerId) : null);
+      const matchedProd = getProductByCode(detectedCode, activeSellerId);
+      const prodPrice = matchedProd ? matchedProd.price : (Number(parsed.total_bdt) || (matchedProd ? matchedProd.price : 0));
       const advancePaid = parsed.advance_paid !== undefined && parsed.advance_paid !== null ? parsed.advance_paid : (parsed.trx_id_or_last4 ? deliveryFee : 0);
-      const dueCod = prodPrice;
+      const dueCod = prodPrice > 0 ? (prodPrice - (advancePaid > deliveryFee ? (advancePaid - deliveryFee) : 0)) : prodPrice;
 
       if (parsed.customer_notes && session) {
         session.customer_notes = parsed.customer_notes;
@@ -1393,7 +1438,7 @@ JSON Format:
         session.customer_name = parsed.customer_name;
       }
       if (session) {
-        if (parsed.address && (detectedCode || session.lastViewedModel)) {
+        if (isMeaningfulAddress && validBdPhone && (detectedCode || session.lastViewedModel)) {
           session.stage = 'CONFIRMING_ORDER';
         } else if (detectedCode || session.lastViewedModel) {
           session.stage = 'DISCUSSING_PRODUCT';
@@ -1402,7 +1447,7 @@ JSON Format:
         }
       }
 
-      // Resolve Product Name with 3-tier fallback (NEVER dump raw customer message or address)
+      // Resolve Product Name with 3-tier fallback scoped strictly to active seller
       let resolvedProductName = null;
       if (parsed.product_name && parsed.product_name.length > 2 && !/(?:রোড|বাসা|থানা|জেলা|মিরপুর|উত্তরা|ধানমন্ডি|বিকাশ|নগদ)/i.test(parsed.product_name)) {
         resolvedProductName = parsed.product_name.trim();
@@ -1414,11 +1459,11 @@ JSON Format:
       }
 
       if (!resolvedProductName) {
-        const sProds = sellerProductsCache.get(activeSellerId) || cachedProductList;
+        const sProds = sellerProductsCache.get(activeSellerId) || [];
         if (Array.isArray(sProds) && sProds.length > 0) {
           resolvedProductName = sProds[0].name;
         } else {
-          resolvedProductName = 'প্রিমিয়াম কালেকশন';
+          resolvedProductName = 'সিলেক্টেড আইটেম';
         }
       }
 
@@ -1431,10 +1476,11 @@ JSON Format:
 
       const safeProductDetails = `${resolvedProductName} (Size: ${resolvedSize || 'Standard'})`;
 
-      // Check existing order in orders table
+      // Check existing order in orders table strictly scoped to this seller
       const { data: existing } = await supabase
         .from('orders')
         .select('id, status, model_code, customer_name, address, product_details, length_size')
+        .eq('seller_id', activeSellerId)
         .eq('customer_phone', targetPhone)
         .order('id', { ascending: false })
         .limit(1)
@@ -1516,6 +1562,7 @@ async function handleIncomingMessage(senderId, userText, explicitSellerId = null
       const { data: ord } = await supabase
         .from('orders')
         .select('id, model_code, customer_name, status, courier_name, courier_tracking_id, due_cod, total_bdt, created_at')
+        .eq('seller_id', sellerId)
         .or(`customer_phone.eq.${clean11},customer_phone.eq.880${clean11.slice(1)},customer_phone.eq.+880${clean11.slice(1)}`)
         .order('id', { ascending: false })
         .limit(1)

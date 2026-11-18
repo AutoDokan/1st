@@ -127,7 +127,7 @@ setInterval(() => {
   const now = Date.now();
   // 1. Clean idle customer states (> 15m idle & not processing)
   for (const [jid, state] of customerMessageStates.entries()) {
-    if (!state.isProcessing && state.texts.length === 0 && state.pendingQueue.length === 0) {
+    if (!state.isProcessing && (!state.texts || state.texts.length === 0) && (!state.pendingQueue || state.pendingQueue.length === 0)) {
       if (!state.firstMsgAt || (now - state.firstMsgAt > 15 * 60 * 1000)) {
         customerMessageStates.delete(jid);
       }
@@ -1602,7 +1602,7 @@ async function startSellerSession(sellerId) {
       const bufferKey = `${sellerId}:${remoteJid}`;
       let bState = customerMessageStates.get(bufferKey);
       if (!bState) {
-        bState = { texts: [], debounceTimer: null, isProcessing: false, lastKey: msg.key };
+        bState = { texts: [], pendingQueue: [], debounceTimer: null, isProcessing: false, lastKey: msg.key };
         customerMessageStates.set(bufferKey, bState);
       }
       bState.texts.push(messageContent);

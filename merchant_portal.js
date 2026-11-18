@@ -323,6 +323,11 @@ function createMerchantPortalRouter({
                   <span>🔥</span><span>${bundleBadge}</span>
                 </span>
               ` : ''}
+              ${cAttr.advance_active ? `
+                <span class="inline-flex items-center gap-1 text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-[10px] shadow-xs">
+                  <span>🛡️</span><span>অগ্রিম: ৳${cAttr.advance_amount || 200} (${cAttr.advance_shipping_rule === 'shipping_included' ? 'শিপিং সহ' : 'শিপিং ছাড়া'})</span>
+                </span>
+              ` : ''}
               
               <!-- 1-Click Inline Quick-Edit Stock Inventory -->
               <div class="inline-flex items-center">
@@ -1410,6 +1415,35 @@ function createMerchantPortalRouter({
               </div>
               <div id="bundlePreviewBox" class="p-2.5 rounded-[10px] bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium">
                 💡 প্রিভিউ: গ্রাহক ২টি নিলে ১০% ছাড়ে আকর্ষণীয় মূল্যে পেয়ে যাবেন!
+              </div>
+            </div>
+          </div>
+
+          <!-- ADVANCE BOOKING & RETURN LOSS PROTECTION -->
+          <div class="p-3.5 rounded-[16px] bg-[#1C1C1E] border border-white/[0.08] space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-white cursor-pointer select-none">
+                <input type="checkbox" id="studio_advance_active" onchange="toggleAdvanceStudioUI()" class="accent-amber-400 w-4 h-4 rounded">
+                <span>🛡️ অগ্রিম বুকিং ও রিটার্ন ক্ষতি প্রটেকশন (এই আইটেমে অগ্রিম টাকা নেওয়া বাধ্যতামূলক)</span>
+              </label>
+            </div>
+
+            <div id="advanceConfigBox" class="hidden space-y-3 pt-2 border-t border-white/[0.06]">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">অগ্রিম টাকার পরিমাণ (৳)</label>
+                  <input type="number" id="studio_advance_amount" placeholder="যেমন: 200 বা 500" class="w-full bg-[#242426] border border-white/[0.08] text-amber-400 font-bold text-xs p-2.5 rounded-[10px] focus:border-white/40 outline-none">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-[rgba(235,235,245,0.70)] mb-1">ডেলিভারি চার্জের নিয়ম</label>
+                  <select id="studio_advance_shipping_rule" class="w-full bg-[#242426] border border-white/[0.08] text-white text-xs p-2.5 rounded-[10px] focus:border-white/40 outline-none cursor-pointer">
+                    <option value="shipping_separate">পণ্যের অগ্রিম + ডেলিভারি চার্জ আলাদা</option>
+                    <option value="shipping_included">অগ্রিম টাকার ভেতরে ডেলিভারি চার্জ অন্তর্ভুক্ত</option>
+                  </select>
+                </div>
+              </div>
+              <div class="p-2.5 rounded-[10px] bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-medium">
+                🛡️ AI কাস্টমারকে বলবে: অর্ডারটি ফাইনাল বুকিং করতে এই নির্দিষ্ট অগ্রিম টাকা বিকাশ বা নগদে পাঠাতে হবে।
               </div>
             </div>
           </div>
@@ -3246,6 +3280,15 @@ function createMerchantPortalRouter({
       }
     }
 
+    function toggleAdvanceStudioUI() {
+      const active = document.getElementById('studio_advance_active')?.checked;
+      const box = document.getElementById('advanceConfigBox');
+      if (box) {
+        if (active) box.classList.remove('hidden');
+        else box.classList.add('hidden');
+      }
+    }
+
     function updateBundlePreview() {
       const isBundle = document.getElementById('studio_bundle_active').checked;
       const box = document.getElementById('bundleConfigBox');
@@ -3343,6 +3386,12 @@ function createMerchantPortalRouter({
           document.getElementById('studio_bundle_type').value = c.bundle_type || 'percentage';
           document.getElementById('studio_bundle_value').value = c.bundle_value || '10';
           updateBundlePreview();
+
+          // Advance Booking Settings
+          document.getElementById('studio_advance_active').checked = !!c.advance_active;
+          document.getElementById('studio_advance_amount').value = c.advance_amount || '';
+          document.getElementById('studio_advance_shipping_rule').value = c.advance_shipping_rule || 'shipping_separate';
+          toggleAdvanceStudioUI();
 
           document.getElementById('studio_package_type').value = c.package_type || (p.hijab_included ? '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)' : '১ পিস');
           document.getElementById('studio_package_inclusions').value = c.inclusions || '';
@@ -3453,6 +3502,11 @@ function createMerchantPortalRouter({
         return;
       }
 
+      if (!studioUploadedImages || studioUploadedImages.length === 0) {
+        alert('⚠️ প্রোডাক্টের অন্তত ১টি ছবি আপলোড করা আবশ্যক! ছবি ছাড়া কোনো প্রোডাক্ট সেভ বা WhatsApp AI-তে সিঙ্ক হবে না।');
+        return;
+      }
+
       // Check URL fallback if any
       const manualUrl = document.getElementById('studio_img_main')?.value?.trim();
       if (manualUrl && !studioUploadedImages.includes(manualUrl)) {
@@ -3504,6 +3558,9 @@ function createMerchantPortalRouter({
         hijab_included: isHijabInc,
         custom_attributes: {
           category: category,
+          advance_active: document.getElementById('studio_advance_active')?.checked || false,
+          advance_amount: parseFloat(document.getElementById('studio_advance_amount')?.value) || 0,
+          advance_shipping_rule: document.getElementById('studio_advance_shipping_rule')?.value || 'shipping_separate',
           bundle_active: isBundle,
           bundle_qty: bundleQty,
           bundle_type: bundleType,
