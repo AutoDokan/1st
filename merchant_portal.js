@@ -1793,7 +1793,7 @@ function createMerchantPortalRouter({
       const botPersona = '${(curSettings.bot_persona_name || 'AI ইনচার্জ').replace(/'/g, "\\'")}';
       const confirmedByText = isManual ? '👤 মার্চেন্ট নিজে (ম্যানুয়াল এন্ট্রি)' : '🤖 ' + botPersona + ' (WhatsApp AI)';
 
-      const storeHelpline = '${(sellerPhone ? '+' + sellerPhone : '').replace(/'/g, "\\'")}';
+      const storeHelpline = '${(liveNum || inv.phone || '').replace(/'/g, "\\'")}';
       const currentShopName = '${shopName.replace(/'/g, "\\'")}';
 
       let memoHtml = '' +
