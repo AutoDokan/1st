@@ -186,14 +186,16 @@ function createMerchantPortalRouter({
     }
 
     // Fetch this merchant's isolated data
-    const [productsRes, ordersRes, settingsRes] = await Promise.all([
+    const [productsRes, ordersRes, settingsRes, chatSessionsRes] = await Promise.all([
       supabase.from('products').select('*').eq('seller_id', sellerId).order('id', { ascending: true }),
       supabase.from('orders').select('*').eq('seller_id', sellerId).order('id', { ascending: false }),
-      supabase.from('store_settings').select('*').eq('seller_id', sellerId).maybeSingle()
+      supabase.from('store_settings').select('*').eq('seller_id', sellerId).maybeSingle(),
+      supabase.from('chat_sessions').select('*').eq('seller_id', sellerId).order('updated_at', { ascending: false })
     ]);
 
     const products = productsRes.data || [];
     const orders = ordersRes.data || [];
+    const chatSessions = chatSessionsRes.data || [];
     const curSettings = settingsRes.data || {
       inside_dhaka_fee: 80,
       outside_dhaka_fee: 150,
@@ -207,6 +209,12 @@ function createMerchantPortalRouter({
     };
 
     const extra = curSettings.extra_config || {};
+    const totalChatSessions = chatSessions.length;
+    const totalMessagesExchanged = chatSessions.reduce((sum, c) => sum + (Array.isArray(c.messages) ? c.messages.length : 0), 0);
+    const totalCreditsUsed = totalChatSessions * 1.0;
+    const walletBalance = extra.wallet_balance !== undefined ? Number(extra.wallet_balance) : Math.max(0, 500 - totalCreditsUsed);
+    const currentPlan = extra.plan_name || 'গ্রোথ পাওয়ার (Growth Power)';
+
     const curSecurityPin = extra.security_pin || '1234';
     const curLoginPhone = extra.login_phone || inv.phone || '01968718838';
     const cleanShopSlug = (shopName || 'merchant').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -729,6 +737,53 @@ function createMerchantPortalRouter({
       `;
     }).join('');
 
+    // ========================================================
+    // Render Real WhatsApp Chat & Credit Ledger Rows (Apple HIG)
+    // ========================================================
+    const chatRowsHtml = chatSessions.map(c => {
+      const msgs = Array.isArray(c.messages) ? c.messages : [];
+      const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+      const lastUserMsg = [...msgs].reverse().find(m => m.role === 'user');
+      const cleanPhone = (c.customer_phone || '').replace(/[^0-9]/g, '');
+      const rawPreview = lastUserMsg ? lastUserMsg.content : (lastMsg ? lastMsg.content : 'কথোপকথন শুরু হয়েছে');
+      const preview = String(rawPreview || '').slice(0, 80);
+      const timeStr = c.updated_at ? new Date(c.updated_at).toLocaleString('bn-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      const stageBadge = c.stage === 'ORDERED'
+        ? 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30'
+        : (c.stage === 'CHECKOUT' ? 'bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30' : 'bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30');
+
+      return `
+      <tr class="border-b border-white/[0.04] hover:bg-white/[0.02] transition" data-phone="${cleanPhone}" data-text="${(preview || '').toLowerCase()}">
+        <td class="p-4">
+          <div class="font-bold text-white text-sm">${c.customer_name || 'কাস্টমার'}</div>
+          <div class="font-mono text-xs text-[rgba(235,235,245,0.55)] mt-0.5">${c.customer_phone || 'নম্বর গোপন'}</div>
+        </td>
+        <td class="p-4">
+          <span class="text-[10px] font-mono px-2.5 py-1 rounded-full ${stageBadge}">${c.stage || 'BROWSING'}</span>
+        </td>
+        <td class="p-4">
+          <span class="bg-[#2C2C2E] px-2.5 py-1 rounded-full text-white font-mono text-xs">${msgs.length}টি বার্তা</span>
+        </td>
+        <td class="p-4 max-w-xs truncate" title="${preview.replace(/"/g, '&quot;')}">
+          <span class="text-xs text-[rgba(235,235,245,0.75)]">${preview}</span>
+        </td>
+        <td class="p-4">
+          <span class="text-[#FF9F0A] font-bold font-mono text-xs bg-[#FF9F0A]/10 px-2.5 py-1 rounded-full border border-[#FF9F0A]/20">-১.০০ ৳</span>
+        </td>
+        <td class="p-4 text-xs text-[rgba(235,235,245,0.5)] font-mono whitespace-nowrap">
+          ${timeStr}
+        </td>
+        <td class="p-4 text-right">
+          ${cleanPhone ? `
+            <a href="https://wa.me/88${cleanPhone}" target="_blank" class="inline-flex items-center gap-1.5 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] border border-[#25D366]/30 px-3 py-1.5 rounded-[12px] text-xs font-semibold transition cursor-pointer" title="সরাসরি হোয়াটসঅ্যাপে কথা বলুন">
+              <span>💬 চ্যাট</span>
+            </a>
+          ` : '<span class="text-xs text-[rgba(235,235,245,0.3)]">N/A</span>'}
+        </td>
+      </tr>
+      `;
+    }).join('');
+
     res.send(`<!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -1047,6 +1102,11 @@ function createMerchantPortalRouter({
           <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] text-[11px] px-2 py-0.5 rounded-full font-bold">${totalOrders}</span>
         </button>
 
+        <button type="button" onclick="switchTab('chats')" id="tab-btn-chats" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+          <span>💬 চ্যাট ও ক্রেডিট</span>
+          <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] text-[11px] px-2 py-0.5 rounded-full font-bold">${totalChatSessions}</span>
+        </button>
+
         <button type="button" onclick="openSettingsDrawer()" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
           <span>⚙️ শপ সেটিংস</span>
         </button>
@@ -1054,6 +1114,11 @@ function createMerchantPortalRouter({
 
       <!-- Quick KPI summary pills embedded right in the tab bar on the right -->
       <div class="hidden md:flex items-center gap-2.5 pr-2 text-xs font-medium shrink-0">
+        <div onclick="switchTab('chats')" class="cursor-pointer hover:opacity-85 transition flex items-center gap-1.5 bg-[#2C2C2E]/70 px-3 py-1.5 rounded-[12px] border border-[#30D158]/30 text-[#30D158]" title="ক্লিক করে লাইভ চ্যাট ও ক্রেডিট ব্যালেন্স দেখুন">
+          <span>🪙 ব্যালেন্স:</span>
+          <span class="font-bold font-mono">৳${walletBalance.toFixed(2)}</span>
+        </div>
+
         <div onclick="openSalesHistoryModal()" class="cursor-pointer hover:opacity-85 transition flex items-center gap-1.5 bg-[#2C2C2E]/70 px-3.5 py-1.5 rounded-[12px] border border-emerald-500/25 text-emerald-400" title="ক্লিক করে বিক্রয় হিস্ট্রি ও অ্যানালিটিক্স দেখুন">
           <span>💰 বিক্রয় রেভিনিউ:</span>
           <span class="font-bold font-mono">৳${formatMoney(totalRevenue)}</span>
@@ -1213,6 +1278,105 @@ function createMerchantPortalRouter({
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: WHATSAPP CHATS & CREDIT USAGE LEDGER (NEW) -->
+    <section id="tab-chats" class="hidden space-y-6">
+      <div class="tab-box bg-[#1C1C1E] rounded-[28px] border border-white/[0.08] p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-6">
+        
+        <!-- Header & Plan Tag -->
+        <div class="flex items-center justify-between pb-4 border-b border-white/[0.06] flex-wrap gap-3">
+          <div>
+            <h2 class="font-bold text-lg sm:text-xl text-white tracking-tight flex items-center gap-2">
+              <span>💬 হোয়াটসঅ্যাপ চ্যাট হিস্ট্রি ও ক্রেডিট লেজার</span>
+            </h2>
+            <p class="text-xs sm:text-sm text-[rgba(235,235,245,0.60)] mt-1">দোকানের প্রতিটি সক্রিয় কাস্টমার কথোপকথন, আদান-প্রদান হওয়া বার্তা ও স্বচ্ছ ক্রেডিট খরচ ট্র্যাকিং</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs px-3 py-1 rounded-full bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30 font-semibold">
+              💎 ${currentPlan}
+            </span>
+          </div>
+        </div>
+
+        <!-- Top Metrics 4-Card Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4.5 rounded-[20px]">
+            <div class="flex items-center justify-between text-xs text-[rgba(235,235,245,0.60)]">
+              <span>💬 মোট চ্যাট সেশন</span>
+              <span class="text-base">👥</span>
+            </div>
+            <div class="text-2xl font-black text-white mt-1.5 font-mono">${totalChatSessions}</div>
+            <div class="text-[11px] text-[rgba(235,235,245,0.40)] mt-0.5">ইউনিক কাস্টমার হ্যান্ডেল</div>
+          </div>
+
+          <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4.5 rounded-[20px]">
+            <div class="flex items-center justify-between text-xs text-[rgba(235,235,245,0.60)]">
+              <span>📩 মোট আদান-প্রদান বার্তা</span>
+              <span class="text-base">⚡</span>
+            </div>
+            <div class="text-2xl font-black text-white mt-1.5 font-mono">${totalMessagesExchanged}</div>
+            <div class="text-[11px] text-[#0A84FF] mt-0.5">বট ও ক্রেতার মেসেজ</div>
+          </div>
+
+          <div class="bg-[#2C2C2E]/60 border border-white/[0.08] p-4.5 rounded-[20px]">
+            <div class="flex items-center justify-between text-xs text-[rgba(235,235,245,0.60)]">
+              <span>🪙 মোট ব্যবহৃত ক্রেডিট</span>
+              <span class="text-base">🔥</span>
+            </div>
+            <div class="text-2xl font-black text-[#FF9F0A] mt-1.5 font-mono">-${totalCreditsUsed.toFixed(0)}</div>
+            <div class="text-[11px] text-[rgba(235,235,245,0.40)] mt-0.5">১ কাস্টমার = ১ ক্রেডিট (৳১.০০)</div>
+          </div>
+
+          <div class="bg-[#2C2C2E]/60 border border-[#30D158]/30 p-4.5 rounded-[20px] relative overflow-hidden">
+            <div class="flex items-center justify-between text-xs text-[#30D158]">
+              <span>💰 ওয়ালেট ব্যালেন্স</span>
+              <span class="text-base">⚡</span>
+            </div>
+            <div class="text-2xl font-black text-[#30D158] mt-1.5 font-mono">৳${walletBalance.toFixed(2)}</div>
+            <div class="mt-2">
+              <button type="button" onclick="openMerchantRechargeModal()" class="w-full bg-[#30D158] hover:bg-[#28B846] text-black font-extrabold text-[11px] py-1.5 rounded-[10px] transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-xs">
+                <span>⚡ বিকাশ দিয়ে রিচার্জ করুন</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Bar: Search & CSV Export -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+          <div class="relative flex-1 max-w-md">
+            <input type="text" id="chatSearchInput" oninput="filterPortalChats(this.value)" placeholder="কাস্টমার ফোন নম্বর বা বার্তা দিয়ে ফিল্টার করুন..." class="w-full bg-[#2C2C2E] border border-white/[0.08] text-white text-xs pl-9 pr-4 py-2.5 rounded-[14px] outline-none focus:border-[#30D158]">
+            <span class="absolute left-3 top-2.5 text-xs text-[rgba(235,235,245,0.4)]">🔍</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="downloadChatsCSV()" class="bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white border border-white/[0.12] text-xs font-semibold px-4 py-2.5 rounded-[14px] transition cursor-pointer flex items-center gap-1.5 active:scale-95" title="সব চ্যাট হিস্ট্রি এবং ক্রেডিট কাটার রিপোর্ট ডাউনলোড করুন">
+              <span>💾 সকল চ্যাট ও ক্রেডিট হিস্ট্রি ডাউনলোড (CSV)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Real Chats Table -->
+        <div class="overflow-x-auto rounded-[16px] border border-white/[0.06]">
+          <table class="w-full text-left text-xs text-[rgba(235,235,245,0.85)]">
+            <thead>
+              <tr class="bg-[#2C2C2E]/40 border-b border-white/[0.08] text-[rgba(235,235,245,0.45)] uppercase text-[10px] tracking-wider">
+                <th class="p-4">কাস্টমার</th>
+                <th class="p-4">স্টেজ</th>
+                <th class="p-4">বার্তা সংখ্যা</th>
+                <th class="p-4">সর্বশেষ কথোপকথন প্রিভিউ</th>
+                <th class="p-4">খরচ (ক্রেডিট)</th>
+                <th class="p-4">সময়</th>
+                <th class="p-4 text-right">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="chatsTableBody">
+              ${chatRowsHtml || '<tr><td colspan="7" class="p-10 text-center text-[rgba(235,235,245,0.35)] font-semibold">এখনও কোনো হোয়াটসঅ্যাপ চ্যাট হিস্ট্রি নেই।</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
       </div>
     </section>
 
@@ -2334,6 +2498,71 @@ function createMerchantPortalRouter({
   </div>
 
   <!-- ======================================================== -->
+  <!-- BKASH WALLET RECHARGE MODAL FOR MERCHANTS (NEW)          -->
+  <!-- ======================================================== -->
+  <div id="merchantRechargeModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="modal-card bg-[#1C1C1E] border border-white/[0.12] rounded-[28px] max-w-md w-full p-6 sm:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.85)] space-y-5 text-center">
+      <div class="flex items-center justify-center">
+        <div class="w-14 h-14 rounded-2xl bg-[#E2136E]/15 border border-[#E2136E]/30 flex items-center justify-center text-3xl shadow-[0_0_25px_rgba(226,19,110,0.25)]">
+          ⚡
+        </div>
+      </div>
+      <div>
+        <h3 class="font-extrabold text-white text-lg sm:text-xl tracking-tight">ওয়ালেট রিচার্জ (bKash Wallet)</h3>
+        <p class="text-xs text-[rgba(235,235,245,0.60)] mt-1.5 leading-relaxed">
+          আপনার বর্তমান ব্যালেন্স: <span class="font-bold font-mono text-[#30D158]">৳${walletBalance.toFixed(2)}</span> • প্রতি কাস্টমার চ্যাটে মাত্র ১ ক্রেডিট (৳১)
+        </p>
+      </div>
+
+      <form onsubmit="handleMerchantRechargeSubmit(event)" class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] uppercase tracking-wider mb-2">রিচার্জ প্যাকেজ নির্বাচন করুন</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="selectRechargeAmount(500, 500)" id="pkg-btn-500" class="recharge-pkg-btn p-3 rounded-[16px] bg-[#2C2C2E] border border-white/[0.1] text-center hover:border-[#E2136E] transition cursor-pointer">
+              <div class="font-bold text-white text-sm">৳৫০০</div>
+              <div class="text-[10px] text-[rgba(235,235,245,0.5)] mt-0.5">৫০০ ক্রেডিট</div>
+            </button>
+            <button type="button" onclick="selectRechargeAmount(1000, 1050)" id="pkg-btn-1000" class="recharge-pkg-btn p-3 rounded-[16px] bg-[#2C2C2E] border border-[#30D158]/50 text-center hover:border-[#E2136E] transition cursor-pointer relative">
+              <span class="absolute -top-2 right-1 bg-[#30D158] text-black text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">+৫০ ফ্রি</span>
+              <div class="font-bold text-white text-sm">৳১,০০০</div>
+              <div class="text-[10px] text-[#30D158] mt-0.5 font-bold">১০৫০ ক্রেডিট</div>
+            </button>
+            <button type="button" onclick="selectRechargeAmount(2000, 2200)" id="pkg-btn-2000" class="recharge-pkg-btn p-3 rounded-[16px] bg-[#2C2C2E] border border-white/[0.1] text-center hover:border-[#E2136E] transition cursor-pointer relative">
+              <span class="absolute -top-2 right-1 bg-[#BF5AF2] text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">+২০০ ফ্রি</span>
+              <div class="font-bold text-white text-sm">৳২,০০০</div>
+              <div class="text-[10px] text-[#BF5AF2] mt-0.5 font-bold">২২০০ ক্রেডিট</div>
+            </button>
+          </div>
+          <input type="hidden" id="selectedRechargeAmount" value="500">
+        </div>
+
+        <div class="bg-[#2C2C2E]/60 p-3.5 rounded-[16px] border border-white/[0.08] text-xs space-y-1.5">
+          <div class="text-[rgba(235,235,245,0.70)]">📲 বিকাশ মার্চেন্ট / পেমেন্ট নম্বর:</div>
+          <div class="font-mono font-bold text-white text-sm flex items-center justify-between">
+            <span>01968718838</span>
+            <span class="text-[10px] bg-[#E2136E]/20 text-[#E2136E] px-2 py-0.5 rounded-full border border-[#E2136E]/30">অফিশিয়াল বিকাশ</span>
+          </div>
+          <div class="text-[10px] text-[rgba(235,235,245,0.45)]">উক্ত নম্বরে সেন্ড মানি বা পেমেন্ট করে নিচে ট্রানজ্যাকশন আইডি (TrxID) দিন।</div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] uppercase tracking-wider mb-1.5">বিকাশ TrxID (Transaction ID)</label>
+          <input type="text" id="rechargeTrxIdInput" placeholder="যেমন: BL9X82K19M" required class="w-full bg-[#2C2C2E] border border-white/[0.10] text-white font-mono text-sm px-4 py-2.5 rounded-[14px] focus:outline-none focus:border-[#E2136E]">
+        </div>
+
+        <div class="pt-2 flex items-center justify-between gap-3">
+          <button type="button" onclick="closeMerchantRechargeModal()" class="flex-1 bg-[#2C2C2E] hover:bg-[#3A3A3C] text-white font-semibold py-3 rounded-[14px] text-xs transition cursor-pointer">
+            ✕ বাতিল
+          </button>
+          <button type="submit" id="rechargeSubmitBtn" class="flex-1 bg-[#E2136E] hover:bg-[#c90f5f] text-white font-extrabold py-3 rounded-[14px] text-xs sm:text-sm transition cursor-pointer shadow-[0_2px_14px_rgba(226,19,110,0.3)]">
+            রিচার্জ সাবমিট করুন →
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
   <!-- Amazon Seller Central Style Floating Bulk Operations Dock -->
   <!-- ======================================================== -->
   <div id="bulkActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transform translate-y-32 opacity-0 pointer-events-none transition-all duration-300 w-[95%] max-w-3xl">
@@ -2727,8 +2956,91 @@ function createMerchantPortalRouter({
     let currentSecurityPin = '${curSecurityPin}';
     window.portalOrders = ${JSON.stringify(orders)};
     window.portalProducts = ${JSON.stringify(products)};
+    window.portalChats = ${JSON.stringify(chatSessions.map(c => ({
+      id: c.id,
+      phone: c.customer_phone || '',
+      name: c.customer_name || 'কাস্টমার',
+      stage: c.stage || 'BROWSING',
+      msg_count: Array.isArray(c.messages) ? c.messages.length : 0,
+      last_msg: Array.isArray(c.messages) && c.messages.length > 0 ? (c.messages[c.messages.length-1].content || '') : '',
+      date: c.updated_at || ''
+    })))};
     let currentStockFilter = 'ALL';
     let currentOrderFilter = 'ALL';
+
+    // 1-Click WhatsApp Chat & Credit Ledger CSV Download
+    function downloadChatsCSV() {
+      var csvContent = 'ID,Customer Phone,Customer Name,Stage,Messages Count,Last Message,Credit Deducted,Updated At\\n';
+      (window.portalChats || []).forEach(function(c) {
+        var cleanLastMsg = String(c.last_msg || '').replace(/"/g, '""').split('\\n').join(' ').split('\\r').join(' ');
+        csvContent += [c.id, c.phone, '"' + (c.name || 'কাস্টমার') + '"', c.stage, c.msg_count, '"' + cleanLastMsg + '"', '-1.00', c.date].join(',') + '\\n';
+      });
+      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'autodokan_chats_and_credit_ledger_' + new Date().toISOString().split('T')[0] + '.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function filterPortalChats(val) {
+      var q = (val || '').toLowerCase().trim();
+      var rows = document.querySelectorAll('#chatsTableBody tr');
+      rows.forEach(function(r) {
+        var phone = r.getAttribute('data-phone') || '';
+        var text = r.getAttribute('data-text') || '';
+        if (!q || phone.includes(q) || text.includes(q)) {
+          r.classList.remove('hidden');
+        } else {
+          r.classList.add('hidden');
+        }
+      });
+    }
+
+    function openMerchantRechargeModal() {
+      document.getElementById('merchantRechargeModal')?.classList.remove('hidden');
+    }
+    function closeMerchantRechargeModal() {
+      document.getElementById('merchantRechargeModal')?.classList.add('hidden');
+    }
+    function selectRechargeAmount(amount, credits) {
+      document.getElementById('selectedRechargeAmount').value = amount;
+      document.querySelectorAll('.recharge-pkg-btn').forEach(function(b) {
+        b.classList.remove('border-[#E2136E]', 'bg-[#E2136E]/10');
+      });
+      document.getElementById('pkg-btn-' + amount)?.classList.add('border-[#E2136E]', 'bg-[#E2136E]/10');
+    }
+
+    async function handleMerchantRechargeSubmit(e) {
+      e.preventDefault();
+      var amount = document.getElementById('selectedRechargeAmount').value;
+      var trxId = (document.getElementById('rechargeTrxIdInput').value || '').trim();
+      var btn = document.getElementById('rechargeSubmitBtn');
+      if (!trxId) return alert('দয়া করে সঠিক TrxID লিখুন');
+
+      if (btn) { btn.innerText = 'ভেরিফাই হচ্ছে...'; btn.disabled = true; }
+      try {
+        var res = await fetch('/api/portal/recharge?token=' + encodeURIComponent(token), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: Number(amount), trx_id: trxId })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('⚡ রিচার্জ সফল হয়েছে! নতুন ব্যালেন্স: ৳' + data.wallet_balance);
+          closeMerchantRechargeModal();
+          setTimeout(function() { window.location.reload(); }, 1000);
+        } else {
+          alert('রিচার্জ সমস্যা: ' + (data.error || 'ভুল TrxID'));
+          if (btn) { btn.innerText = 'রিচার্জ সাবমিট করুন →'; btn.disabled = false; }
+        }
+      } catch(err) {
+        alert('কানেকশন এরর: ' + err.message);
+        if (btn) { btn.innerText = 'রিচার্জ সাবমিট করুন →'; btn.disabled = false; }
+      }
+    }
 
     // Image Upload State (Min 5, Max 8)
     let studioUploadedImages = [];
@@ -3419,7 +3731,7 @@ function createMerchantPortalRouter({
       const box = document.getElementById(containerId);
       if (!box) return;
       box.innerHTML = items.map(function(item) {
-        return '<button type="button" onclick="' + onClickFn + '(\'' + item.val + '\')" class="text-white hover:underline cursor-pointer">' + item.lbl + '</button>';
+        return '<button type="button" data-val="' + encodeURIComponent(item.val) + '" onclick="' + onClickFn + '(decodeURIComponent(this.dataset.val))" class="text-white hover:underline cursor-pointer">' + item.lbl + '</button>';
       }).join(' <span>•</span> ');
     }
 
@@ -3428,7 +3740,7 @@ function createMerchantPortalRouter({
       if (!box) return;
       box.innerHTML = '<span class="text-[rgba(235,235,245,0.40)]">প্রিসেট:</span> ' +
         sizes.map(function(s) {
-          return '<button type="button" onclick="setPresetSizes(\'' + s.val + '\')" class="text-white hover:underline cursor-pointer font-medium">' + s.lbl + '</button>';
+          return '<button type="button" data-val="' + encodeURIComponent(s.val) + '" onclick="setPresetSizes(decodeURIComponent(this.dataset.val))" class="text-white hover:underline cursor-pointer font-medium">' + s.lbl + '</button>';
         }).join(' <span>•</span> ');
     }
 
@@ -3437,7 +3749,7 @@ function createMerchantPortalRouter({
       if (!box) return;
       box.innerHTML = '<span class="text-[rgba(235,235,245,0.40)]">যোগ করুন:</span> ' +
         colors.map(function(c) {
-          return '<button type="button" onclick="appendPresetColor(\'' + c + '\')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">' + c + '</button>';
+          return '<button type="button" data-val="' + encodeURIComponent(c) + '" onclick="appendPresetColor(decodeURIComponent(this.dataset.val))" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">' + c + '</button>';
         }).join(' ');
     }
 
@@ -5110,6 +5422,68 @@ function createMerchantPortalRouter({
       return res.json({ success: true, url: localUrl });
     } catch (err) {
       console.error('[Portal Upload Exception]:', err.message);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ========================================================
+  // POST /api/portal/recharge — Merchant bKash Wallet Recharge
+  // ========================================================
+  router.post('/api/portal/recharge', async (req, res) => {
+    try {
+      const token = req.query.token;
+      const inv = await authenticateMerchantToken(token);
+      if (!inv) return res.status(401).json({ error: 'Unauthorized token' });
+
+      const { amount, trx_id } = req.body;
+      const numAmount = Number(amount) || 500;
+      if (!trx_id || !trx_id.trim()) {
+        return res.status(400).json({ error: 'TrxID is required' });
+      }
+
+      const { data: store, error: fErr } = await supabase
+        .from('store_settings')
+        .select('extra_config')
+        .eq('seller_id', inv.seller_id)
+        .maybeSingle();
+
+      if (fErr) throw fErr;
+      const extra = (store && store.extra_config) || {};
+      const currentBal = Number(extra.wallet_balance !== undefined ? extra.wallet_balance : 500);
+
+      // Add bonus credits for 1000 and 2000 slabs
+      let bonus = 0;
+      if (numAmount >= 2000) bonus = 200;
+      else if (numAmount >= 1000) bonus = 50;
+
+      const creditAdded = numAmount + bonus;
+      extra.wallet_balance = currentBal + creditAdded;
+      extra.wallet_updated_at = new Date().toISOString();
+
+      if (!Array.isArray(extra.recharge_history)) extra.recharge_history = [];
+      extra.recharge_history.unshift({
+        amount: numAmount,
+        credit_added: creditAdded,
+        trx_id: trx_id.trim(),
+        balance_after: extra.wallet_balance,
+        status: 'VERIFIED',
+        timestamp: new Date().toISOString()
+      });
+
+      const { error: uErr } = await supabase
+        .from('store_settings')
+        .update({ extra_config: extra })
+        .eq('seller_id', inv.seller_id);
+
+      if (uErr) throw uErr;
+
+      return res.json({
+        success: true,
+        wallet_balance: extra.wallet_balance,
+        credit_added: creditAdded,
+        message: `রিচার্জ সফল! ৳${creditAdded} ক্রেডিট আপনার ওয়ালেটে যোগ হয়েছে।`
+      });
+    } catch (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
   });

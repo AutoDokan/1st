@@ -71,7 +71,7 @@ function createSuperAdminRouter({
         supabase.from('store_settings').select('*'),
         supabase.from('products').select('*').order('id', { ascending: false }),
         supabase.from('orders').select('*').order('id', { ascending: false }),
-        supabase.from('chat_sessions').select('*').order('updated_at', { ascending: false }).limit(60)
+        supabase.from('chat_sessions').select('*').order('updated_at', { ascending: false }).limit(300)
       ]);
 
       const allInvites = invitesRes.data || [];
@@ -117,6 +117,14 @@ function createSuperAdminRouter({
         const revenue = sOrders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (Number(o.total_bdt) || 0), 0);
         const convRate = sChats.length > 0 ? Math.round((sOrders.length / sChats.length) * 100) : (sOrders.length > 0 ? 100 : 0);
 
+        // Wallet & Credit Telemetry
+        const sChatCount = sChats.length;
+        const sMsgCount = sChats.reduce((sum, c) => sum + (Array.isArray(c.messages) ? c.messages.length : 0), 0);
+        const sCreditsUsed = sChatCount * 1.0;
+        const sWalletBalance = (sSettings.extra_config && sSettings.extra_config.wallet_balance !== undefined)
+          ? Number(sSettings.extra_config.wallet_balance)
+          : Math.max(0, 500 - sCreditsUsed);
+
         // Determine SaaS Plan
         const planName = inv.role === 'admin' ? 'Enterprise' : (inv.status === 'SUSPENDED' ? 'Suspended' : 'Pro Growth');
 
@@ -137,6 +145,10 @@ function createSuperAdminRouter({
           pending_orders_count: sOrders.filter(o => o.status === 'Pending' || o.status === 'Pending Verification').length,
           revenue: revenue,
           conversion_rate: convRate,
+          wallet_balance: sWalletBalance,
+          credits_used: sCreditsUsed,
+          chats_count: sChatCount,
+          messages_count: sMsgCount,
           plan: planName,
           status: inv.status || 'ACTIVE',
           created_at: inv.created_at,
@@ -263,6 +275,23 @@ function createSuperAdminRouter({
             </div>
           </div>
 
+          <!-- Shop Wallet & Credit Telemetry Strip (NEW) -->
+          <div class="grid grid-cols-3 gap-2 bg-[#1C1E26]/90 p-2.5 rounded-[14px] border border-white/[0.04] text-xs">
+            <div>
+              <span class="text-[10px] text-[rgba(235,235,245,0.45)] block">💰 বর্তমান ব্যালেন্স</span>
+              <span class="font-bold text-[#30D158] font-mono text-xs">৳${s.wallet_balance.toFixed(2)}</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-[rgba(235,235,245,0.45)] block">🪙 ব্যবহৃত ক্রেডিট</span>
+              <span class="font-bold text-[#FF9F0A] font-mono text-xs">-${s.credits_used.toFixed(0)} (${s.messages_count} msgs)</span>
+            </div>
+            <div class="text-right flex items-center justify-end">
+              <button type="button" onclick="openWalletTopupModal('${s.seller_id}', '${s.shop_name}', ${s.wallet_balance})" class="bg-[#30D158]/15 hover:bg-[#30D158]/25 text-[#30D158] border border-[#30D158]/30 px-2.5 py-1 rounded-[10px] text-[10px] font-semibold transition cursor-pointer active:scale-95" title="ব্যালেন্স রিচার্জ বা ক্রেডিট অ্যাড করুন">
+                + রিচার্জ / অ্যাড
+              </button>
+            </div>
+          </div>
+
           <!-- Master Super Admin Actions Toolbar -->
           <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -271,6 +300,11 @@ function createSuperAdminRouter({
                 <span>🚀 পোর্টাল</span>
                 <span class="text-[9px] opacity-60">↗</span>
               </a>
+
+              <!-- Merchant Wallet Button -->
+              <button type="button" onclick="openWalletTopupModal('${s.seller_id}', '${s.shop_name}', ${s.wallet_balance})" class="bg-[#1F222B] hover:bg-[#2C2F3B] text-[#30D158] border border-[#30D158]/30 text-xs px-2.5 py-1.5 rounded-[12px] font-medium transition cursor-pointer" title="ওয়ালেট ব্যালেন্স দেখুন বা রিচার্জ করুন">
+                <span>🪙 ওয়ালেট</span>
+              </button>
 
               <!-- Live WhatsApp QR Code Modal Viewer -->
               <button type="button" onclick="openQrModal('${s.seller_id}', '${s.shop_name}')" class="bg-[#1F222B] hover:bg-[#2C2F3B] active:scale-95 text-[rgba(235,235,245,0.85)] border border-white/[0.08] text-xs px-2.5 py-1.5 rounded-[12px] font-medium transition flex items-center gap-1 cursor-pointer" title="হোয়াটসঅ্যাপ QR কোড দেখুন">
@@ -409,6 +443,7 @@ function createSuperAdminRouter({
               <span class="font-mono text-[rgba(235,235,245,0.6)]">${c.customer_phone || ''}</span>
               <span class="text-[10px] bg-[#1F222B] text-[rgba(235,235,245,0.7)] px-2 py-0.5 rounded-full border border-white/[0.06]">${storeName}</span>
               <span class="text-[10px] font-mono bg-[#0A84FF]/15 text-[#0A84FF] px-2 py-0.5 rounded-full border border-[#0A84FF]/30">${c.stage || 'BROWSING'}</span>
+              <span class="text-[10px] font-mono bg-[#FF9F0A]/15 text-[#FF9F0A] px-2 py-0.5 rounded-full border border-[#FF9F0A]/30">🪙 ১ ক্রেডিট (-৳১.০০) | ${msgs.length}টি বার্তা</span>
             </div>
 
             <div class="flex items-center gap-2">
@@ -1372,6 +1407,57 @@ function createSuperAdminRouter({
     </div>
   </div>
 
+  <!-- ========================================================
+       MODAL 8: সিইও মার্চেন্ট ওয়ালেট রিচার্জ ও ক্রেডিট কন্ট্রোল (NEW)
+       ======================================================== -->
+  <div id="walletTopupModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-[#15171F] border border-white/[0.12] rounded-[24px] max-w-sm w-full p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+        <div>
+          <h3 id="walletModalTitle" class="text-sm font-semibold text-white tracking-tight">🪙 মার্চেন্ট ওয়ালেট রিচার্জ</h3>
+          <p id="walletModalSubtitle" class="text-xs text-[rgba(235,235,245,0.5)]">বর্তমান ব্যালেন্স: ৳০</p>
+        </div>
+        <button type="button" onclick="closeWalletTopupModal()" class="text-[rgba(235,235,245,0.4)] hover:text-white text-base">✕</button>
+      </div>
+
+      <form id="walletTopupForm" onsubmit="handleSaveWalletTopup(event)" class="space-y-3.5">
+        <input type="hidden" id="walletModalSellerId" value="">
+
+        <div>
+          <label class="block text-xs text-[rgba(235,235,245,0.6)] mb-1">অ্যাকশন নির্বাচন করুন</label>
+          <select id="walletModalAction" class="w-full bg-[#1C1E26] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none">
+            <option value="add">➕ ব্যালেন্স যোগ করুন (Add Credits)</option>
+            <option value="set">🔄 ব্যালেন্স সেট করুন (Set Exact Balance)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-[rgba(235,235,245,0.6)] mb-1">টাকার পরিমাণ (BDT)</label>
+          <div class="grid grid-cols-3 gap-1.5 mb-2">
+            <button type="button" onclick="document.getElementById('walletModalAmount').value='500'" class="bg-[#1C1E26] hover:bg-[#2C2F3B] text-white text-[11px] py-1.5 rounded-[10px] border border-white/[0.06] cursor-pointer">+ ৳৫০০</button>
+            <button type="button" onclick="document.getElementById('walletModalAmount').value='1000'" class="bg-[#1C1E26] hover:bg-[#2C2F3B] text-white text-[11px] py-1.5 rounded-[10px] border border-white/[0.06] cursor-pointer">+ ৳১,০০০</button>
+            <button type="button" onclick="document.getElementById('walletModalAmount').value='2000'" class="bg-[#1C1E26] hover:bg-[#2C2F3B] text-white text-[11px] py-1.5 rounded-[10px] border border-white/[0.06] cursor-pointer">+ ৳২,০০০</button>
+          </div>
+          <input type="number" id="walletModalAmount" placeholder="যেমন: 500" required min="1" step="any" class="w-full bg-[#1C1E26] border border-white/[0.08] text-white font-mono text-sm p-2.5 rounded-[12px] outline-none focus:border-[#30D158]">
+        </div>
+
+        <div>
+          <label class="block text-xs text-[rgba(235,235,245,0.6)] mb-1">নোট / ট্রানজ্যাকশন রেফারেন্স (ঐচ্ছিক)</label>
+          <input type="text" id="walletModalNote" placeholder="যেমন: bKash TrxID বা ক্যাশ ইন" class="w-full bg-[#1C1E26] border border-white/[0.08] text-white text-xs p-2.5 rounded-[12px] outline-none">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+          <button type="button" onclick="closeWalletTopupModal()" class="bg-white/10 hover:bg-white/20 text-white text-xs px-3.5 py-2 rounded-[12px] font-medium transition cursor-pointer">
+            বাতিল
+          </button>
+          <button type="submit" id="walletModalSubmitBtn" class="bg-[#30D158] hover:bg-[#28B846] text-black text-xs px-4 py-2 rounded-[12px] font-bold transition cursor-pointer shadow-xs active:scale-95">
+            ব্যালেন্স আপডেট করুন
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
@@ -1495,6 +1581,52 @@ function createSuperAdminRouter({
       }
     }
 
+    // CEO Wallet Topup Modal Controls
+    function openWalletTopupModal(sellerId, shopName, currentBalance) {
+      document.getElementById('walletModalSellerId').value = sellerId;
+      document.getElementById('walletModalTitle').innerText = '🪙 ' + shopName + ' — ওয়ালেট রিচার্জ';
+      document.getElementById('walletModalSubtitle').innerText = 'বর্তমান ওয়ালেট ব্যালেন্স: ৳' + Number(currentBalance || 0).toFixed(2);
+      document.getElementById('walletModalAmount').value = '';
+      document.getElementById('walletModalNote').value = '';
+      document.getElementById('walletModalAction').value = 'add';
+      document.getElementById('walletTopupModal').classList.remove('hidden');
+    }
+    function closeWalletTopupModal() {
+      document.getElementById('walletTopupModal').classList.add('hidden');
+    }
+
+    async function handleSaveWalletTopup(e) {
+      e.preventDefault();
+      var sellerId = document.getElementById('walletModalSellerId').value;
+      var action = document.getElementById('walletModalAction').value;
+      var amount = document.getElementById('walletModalAmount').value;
+      var note = document.getElementById('walletModalNote').value;
+      var btn = document.getElementById('walletModalSubmitBtn');
+
+      if (!amount || Number(amount) <= 0) return alert('সঠিক পরিমাণ লিখুন');
+      if (btn) { btn.innerText = 'আপডেট হচ্ছে...'; btn.disabled = true; }
+
+      try {
+        var res = await fetch('/api/admin/shops/' + sellerId + '/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action, amount: amount, note: note })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('🪙 ওয়ালেট ব্যালেন্স আপডেট হয়েছে: ৳' + data.wallet_balance);
+          closeWalletTopupModal();
+          setTimeout(function() { window.location.reload(); }, 900);
+        } else {
+          showToast('❌ ব্যর্থ: ' + data.error, false);
+          if (btn) { btn.innerText = 'ব্যালেন্স আপডেট করুন'; btn.disabled = false; }
+        }
+      } catch(err) {
+        showToast('❌ এরর: ' + err.message, false);
+        if (btn) { btn.innerText = 'ব্যালেন্স আপডেট করুন'; btn.disabled = false; }
+      }
+    }
+
     // 1-Click Stock Delist / Toggle
     async function toggleProductStock(prodId, newStock) {
       showToast('⏳ স্টক স্ট্যাটাস আপডেট হচ্ছে...');
@@ -1582,12 +1714,12 @@ function createSuperAdminRouter({
           }
         });
         custMap.forEach(function(c) {
-          csvContent += [c.phone, '"' + c.name + '"', '"' + c.address + '"', c.count, c.date].join(',') + '\n';
+          csvContent += [c.phone, '"' + c.name + '"', '"' + c.address + '"', c.count, c.date].join(',') + '\\n';
         });
       } else if (type === 'catalog') {
         csvContent = 'ID,Model Code,Product Name,Price,In Stock,Seller ID\\n';
         rawProductsData.forEach(function(p) {
-          csvContent += [p.id, p.model_code, '"' + p.name + '"', p.price, p.in_stock ? 'YES' : 'NO', p.seller_id].join(',') + '\n';
+          csvContent += [p.id, p.model_code, '"' + p.name + '"', p.price, p.in_stock ? 'YES' : 'NO', p.seller_id].join(',') + '\\n';
         });
       }
 
@@ -2536,6 +2668,49 @@ function createSuperAdminRouter({
       logEvent('INFO', 'SUBSCRIPTION', `Tenant ${sellerId} plan set to ${plan}`);
 
       return res.json({ success: true, message: 'টেন্যান্ট সাবস্ক্রিপশন প্ল্যান আপডেট করা হয়েছে।' });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ========================================================
+  // POST /api/admin/shops/:seller_id/wallet — CEO Wallet & Credit Control
+  // ========================================================
+  router.post('/api/admin/shops/:seller_id/wallet', async (req, res) => {
+    try {
+      const sellerId = req.params.seller_id;
+      const { action, amount, note } = req.body;
+      const numAmount = Number(amount) || 0;
+
+      const { data: store, error: fErr } = await supabase.from('store_settings').select('extra_config').eq('seller_id', sellerId).maybeSingle();
+      if (fErr) throw fErr;
+
+      const extra = (store && store.extra_config) || {};
+      const currentBal = Number(extra.wallet_balance !== undefined ? extra.wallet_balance : 500);
+      let newBal = currentBal;
+
+      if (action === 'set') {
+        newBal = numAmount;
+      } else {
+        newBal = currentBal + numAmount;
+      }
+
+      extra.wallet_balance = Math.max(0, newBal);
+      extra.wallet_updated_at = new Date().toISOString();
+      if (!Array.isArray(extra.wallet_history)) extra.wallet_history = [];
+      extra.wallet_history.unshift({
+        amount: numAmount,
+        action: action || 'add',
+        balance_after: extra.wallet_balance,
+        note: note || 'CEO ম্যানুয়াল ব্যালেন্স অ্যাডজাস্টমেন্ট',
+        timestamp: new Date().toISOString()
+      });
+
+      const { error: uErr } = await supabase.from('store_settings').update({ extra_config: extra }).eq('seller_id', sellerId);
+      if (uErr) throw uErr;
+
+      logEvent('SUCCESS', 'WALLET', `Tenant ${sellerId} wallet updated to ৳${extra.wallet_balance} (${action === 'set' ? 'Set' : (numAmount >= 0 ? '+' : '') + numAmount})`);
+      return res.json({ success: true, wallet_balance: extra.wallet_balance, message: `ওয়ালেট ব্যালেন্স সফলভাবে ৳${extra.wallet_balance} করা হয়েছে।` });
     } catch (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
