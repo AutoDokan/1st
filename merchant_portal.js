@@ -1462,7 +1462,7 @@ function createMerchantPortalRouter({
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">প্যাকেজের ধরন *</label>
+                <label id="pkgTypeLabel" class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">প্যাকেজের ধরন *</label>
                 <div id="pkgPresetContainer" class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
                   <button type="button" onclick="setPresetPackage('১ পিস')" class="text-white hover:underline cursor-pointer">১ পিস</button>
                   <span>•</span>
@@ -1474,26 +1474,28 @@ function createMerchantPortalRouter({
               <input type="text" id="studio_package_type" placeholder="যেমন: ২ পিস সেট (আবায়া + হিজাব) বা প্রিমিয়াম বক্স" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">প্যাকেজে যা যা অন্তর্ভুক্ত থাকছে *</label>
+              <label id="pkgInclusionsLabel" class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">প্যাকেজে যা যা অন্তর্ভুক্ত থাকছে *</label>
               <input type="text" id="studio_package_inclusions" placeholder="যেমন: মূল প্রোডাক্ট + প্রিমিয়াম বক্স + গিফট উপহার" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
             </div>
           </div>
 
-          <!-- DYNAMIC SUB-SECTION: FASHION / ABAYA -->
+          <!-- DYNAMIC SUB-SECTION: 1. FASHION / ABAYA / CLOTHING -->
           <div id="cat_fields_fashion" class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">ফেব্রিক / উপাদান</label>
                   <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
-                    <button type="button" onclick="setPresetFabric('দুবাই চেরি')" class="text-white hover:underline cursor-pointer">দুবাই চেরি</button>
+                    <button type="button" onclick="setPresetInput('studio_fabric', 'দুবাই চেরি')" class="text-white hover:underline cursor-pointer">দুবাই চেরি</button>
                     <span>•</span>
-                    <button type="button" onclick="setPresetFabric('সফট জর্জেট')" class="text-white hover:underline cursor-pointer">জর্জেট</button>
+                    <button type="button" onclick="setPresetInput('studio_fabric', 'সফট জর্জেট')" class="text-white hover:underline cursor-pointer">জর্জেট</button>
                     <span>•</span>
-                    <button type="button" onclick="setPresetFabric('নিদা ফেব্রিক')" class="text-white hover:underline cursor-pointer">নিদা</button>
+                    <button type="button" onclick="setPresetInput('studio_fabric', 'নিদা ফেব্রিক')" class="text-white hover:underline cursor-pointer">নিদা</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_fabric', 'পিওর কটন')" class="text-white hover:underline cursor-pointer">কটন</button>
                   </div>
                 </div>
-                <input type="text" id="studio_fabric" placeholder="যেমন: দুবাই চেরি প্রিমিয়াম" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+                <input type="text" id="studio_fabric" placeholder="যেমন: ১০০% দুবাই চেরি প্রিমিয়াম ফেব্রিক" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">কাপড় কি পাতলা / ইনার লাগবে?</label>
@@ -1529,51 +1531,251 @@ function createMerchantPortalRouter({
             </div>
           </div>
 
-          <!-- DYNAMIC SUB-SECTION: FOOTWEAR -->
+          <!-- DYNAMIC SUB-SECTION: 2. FOOTWEAR / SHOES -->
           <div id="cat_fields_footwear" class="hidden space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
-                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">জুতার মেটেরিয়াল / উপাদান</label>
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">জুতার টাইপ ও স্টাইল</label>
                   <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
-                    <button type="button" onclick="setPresetFabric('জেনুইন কাউ লেদার')" class="text-white hover:underline cursor-pointer">লেদার</button>
+                    <button type="button" onclick="setPresetInput('studio_footwear_type', 'লোফার')" class="text-white hover:underline cursor-pointer">লোফার</button>
                     <span>•</span>
-                    <button type="button" onclick="setPresetFabric('ব্রিদেবল মেশ')" class="text-white hover:underline cursor-pointer">মেশ</button>
+                    <button type="button" onclick="setPresetInput('studio_footwear_type', 'স্নিকার্স')" class="text-white hover:underline cursor-pointer">স্নিকার্স</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_footwear_type', 'ফরমাল সু')" class="text-white hover:underline cursor-pointer">ফরমাল</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_footwear_type', 'স্যান্ডেল')" class="text-white hover:underline cursor-pointer">স্যান্ডেল</button>
                   </div>
                 </div>
-                <input type="text" id="studio_footwear_material" placeholder="যেমন: ১০০% জেনুইন কাউ লেদার / রাবার সোল" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+                <input type="text" id="studio_footwear_type" placeholder="যেমন: প্রিমিয়াম ক্যাজুয়াল লেদার লোফার" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
               </div>
               <div>
-                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ইনসোল ও কমফোর্ট ফিচার</label>
-                <input type="text" id="studio_footwear_comfort" placeholder="যেমন: সফট মেমোরি ফোম কুশন, অ্যান্টি-স্লিপ গ্রিপ সোল" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">জুতার মেটেরিয়াল / উপাদান</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_footwear_material', '১০০% জেনুইন কাউ লেদার')" class="text-white hover:underline cursor-pointer">লেদার</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_footwear_material', 'ব্রিদেবল মেশ')" class="text-white hover:underline cursor-pointer">মেশ</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_footwear_material', 'সোয়েড লেদার')" class="text-white hover:underline cursor-pointer">সোয়েড</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_footwear_material" placeholder="যেমন: ১০০% জেনুইন কাউ লেদার" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">ইনসোল ও কমফোর্ট</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_footwear_comfort', 'মেমোরি ফোম কুশন')" class="text-white hover:underline cursor-pointer">ফোম</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_footwear_comfort" placeholder="যেমন: সফট মেমোরি ফোম কুশন" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">সোল টাইপ</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_footwear_sole', 'অ্যান্টি-স্লিপ রাবার সোল')" class="text-white hover:underline cursor-pointer">রাবার</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_footwear_sole', 'হালকা TPR সোল')" class="text-white hover:underline cursor-pointer">TPR</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_footwear_sole" placeholder="যেমন: অ্যান্টি-স্লিপ গ্রিপ রাবার সোল" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">বক্স ও প্যাকেজিং</label>
+                <input type="text" id="studio_footwear_box" placeholder="যেমন: অরিজিনাল হার্ডবক্স + ডাস্টব্যাগ" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
               </div>
             </div>
           </div>
 
-          <!-- DYNAMIC SUB-SECTION: ELECTRONICS & GADGETS -->
+          <!-- DYNAMIC SUB-SECTION: 3. ELECTRONICS & GADGETS -->
           <div id="cat_fields_electronics" class="hidden space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ওয়ারেন্টি পলিসি</label>
-                <input type="text" id="studio_warranty" placeholder="যেমন: ৬ মাস রিপ্লেসমেন্ট ওয়ারেন্টি, ১ বছর সার্ভিস" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">গ্যাজেট টাইপ / মডেল</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_electronics_type', 'TWS ইয়ারবাডস')" class="text-white hover:underline cursor-pointer">ইয়ারবাডস</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_electronics_type', 'স্মার্টওয়াচ')" class="text-white hover:underline cursor-pointer">ওয়াচ</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_electronics_type', 'পাওয়ার ব্যাংক')" class="text-white hover:underline cursor-pointer">পাওয়ারব্যাংক</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_electronics_type" placeholder="যেমন: ট্রু ওয়্যারলেস ব্লুটুথ ইয়ারবাডস" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
               </div>
               <div>
-                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ব্যাটারি / টেকনিক্যাল স্পেক্স</label>
-                <input type="text" id="studio_electronics_specs" placeholder="যেমন: ব্লুটুথ ৫.৩, ব্যাটারি ব্যাকআপ ১০ ঘণ্টা" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">ওয়ারেন্টি পলিসি</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_warranty', '৭ দিন রিপ্লেসমেন্ট গ্যারান্টি')" class="text-white hover:underline cursor-pointer">৭ দিন</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_warranty', '৬ মাসের অফিশিয়াল ওয়ারেন্টি')" class="text-white hover:underline cursor-pointer">৬ মাস</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_warranty', '১ বছরের অফিসিয়াল সার্ভিস')" class="text-white hover:underline cursor-pointer">১ বছর</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_warranty" placeholder="যেমন: ৭ দিন রিপ্লেসমেন্ট, ৬ মাস অফিসিয়াল ওয়ারেন্টি" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ব্যাটারি ও ব্যাকআপ</label>
+                <input type="text" id="studio_electronics_battery" placeholder="যেমন: ৪০ ঘণ্টা প্লেব্যাক, টাইপ-সি ফাস্ট চার্জ" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">কানেক্টিভিটি / ফিচার</label>
+                <input type="text" id="studio_electronics_specs" placeholder="যেমন: ব্লুটুথ ৫.৩, ANC নয়েজ ক্যান্সেলেশন" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">বক্সে যা যা থাকছে</label>
+                <input type="text" id="studio_electronics_box" placeholder="যেমন: ডিভাইস, চার্জিং কেবল, ম্যানুয়াল, এক্সট্রা টিপ্স" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
               </div>
             </div>
           </div>
 
-          <!-- DYNAMIC SUB-SECTION: COSMETICS & BEAUTY -->
+          <!-- DYNAMIC SUB-SECTION: 4. COSMETICS & BEAUTY -->
           <div id="cat_fields_cosmetics" class="hidden space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">স্কিন টাইপ উপযুক্ততা</label>
-                <input type="text" id="studio_skin_type" placeholder="যেমন: সব ধরনের ত্বকে ব্যবহারযোগ্য (অল স্কিন টাইপ)" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">প্রোডাক্ট টাইপ</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_cosmetics_type', 'সিরাম')" class="text-white hover:underline cursor-pointer">সিরাম</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_cosmetics_type', 'ময়েশ্চারাইজার')" class="text-white hover:underline cursor-pointer">ক্রিম</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_cosmetics_type', 'সানস্ক্রিন')" class="text-white hover:underline cursor-pointer">সানস্ক্রিন</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_cosmetics_type', 'ফেসওয়াশ')" class="text-white hover:underline cursor-pointer">ওয়াশ</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_cosmetics_type" placeholder="যেমন: গ্লো ও অ্যান্টি-এজিং সিরাম" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
               </div>
               <div>
-                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">নেট ওজন / ভলিউম</label>
-                <input type="text" id="studio_net_volume" placeholder="যেমন: ৫০ গ্রাম / ১০০ মিলি" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">স্কিন টাইপ উপযুক্ততা</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_skin_type', 'সব ত্বকে উপযোগী (All Skin Types)')" class="text-white hover:underline cursor-pointer">অল স্কিন</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_skin_type', 'অয়েলি ও একনে-প্রোন স্কিন')" class="text-white hover:underline cursor-pointer">অয়েলি</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_skin_type', 'ড্রাই ও সেনসিটিভ স্কিন')" class="text-white hover:underline cursor-pointer">ড্রাই</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_skin_type" placeholder="যেমন: সব ধরনের ত্বকে ব্যবহারযোগ্য (অল স্কিন টাইপ)" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">নেট ওজন / ভলিউম</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_net_volume', '৩০ মিলি')" class="text-white hover:underline cursor-pointer">৩০ml</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_net_volume', '৫০ মিলি')" class="text-white hover:underline cursor-pointer">৫০ml</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_net_volume', '১০০ গ্রাম')" class="text-white hover:underline cursor-pointer">১০০g</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_net_volume" placeholder="যেমন: ৫০ মিলি / ১০০ গ্রাম" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">অ্যাক্টিভ উপাদান</label>
+                <input type="text" id="studio_cosmetics_ingredients" placeholder="যেমন: নায়াসিনামাইড, সেন্টেলা, ভিটামিন সি" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">অরিজিন ও মেয়াদ</label>
+                <input type="text" id="studio_cosmetics_origin" placeholder="যেমন: মেইড ইন কোরিয়া, মেয়াদ: ২০২৬" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- DYNAMIC SUB-SECTION: 5. ORGANIC FOOD & GROCERY -->
+          <div id="cat_fields_food" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">খাদ্যপণ্যের ধরন ও উৎস</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_food_item', 'সুন্দরবনের প্রাকৃতিক খাঁটি মধু')" class="text-white hover:underline cursor-pointer">মধু</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_food_item', 'ঘাসের খামারের খাঁটি গাওয়া ঘি')" class="text-white hover:underline cursor-pointer">ঘি</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_food_item', 'কাচ্চি ঘানি সরিষার তেল')" class="text-white hover:underline cursor-pointer">তেল</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_food_item" placeholder="যেমন: সুন্দরবনের প্রাকৃতিক খাঁটি মধু" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">১০০% বিশুদ্ধতার নিশ্চয়তা</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_food_purity', '১০০% র পিওর (চিনি ও প্রিজারভেটিভ মুক্ত)')" class="text-white hover:underline cursor-pointer">র পিওর</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_food_purity', 'ল্যাব টেস্টেড ও বিএসটিআই মানসম্পন্ন')" class="text-white hover:underline cursor-pointer">ল্যাব টেস্টেড</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_food_purity" placeholder="যেমন: ১০০% র পিওর, কোনো চিনি বা কেমিক্যাল নেই" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">নেট ওজন / পরিমাণ</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_food_weight', '৫০০ গ্রাম')" class="text-white hover:underline cursor-pointer">৫০০g</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_food_weight', '১ কেজি')" class="text-white hover:underline cursor-pointer">১kg</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_food_weight', '২ কেজি')" class="text-white hover:underline cursor-pointer">২kg</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_food_weight" placeholder="যেমন: ১ কেজি / ৫০০ গ্রাম" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">মেয়াদ ও সংরক্ষণ</label>
+                <input type="text" id="studio_food_shelf_life" placeholder="যেমন: স্বাভাবিক তাপমাত্রায় ১ বছর ভালো থাকে" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">প্যাকেজিং স্পেক্স</label>
+                <input type="text" id="studio_food_packaging" placeholder="যেমন: ফুড-গ্রেড এয়ারটাইট কাঁচের জার" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- DYNAMIC SUB-SECTION: 6. GENERAL PRODUCTS -->
+          <div id="cat_fields_general" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">উপাদান / ম্যাটেরিয়াল</label>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[rgba(235,235,245,0.50)]">
+                    <button type="button" onclick="setPresetInput('studio_general_material', 'প্রিমিয়াম অ্যালয়')" class="text-white hover:underline cursor-pointer">অ্যালয়</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_general_material', 'স্টেইনলেস স্টিল')" class="text-white hover:underline cursor-pointer">স্টিল</button>
+                    <span>•</span>
+                    <button type="button" onclick="setPresetInput('studio_general_material', 'ওয়াটারপ্রুফ ফেব্রিকেশন')" class="text-white hover:underline cursor-pointer">ফেব্রিক</button>
+                  </div>
+                </div>
+                <input type="text" id="studio_general_material" placeholder="যেমন: প্রিমিয়াম অ্যালয় ও স্টেইনলেস স্টিল" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ব্যবহার ও বিশেষ ফিচার</label>
+                <input type="text" id="studio_general_usage" placeholder="যেমন: দৈনন্দিন অফিস, ভ্রমণ ও ঘরের কাজে দীর্ঘস্থায়ী" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ডাইমেনশন / সাইজ / ওজন</label>
+                <input type="text" id="studio_general_dimensions" placeholder="যেমন: দৈর্ঘ্য ১২ ইঞ্চি × প্রস্থ ৮ ইঞ্চি, ওজন ৪০০ গ্রাম" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">ওয়ারেন্টি / গ্যারান্টি</label>
+                <input type="text" id="studio_general_warranty" placeholder="যেমন: চেক করে নেওয়ার সুবিধা, ৭ দিন রিপ্লেসমেন্ট" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
               </div>
             </div>
           </div>
@@ -1581,19 +1783,12 @@ function createMerchantPortalRouter({
           <!-- UNIVERSAL SIZES & VARIANTS ROW -->
           <div>
             <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-              <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">সাইজ / ভ্যারিয়েন্ট (কমা দিয়ে লিখুন) *</label>
+              <label id="sizesLabel" class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">সাইজ / ভ্যারিয়েন্ট (কমা দিয়ে লিখুন) *</label>
               <div id="sizePresetContainer" class="flex items-center gap-2 text-xs">
-                <span class="text-[rgba(235,235,245,0.40)]">প্রিসেট:</span>
-                <button type="button" onclick="setPresetSizes('৫০, ৫২, ৫৪, ৫৬')" class="text-white hover:underline cursor-pointer font-medium">আবায়া (৫০-৫৬)</button>
-                <span>•</span>
-                <button type="button" onclick="setPresetSizes('৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪')" class="text-white hover:underline cursor-pointer font-medium">জুতা (৩৯-৪৪)</button>
-                <span>•</span>
-                <button type="button" onclick="setPresetSizes('M, L, XL, XXL')" class="text-white hover:underline cursor-pointer font-medium">শার্ট (M-XXL)</button>
-                <span>•</span>
-                <button type="button" onclick="setPresetSizes('স্ট্যান্ডার্ড সাইজ')" class="text-white hover:underline cursor-pointer font-medium">ফ্রি সাইজ</button>
+                <!-- Dynamically rendered by onStudioCategoryChange -->
               </div>
             </div>
-            <input type="text" id="studio_sizes" placeholder="যেমন: ৫০, ৫২, ৫৪, ৫৬ অথবা ৩৯, ৪০, ৪১, ৪২, ৪৩" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-medium p-3 rounded-[12px] focus:border-white/40 outline-none">
+            <input type="text" id="studio_sizes" placeholder="যেমন: ৫০, ৫২, ৫৪, ৫৬" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm font-medium p-3 rounded-[12px] focus:border-white/40 outline-none">
           </div>
 
           <!-- QUALITY GUARANTEE BADGES (Checkboxes) -->
@@ -1623,26 +1818,20 @@ function createMerchantPortalRouter({
         <!-- SECTION 4: কালার ভ্যারিয়েন্ট ও লাইটিং -->
         <div class="bg-[#242426] p-4 sm:p-5 rounded-[20px] border border-white/[0.06] space-y-4">
           <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 pb-1 border-b border-white/[0.06]">
-            <span class="text-purple-400">🎨</span><span>৪. কালার ভ্যারিয়েন্ট ও ফটো রিয়ালিজম (Color & Realism)</span>
+            <span class="text-purple-400">🎨</span><span id="variantSectionHeading">৪. কালার ভ্যারিয়েন্ট ও ফটো রিয়ালিজম (Color & Realism)</span>
           </div>
           <div>
             <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-              <label class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">কালার অপশন (কমা দিয়ে লিখুন বা ক্লিক করে যোগ করুন) *</label>
-              <div class="flex items-center gap-1 flex-wrap text-[11px]">
-                <span class="text-[rgba(235,235,245,0.40)]">যোগ করুন:</span>
-                <button type="button" onclick="appendPresetColor('জেট ব্ল্যাক')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">জেট ব্ল্যাক</button>
-                <button type="button" onclick="appendPresetColor('চকোলেট ব্রাউন')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">চকোলেট ব্রাউন</button>
-                <button type="button" onclick="appendPresetColor('কফি')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">কফি</button>
-                <button type="button" onclick="appendPresetColor('সি-গ্রিন')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">সি-গ্রিন</button>
-                <button type="button" onclick="appendPresetColor('নেভি ব্লু')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">নেভি ব্লু</button>
-                <button type="button" onclick="appendPresetColor('মারুন')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">মারুন</button>
+              <label id="colorsLabel" class="text-xs font-semibold text-[rgba(235,235,245,0.70)]">কালার অপশন (কমা দিয়ে লিখুন বা ক্লিক করে যোগ করুন) *</label>
+              <div id="colorPresetsContainer" class="flex items-center gap-1 flex-wrap text-[11px]">
+                <!-- Dynamically populated by onStudioCategoryChange -->
               </div>
             </div>
             <input type="text" id="studio_colors" placeholder="যেমন: জেট ব্ল্যাক, চকোলেট ব্রাউন, কফি" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">লাইটিং ও স্ক্রিন ডিসক্লেইমার নোট</label>
+            <label id="lightingDisclaimerLabel" class="block text-xs font-semibold text-[rgba(235,235,245,0.70)] mb-1.5">লাইটিং ও স্ক্রিন ডিসক্লেইমার নোট</label>
             <input type="text" id="studio_lighting_disclaimer" placeholder="যেমন: স্টুডিও লাইটিং ও ক্যামেরার রেজোলিউশনের কারণে ছবির কালার বাস্তবে ৫-১০% সামান্য তারতম্য হতে পারে।" class="w-full bg-[#1C1C1E] border border-white/[0.08] text-white text-sm p-3 rounded-[12px] focus:border-white/40 outline-none">
           </div>
         </div>
@@ -3226,53 +3415,281 @@ function createMerchantPortalRouter({
       }
     }
 
+    function renderPresetButtons(containerId, items, onClickFn) {
+      const box = document.getElementById(containerId);
+      if (!box) return;
+      box.innerHTML = items.map(function(item) {
+        return '<button type="button" onclick="' + onClickFn + '(\'' + item.val + '\')" class="text-white hover:underline cursor-pointer">' + item.lbl + '</button>';
+      }).join(' <span>•</span> ');
+    }
+
+    function renderSizeButtons(containerId, sizes) {
+      const box = document.getElementById(containerId);
+      if (!box) return;
+      box.innerHTML = '<span class="text-[rgba(235,235,245,0.40)]">প্রিসেট:</span> ' +
+        sizes.map(function(s) {
+          return '<button type="button" onclick="setPresetSizes(\'' + s.val + '\')" class="text-white hover:underline cursor-pointer font-medium">' + s.lbl + '</button>';
+        }).join(' <span>•</span> ');
+    }
+
+    function renderColorButtons(containerId, colors) {
+      const box = document.getElementById(containerId);
+      if (!box) return;
+      box.innerHTML = '<span class="text-[rgba(235,235,245,0.40)]">যোগ করুন:</span> ' +
+        colors.map(function(c) {
+          return '<button type="button" onclick="appendPresetColor(\'' + c + '\')" class="bg-[#1C1C1E] hover:bg-[#2C2C2E] text-white px-2 py-0.5 rounded-[8px] border border-white/[0.08] cursor-pointer">' + c + '</button>';
+        }).join(' ');
+    }
+
     function onStudioCategoryChange(cat) {
       const fashionBox = document.getElementById('cat_fields_fashion');
       const footwearBox = document.getElementById('cat_fields_footwear');
       const elecBox = document.getElementById('cat_fields_electronics');
       const cosmeticsBox = document.getElementById('cat_fields_cosmetics');
+      const foodBox = document.getElementById('cat_fields_food');
+      const generalBox = document.getElementById('cat_fields_general');
       const badge = document.getElementById('currentCategoryBadge');
-      
-      fashionBox.classList.add('hidden');
-      footwearBox.classList.add('hidden');
-      elecBox.classList.add('hidden');
-      cosmeticsBox.classList.add('hidden');
+      const heading = document.getElementById('specSectionHeading');
+      const nameInput = document.getElementById('studio_name');
+      const pkgTypeInput = document.getElementById('studio_package_type');
+      const pkgInclusionsInput = document.getElementById('studio_package_inclusions');
+      const sizesInput = document.getElementById('studio_sizes');
+      const variantHeading = document.getElementById('variantSectionHeading');
+      const colorsLabel = document.getElementById('colorsLabel');
+      const colorsInput = document.getElementById('studio_colors');
+      const lightingDisclaimerLabel = document.getElementById('lightingDisclaimerLabel');
+      const lightingDisclaimerInput = document.getElementById('studio_lighting_disclaimer');
+
+      if (fashionBox) fashionBox.classList.add('hidden');
+      if (footwearBox) footwearBox.classList.add('hidden');
+      if (elecBox) elecBox.classList.add('hidden');
+      if (cosmeticsBox) cosmeticsBox.classList.add('hidden');
+      if (foodBox) foodBox.classList.add('hidden');
+      if (generalBox) generalBox.classList.add('hidden');
 
       if (cat === 'footwear') {
-        footwearBox.classList.remove('hidden');
-        badge.innerText = 'জুতা ও ফুটওয়্যার';
-        badge.className = 'text-[11px] font-normal text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-[6px]';
-        document.getElementById('badge_txt_1').innerText = '👞 ১০০% পিওর লেদার';
+        if (footwearBox) footwearBox.classList.remove('hidden');
+        if (heading) heading.innerText = '৩. জুতার মেটেরিয়াল, সোল ও সাইজ গাইড';
+        if (badge) {
+          badge.innerText = 'জুতা ও ফুটওয়্যার';
+          badge.className = 'text-[11px] font-normal text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-[6px]';
+        }
+        if (nameInput && !nameInput.value) nameInput.placeholder = 'যেমন: প্রিমিয়াম জেনুইন কাউ লেদার স্লিপ-অন লোফার';
+        if (pkgTypeInput) pkgTypeInput.placeholder = 'যেমন: ১ জোড়া প্রিমিয়াম লেদার লোফার';
+        if (pkgInclusionsInput) pkgInclusionsInput.placeholder = 'যেমন: ১ জোড়া জুতা + অরিজিনাল হার্ডবক্স + প্রিমিয়াম ডাস্টব্যাগ';
+
+        renderPresetButtons('pkgPresetContainer', [
+          { lbl: '১ জোড়া', val: '১ জোড়া' },
+          { lbl: '২ জোড়া কম্বো', val: '২ জোড়া কম্বো অফার' },
+          { lbl: 'গিফট বক্স', val: 'প্রিমিয়াম গিফট বক্স প্যাক' }
+        ], 'setPresetPackage');
+
+        renderSizeButtons('sizePresetContainer', [
+          { lbl: 'বাটা/এপেক্স (৩৯-৪৪)', val: '৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪' },
+          { lbl: 'স্ট্যান্ডার্ড (৪০-৪৩)', val: '৪০, ৪১, ৪২, ৪৩' },
+          { lbl: 'Euro (40-44)', val: '40, 41, 42, 43, 44' }
+        ]);
+
+        if (sizesInput) sizesInput.placeholder = 'যেমন: ৩৯, ৪০, ৪১, ৪২, ৪৩, ৪৪';
+        if (variantHeading) variantHeading.innerText = '৪. কালার ভ্যারিয়েন্ট ও টেক্সচার রিয়ালিজম';
+        if (colorsLabel) colorsLabel.innerText = 'কালার অপশন (কমা দিয়ে লিখুন বা ক্লিক করে যোগ করুন) *';
+        if (colorsInput) colorsInput.placeholder = 'যেমন: ক্লাসিক ব্ল্যাক, ডিপ ব্রাউন, টান (Tan)';
+
+        renderColorButtons('colorPresetsContainer', ['ক্লাসিক ব্ল্যাক', 'ডিপ ব্রাউন', 'টান (Tan)', 'হোয়াইট', 'নেভি ব্লু']);
+
+        if (lightingDisclaimerLabel) lightingDisclaimerLabel.innerText = 'লেদার ও ফিনিশিং ডিসক্লেইমার নোট';
+        if (lightingDisclaimerInput) lightingDisclaimerInput.placeholder = 'যেমন: জেনুইন লেদারের টেক্সচার ও আলোর কারণে কালার বাস্তবে সামান্য গাঢ় বা উজ্জ্বল হতে পারে।';
+
+        document.getElementById('badge_txt_1').innerText = '👞 ১০০% জেনুইন লেদার/মেটেরিয়াল';
         document.getElementById('badge_txt_2').innerText = '✨ মেমোরি ফোম কমফোর্ট';
-        document.getElementById('badge_txt_3').innerText = '🌧️ ওয়াটার রেজিস্ট্যান্ট';
-        document.getElementById('badge_txt_4').innerText = '🔍 চেক করে নেওয়ার সুযোগ';
+        document.getElementById('badge_txt_3').innerText = '🌧️ অ্যান্টি-স্লিপ গ্রিপ সোল';
+        document.getElementById('badge_txt_4').innerText = '🔍 সাইজ চেক করে নেওয়ার সুযোগ';
       } else if (cat === 'electronics') {
-        elecBox.classList.remove('hidden');
-        badge.innerText = 'গ্যাজেট ও ইলেকট্রনিক্স';
-        badge.className = 'text-[11px] font-normal text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-[6px]';
-        document.getElementById('badge_txt_1').innerText = '⚡ ১০০% অথেনটিক';
-        document.getElementById('badge_txt_2').innerText = '🛡️ ওয়ারেন্টি সমর্থিত';
-        document.getElementById('badge_txt_3').innerText = '🔋 লং ব্যাটারি লাইফ';
+        if (elecBox) elecBox.classList.remove('hidden');
+        if (heading) heading.innerText = '৩. গ্যাজেট স্পেসিফিকেশন, ব্যাটারি ও ওয়ারেন্টি পলিসি';
+        if (badge) {
+          badge.innerText = 'গ্যাজেট ও ইলেকট্রনিক্স';
+          badge.className = 'text-[11px] font-normal text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-[6px]';
+        }
+        if (nameInput && !nameInput.value) nameInput.placeholder = 'যেমন: আল্ট্রা বাড্স প্রো ওয়্যারলেস নয়েজ ক্যানসেলিং ইয়ারবাডস';
+        if (pkgTypeInput) pkgTypeInput.placeholder = 'যেমন: ১টি স্মার্টওয়াচ + অতিরিক্ত সিলিকন স্ট্র্যাপ';
+        if (pkgInclusionsInput) pkgInclusionsInput.placeholder = 'যেমন: মূল ডিভাইস + টাইপ-সি ফাস্ট চার্জিং কেবল + ম্যানুয়াল';
+
+        renderPresetButtons('pkgPresetContainer', [
+          { lbl: '১টি ডিভাইস', val: '১টি ডিভাইস' },
+          { lbl: 'ফুল এক্সেসরিজ', val: 'ফুল এক্সেসরিজ সেট' },
+          { lbl: 'কম্বো', val: '২টি ডিভাইস কম্বো' }
+        ], 'setPresetPackage');
+
+        renderSizeButtons('sizePresetContainer', [
+          { lbl: 'স্ট্যান্ডার্ড', val: 'স্ট্যান্ডার্ড সাইজ' },
+          { lbl: 'স্টোরেজ ভ্যারিয়েন্ট', val: '৬৪ জিবি, ১২৮ জিবি' },
+          { lbl: 'মডেল ভ্যারিয়েন্ট', val: 'বেসিক, প্রো' }
+        ]);
+
+        if (sizesInput) sizesInput.placeholder = 'যেমন: স্ট্যান্ডার্ড অথবা ৬৪ জিবি, ১২৮ জিবি';
+        if (variantHeading) variantHeading.innerText = '৪. গ্যাজেট কালার ভ্যারিয়েন্ট ও ফিনিশিং';
+        if (colorsLabel) colorsLabel.innerText = 'কালার অপশন (কমা দিয়ে লিখুন বা ক্লিক করে যোগ করুন) *';
+        if (colorsInput) colorsInput.placeholder = 'যেমন: স্পেস গ্রে, ম্যাট ব্ল্যাক, সিলভার';
+
+        renderColorButtons('colorPresetsContainer', ['স্পেস গ্রে', 'ম্যাট ব্ল্যাক', 'সিলভার', 'মিডনাইট ব্লু', 'হোয়াইট']);
+
+        if (lightingDisclaimerLabel) lightingDisclaimerLabel.innerText = 'স্ক্রিন ও ডিসপ্লে ডিসক্লেইমার নোট';
+        if (lightingDisclaimerInput) lightingDisclaimerInput.placeholder = 'যেমন: ডিসপ্লে রেজোলিউশন ও লাইটিংয়ের পার্থক্যে ডিভাইসের কালার ফিনিশ সামান্য ভিন্ন দেখাতে পারে।';
+
+        document.getElementById('badge_txt_1').innerText = '⚡ ১০০% অফিসিয়াল অথেনটিক';
+        document.getElementById('badge_txt_2').innerText = '🛡️ রিপ্লেসমেন্ট ও ওয়ারেন্টি সুবিধা';
+        document.getElementById('badge_txt_3').innerText = '🔋 লং ব্যাটারি ব্যাকআপ';
         document.getElementById('badge_txt_4').innerText = '🔍 বক্স খুলে চেক সুবিধা';
       } else if (cat === 'cosmetics') {
-        cosmeticsBox.classList.remove('hidden');
-        badge.innerText = 'বিউটি ও স্কিনকেয়ার';
-        badge.className = 'text-[11px] font-normal text-pink-300 bg-pink-500/10 px-2 py-0.5 rounded-[6px]';
-        document.getElementById('badge_txt_1').innerText = '💄 ১০০% অরিজিনাল';
-        document.getElementById('badge_txt_2').innerText = '🌿 প্যারাবেন-মুক্ত';
-        document.getElementById('badge_txt_3').innerText = '✨ স্কিন-ফ্রেন্ডলি';
-        document.getElementById('badge_txt_4').innerText = '🔍 সিলড ইনট্যাক্ট প্যাক';
-      } else if (cat === 'food' || cat === 'general') {
-        badge.innerText = cat === 'food' ? 'অর্গানিক ফুড' : 'অন্যান্য পণ্য';
-        badge.className = 'text-[11px] font-normal text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-[6px]';
-        document.getElementById('badge_txt_1').innerText = '🌿 ১০০% খাঁটি উপাদান';
-        document.getElementById('badge_txt_2').innerText = '✨ প্রিমিয়াম কোয়ালিটি';
-        document.getElementById('badge_txt_3').innerText = '📦 ইনট্যাক্ট প্যাকেজিং';
-        document.getElementById('badge_txt_4').innerText = '🔍 চেক করে নেওয়ার সুযোগ';
+        if (cosmeticsBox) cosmeticsBox.classList.remove('hidden');
+        if (heading) heading.innerText = '৩. স্কিন টাইপ, উপাদান ও মেয়াদ স্পেক্স';
+        if (badge) {
+          badge.innerText = 'বিউটি ও স্কিনকেয়ার';
+          badge.className = 'text-[11px] font-normal text-pink-300 bg-pink-500/10 px-2 py-0.5 rounded-[6px]';
+        }
+        if (nameInput && !nameInput.value) nameInput.placeholder = 'যেমন: কোরিয়ান গ্লো নিয়াসিনামাইড সিরাম ৫০ মিলি';
+        if (pkgTypeInput) pkgTypeInput.placeholder = 'যেমন: ১টি সিরাম ৫০ মিলি + গিফট শিট মাস্ক';
+        if (pkgInclusionsInput) pkgInclusionsInput.placeholder = 'যেমন: মূল কসমেটিক্স প্যাক + সিকিউরিটি ইনট্যাক্ট হলোগ্রাম সিল';
+
+        renderPresetButtons('pkgPresetContainer', [
+          { lbl: '১টি প্যাক', val: '১টি প্যাক' },
+          { lbl: '২টি কম্বো', val: '২টি কম্বো প্যাক' },
+          { lbl: 'ফুল সেট', val: 'ফুল স্কিনকেয়ার সেট' }
+        ], 'setPresetPackage');
+
+        renderSizeButtons('sizePresetContainer', [
+          { lbl: 'ভলিউম (৩০-১০০ মিলি)', val: '৩০ মিলি, ৫০ মিলি, ১০০ মিলি' },
+          { lbl: '৫০ মিলি', val: '৫০ মিলি' },
+          { lbl: '১০০ গ্রাম', val: '১০০ গ্রাম' },
+          { lbl: 'ফুল প্যাক', val: 'স্ট্যান্ডার্ড প্যাক' }
+        ]);
+
+        if (sizesInput) sizesInput.placeholder = 'যেমন: ৩০ মিলি, ৫০ মিলি, ১০০ মিলি';
+        if (variantHeading) variantHeading.innerText = '৪. শেড / কালার ও অরিজিনাল কোয়ালিটি নিশ্চয়তা';
+        if (colorsLabel) colorsLabel.innerText = 'শেড / কালার অপশন (কমা দিয়ে লিখুন বা ক্লিক করে যোগ করুন) *';
+        if (colorsInput) colorsInput.placeholder = 'যেমন: নো-শেড (স্বচ্ছ), ন্যাচারাল বেইজ, লাইট বেইজ';
+
+        renderColorButtons('colorPresetsContainer', ['নো-শেড (স্বচ্ছ)', 'ন্যাচারাল বেইজ', 'লাইট বেইজ', 'ওয়ার্ম হানি', 'পিংকিশ ন্যুড']);
+
+        if (lightingDisclaimerLabel) lightingDisclaimerLabel.innerText = 'স্কিন টোন ও শেড ডিসক্লেইমার নোট';
+        if (lightingDisclaimerInput) lightingDisclaimerInput.placeholder = 'যেমন: স্কিন টোনের পার্থক্যের কারণে শেড ও গ্লো ব্যক্তিভেদে সামান্য ভিন্ন হতে পারে।';
+
+        document.getElementById('badge_txt_1').innerText = '💄 ১০০% অরিজিনাল ও অথেনটিক';
+        document.getElementById('badge_txt_2').innerText = '🌿 ক্ষতিকারক প্যারাবেন মুক্ত';
+        document.getElementById('badge_txt_3').innerText = '✨ ডার্মাটোলজিক্যালি টেস্টেড';
+        document.getElementById('badge_txt_4').innerText = '🔍 ইনট্যাক্ট সিলড প্যাক';
+      } else if (cat === 'food') {
+        if (foodBox) foodBox.classList.remove('hidden');
+        if (heading) heading.innerText = '৩. অর্গানিক ফুড উপাদান, বিশুদ্ধতা ও প্যাকেজিং স্পেক্স';
+        if (badge) {
+          badge.innerText = 'অর্গানিক ফুড ও গ্রোসারি';
+          badge.className = 'text-[11px] font-normal text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-[6px]';
+        }
+        if (nameInput && !nameInput.value) nameInput.placeholder = 'যেমন: সুন্দরবনের ১০০% খাঁটি প্রাকৃতিক মধু (১ কেজি)';
+        if (pkgTypeInput) pkgTypeInput.placeholder = 'যেমন: ১ কেজি প্রিমিয়াম কাঁচের বয়াম / ফুড-গ্রেড ভ্যাকুয়াম প্যাক';
+        if (pkgInclusionsInput) pkgInclusionsInput.placeholder = 'যেমন: বায়ুরোধী সিলড কাঁচের জার + নিরাপদ বাবল র‍্যাপ প্যাকিং';
+
+        renderPresetButtons('pkgPresetContainer', [
+          { lbl: '১টি বয়াম', val: '১টি এয়ারটাইট বয়াম' },
+          { lbl: 'ফ্যামিলি প্যাক', val: '২ কেজি ফ্যামিলি প্যাক' },
+          { lbl: 'কম্বো প্যাক', val: 'প্রিমিয়াম ফুড কম্বো' }
+        ], 'setPresetPackage');
+
+        renderSizeButtons('sizePresetContainer', [
+          { lbl: 'ওজন (২৫০ গ্রাম - ১ কেজি)', val: '২৫০ গ্রাম, ৫০০ গ্রাম, ১ কেজি' },
+          { lbl: '৫০০ গ্রাম', val: '৫০০ গ্রাম' },
+          { lbl: '১ কেজি', val: '১ কেজি' },
+          { lbl: '২ কেজি', val: '২ কেজি ফ্যামিলি প্যাক' }
+        ]);
+
+        if (sizesInput) sizesInput.placeholder = 'যেমন: ২৫০ গ্রাম, ৫০০ গ্রাম, ১ কেজি, ২ কেজি';
+        if (variantHeading) variantHeading.innerText = '৪. ফ্লেভার / ভ্যারাইটি ও খাঁটি পণ্যের নিশ্চয়তা';
+        if (colorsLabel) colorsLabel.innerText = 'ভ্যারাইটি / ফ্লেভার / প্যাক সাইজ (কমা দিয়ে লিখুন বা যোগ করুন) *';
+        if (colorsInput) colorsInput.placeholder = 'যেমন: সুন্দরবনের খলিসা মধু, সরিষা ফুলের মধু';
+
+        renderColorButtons('colorPresetsContainer', ['খলিসা ফুলের মধু', 'সরিষা ফুলের মধু', 'কালোজিরা ফুলের মধু', 'গাওয়া ঘি', 'খাঁটি সরিষার তেল']);
+
+        if (lightingDisclaimerLabel) lightingDisclaimerLabel.innerText = 'প্রাকৃতিক উপাদানের তারতম্য ডিসক্লেইমার নোট';
+        if (lightingDisclaimerInput) lightingDisclaimerInput.placeholder = 'যেমন: প্রাকৃতিক অর্গানিক পণ্যের ঋতুভেদে রং ও ঘনত্বে ৫-১০% স্বাভাবিক পার্থক্য হতে পারে।';
+
+        document.getElementById('badge_txt_1').innerText = '🌿 ১০০% প্রাকৃতিক ও খাঁটি';
+        document.getElementById('badge_txt_2').innerText = '🍯 চিনি ও কেমিক্যাল মুক্ত';
+        document.getElementById('badge_txt_3').innerText = '📦 এয়ারটাইট ফুড গ্রেড জার';
+        document.getElementById('badge_txt_4').innerText = '🔍 ডেলিভারিতে স্বাদ-গন্ধ চেক সুবিধা';
+      } else if (cat === 'general') {
+        if (generalBox) generalBox.classList.remove('hidden');
+        if (heading) heading.innerText = '৩. পণ্যের স্পেসিফিকেশন, উপাদান ও প্যাকেজ গাইড';
+        if (badge) {
+          badge.innerText = 'সাধারণ পণ্য (Universal)';
+          badge.className = 'text-[11px] font-normal text-slate-300 bg-slate-500/10 px-2 py-0.5 rounded-[6px]';
+        }
+        if (nameInput && !nameInput.value) nameInput.placeholder = 'যেমন: প্রিমিয়াম ওয়াটারপ্রুফ ট্রাভেল ব্যাকপ্যাক';
+        if (pkgTypeInput) pkgTypeInput.placeholder = 'যেমন: ১ পিস মূল পণ্য + প্রটেক্টিভ কেস';
+        if (pkgInclusionsInput) pkgInclusionsInput.placeholder = 'যেমন: মূল প্রোডাক্ট + এক্সেসরিজ + সিকিউরড বক্স';
+
+        renderPresetButtons('pkgPresetContainer', [
+          { lbl: '১ পিস', val: '১ পিস' },
+          { lbl: '২ পিস সেট', val: '২ পিস সেট' },
+          { lbl: 'কম্বো', val: 'কম্বো প্যাক' }
+        ], 'setPresetPackage');
+
+        renderSizeButtons('sizePresetContainer', [
+          { lbl: 'স্ট্যান্ডার্ড', val: 'স্ট্যান্ডার্ড সাইজ' },
+          { lbl: 'সাইজ ভ্যারিয়েন্ট', val: 'কম্প্যাক্ট, রেগুলার, লার্জ' },
+          { lbl: 'ফ্রি সাইজ', val: 'ফ্রি সাইজ' }
+        ]);
+
+        if (sizesInput) sizesInput.placeholder = 'যেমন: স্ট্যান্ডার্ড অথবা দৈর্ঘ্য/ওজন';
+        if (variantHeading) variantHeading.innerText = '৪. কালার ভ্যারিয়েন্ট ও ফটো রিয়ালিজম (Color & Realism)';
+        if (colorsLabel) colorsLabel.innerText = 'কালার অপশন (কমা দিয়ে লিখুন বা ক্লিক করে যোগ করুন) *';
+        if (colorsInput) colorsInput.placeholder = 'যেমন: ব্ল্যাক, সিলভার, গ্রে';
+
+        renderColorButtons('colorPresetsContainer', ['ব্ল্যাক', 'হোয়াইট', 'গ্রে', 'সিলভার']);
+
+        if (lightingDisclaimerLabel) lightingDisclaimerLabel.innerText = 'লাইটিং ও ডিসপ্লে ডিসক্লেইমার নোট';
+        if (lightingDisclaimerInput) lightingDisclaimerInput.placeholder = 'যেমন: ছবি তোলার লাইটিংয়ের কারণে বাস্তবে সামান্য রঙের তারতম্য হতে পারে।';
+
+        document.getElementById('badge_txt_1').innerText = '✨ প্রিমিয়াম কোয়ালিটি ফিনিশিং';
+        document.getElementById('badge_txt_2').innerText = '🛡️ ১০০% সন্তুষ্টির নিশ্চয়তা';
+        document.getElementById('badge_txt_3').innerText = '📦 সুরক্ষিত প্যাকেজিং';
+        document.getElementById('badge_txt_4').innerText = '🔍 চেক করে ডেলিভারি নেওয়ার সুযোগ';
       } else {
-        fashionBox.classList.remove('hidden');
-        badge.innerText = 'পোশাক ও ফ্যাশন';
-        badge.className = 'text-[11px] font-normal text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-[6px]';
+        // Default: fashion
+        if (fashionBox) fashionBox.classList.remove('hidden');
+        if (heading) heading.innerText = '৩. পোশাকের ফেব্রিক, হিজাব, ঘের ও সাইজ গাইড';
+        if (badge) {
+          badge.innerText = 'পোশাক ও ফ্যাশন';
+          badge.className = 'text-[11px] font-normal text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-[6px]';
+        }
+        if (nameInput && !nameInput.value) nameInput.placeholder = 'যেমন: প্রিমিয়াম দুবাই চেরি রানি কাফতান আবায়া';
+        if (pkgTypeInput) pkgTypeInput.placeholder = 'যেমন: ২ পিস সেট (আবায়া + হিজাব) বা বোরকা সেট';
+        if (pkgInclusionsInput) pkgInclusionsInput.placeholder = 'যেমন: মূল আবায়া + ম্যাচিং হিজাব + প্রিমিয়াম প্যাকিং';
+
+        renderPresetButtons('pkgPresetContainer', [
+          { lbl: '১ পিস', val: '১ পিস' },
+          { lbl: '২ পিস সেট', val: '২ পিস সেট (আবায়া + হিজাব)' },
+          { lbl: '৩ পিস সেট', val: '৩ পিস সেট (আবায়া + হিজাব + কটি)' },
+          { lbl: 'কম্বো', val: 'ফুল কম্বো সেট' }
+        ], 'setPresetPackage');
+
+        renderSizeButtons('sizePresetContainer', [
+          { lbl: 'আবায়া (৫০-৫৬)', val: '৫০, ৫২, ৫৪, ৫৬' },
+          { lbl: 'শার্ট (M-XXL)', val: 'M, L, XL, XXL' },
+          { lbl: 'বোরকা (৫২-৫৬)', val: '৫২, ৫৪, ৫৬' },
+          { lbl: 'ফ্রি সাইজ', val: 'স্ট্যান্ডার্ড ফ্রি সাইজ' }
+        ]);
+
+        if (sizesInput) sizesInput.placeholder = 'যেমন: ৫০, ৫২, ৫৪, ৫৬ অথবা M, L, XL, XXL';
+        if (variantHeading) variantHeading.innerText = '৪. কালার ভ্যারিয়েন্ট ও ফটো রিয়ালিজম (Color & Realism)';
+        if (colorsLabel) colorsLabel.innerText = 'কালার অপশন (কমা দিয়ে লিখুন বা ক্লিক করে যোগ করুন) *';
+        if (colorsInput) colorsInput.placeholder = 'যেমন: জেট ব্ল্যাক, চকোলেট ব্রাউন, কফি';
+
+        renderColorButtons('colorPresetsContainer', ['জেট ব্ল্যাক', 'চকোলেট ব্রাউন', 'কফি', 'সি-গ্রিন', 'নেভি ব্লু', 'মারুন']);
+
+        if (lightingDisclaimerLabel) lightingDisclaimerLabel.innerText = 'লাইটিং ও স্ক্রিন ডিসক্লেইমার নোট';
+        if (lightingDisclaimerInput) lightingDisclaimerInput.placeholder = 'যেমন: স্টুডিও লাইটিং ও ক্যামেরার রেজোলিউশনের কারণে ছবির কালার বাস্তবে ৫-১০% সামান্য তারতম্য হতে পারে।';
+
         document.getElementById('badge_txt_1').innerText = '🎨 কালার ১০০% গ্যারান্টি';
         document.getElementById('badge_txt_2').innerText = '✨ কুঁচকে যায় না (Wrinkle-free)';
         document.getElementById('badge_txt_3').innerText = '❄️ গরমে আরামদায়ক';
@@ -3329,7 +3746,7 @@ function createMerchantPortalRouter({
       studioUploadedImages = [];
       renderStudioPhotos();
 
-      // Smart Defaults for high conversion & effortless entry
+      // Smart Defaults
       document.getElementById('studio_category').value = 'fashion';
       onStudioCategoryChange('fashion');
 
@@ -3338,6 +3755,10 @@ function createMerchantPortalRouter({
       document.getElementById('studio_bundle_type').value = 'percentage';
       document.getElementById('studio_bundle_value').value = '10';
       updateBundlePreview();
+
+      document.getElementById('studio_advance_active').checked = false;
+      document.getElementById('studio_advance_amount').value = '';
+      toggleAdvanceStudioUI();
 
       document.getElementById('studio_package_type').value = '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)';
       document.getElementById('studio_package_inclusions').value = 'আবায়া + ম্যাচিং হিজাব + প্রিমিয়াম প্যাকিং';
@@ -3372,7 +3793,6 @@ function createMerchantPortalRouter({
           document.getElementById('studio_stock_qty').value = p.stock_quantity || 1;
           document.getElementById('studio_sizes').value = p.sizes || '';
           document.getElementById('studio_colors').value = p.colors || '';
-          document.getElementById('studio_fabric').value = p.fabric || '';
           document.getElementById('studio_ai_notes').value = p.short_description || '';
 
           const c = p.custom_attributes || {};
@@ -3393,25 +3813,54 @@ function createMerchantPortalRouter({
           document.getElementById('studio_advance_shipping_rule').value = c.advance_shipping_rule || 'shipping_separate';
           toggleAdvanceStudioUI();
 
-          document.getElementById('studio_package_type').value = c.package_type || (p.hijab_included ? '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)' : '১ পিস');
+          // Package info
+          document.getElementById('studio_package_type').value = c.package_type || (cat === 'fashion' && p.hijab_included ? '২ পিস সেট (আবায়া + ম্যাচিং হিজাব)' : '');
           document.getElementById('studio_package_inclusions').value = c.inclusions || '';
-          document.getElementById('studio_transparency').value = c.transparency || '100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)';
-          document.getElementById('studio_hijab_included').value = (p.hijab_included !== false && c.hijab_included !== false) ? 'true' : 'false';
-          document.getElementById('studio_hijab_details').value = c.hijab_details || (p.hijab_included ? 'ম্যাচিং হিজাব সাথে অন্তর্ভুক্ত' : '');
-          document.getElementById('studio_body_fit').value = c.body_fit || '';
-          document.getElementById('studio_flare_inches').value = c.flare_inches || '';
-          document.getElementById('studio_footwear_material').value = c.material || '';
-          document.getElementById('studio_footwear_comfort').value = c.comfort || '';
-          document.getElementById('studio_warranty').value = c.warranty || '';
-          document.getElementById('studio_electronics_specs').value = c.tech_specs || '';
-          document.getElementById('studio_skin_type').value = c.skin_type || '';
-          document.getElementById('studio_net_volume').value = c.net_volume || '';
+
+          // Category-Specific Field Population
+          if (cat === 'fashion') {
+            document.getElementById('studio_fabric').value = p.fabric || c.fabric || '';
+            document.getElementById('studio_transparency').value = c.transparency || '100% নন-ট্রান্সপারেন্ট (কোনো ইনার প্রয়োজন নেই)';
+            document.getElementById('studio_hijab_included').value = (p.hijab_included !== false && c.hijab_included !== false) ? 'true' : 'false';
+            document.getElementById('studio_hijab_details').value = c.hijab_details || (p.hijab_included ? 'ম্যাচিং হিজাব সাথে অন্তর্ভুক্ত' : '');
+            document.getElementById('studio_body_fit').value = c.body_fit || '';
+            document.getElementById('studio_flare_inches').value = c.flare_inches || '';
+          } else if (cat === 'footwear') {
+            document.getElementById('studio_footwear_type').value = c.footwear_type || '';
+            document.getElementById('studio_footwear_material').value = c.material || c.footwear_material || '';
+            document.getElementById('studio_footwear_comfort').value = c.comfort || c.footwear_comfort || '';
+            document.getElementById('studio_footwear_sole').value = c.footwear_sole || '';
+            document.getElementById('studio_footwear_box').value = c.footwear_box || '';
+          } else if (cat === 'electronics') {
+            document.getElementById('studio_electronics_type').value = c.electronics_type || '';
+            document.getElementById('studio_warranty').value = c.warranty || '';
+            document.getElementById('studio_electronics_specs').value = c.tech_specs || c.electronics_specs || '';
+            document.getElementById('studio_electronics_battery').value = c.battery_specs || '';
+            document.getElementById('studio_electronics_box').value = c.box_contents || '';
+          } else if (cat === 'cosmetics') {
+            document.getElementById('studio_cosmetics_type').value = c.cosmetics_type || '';
+            document.getElementById('studio_skin_type').value = c.skin_type || '';
+            document.getElementById('studio_net_volume').value = c.net_volume || '';
+            document.getElementById('studio_cosmetics_ingredients').value = c.ingredients || '';
+            document.getElementById('studio_cosmetics_origin').value = c.origin_country || '';
+          } else if (cat === 'food') {
+            document.getElementById('studio_food_item').value = c.food_item || '';
+            document.getElementById('studio_food_weight').value = c.food_weight || '';
+            document.getElementById('studio_food_purity').value = c.purity_source || '';
+            document.getElementById('studio_food_shelf_life').value = c.shelf_life || '';
+            document.getElementById('studio_food_packaging').value = c.packaging_type || '';
+          } else {
+            document.getElementById('studio_general_material').value = c.material || '';
+            document.getElementById('studio_general_usage').value = c.general_usage || '';
+            document.getElementById('studio_general_dimensions').value = c.dimensions || '';
+            document.getElementById('studio_general_warranty').value = c.warranty || '';
+          }
 
           document.getElementById('studio_color_guarantee').checked = c.color_guarantee !== false;
           document.getElementById('studio_wrinkle_free').checked = c.wrinkle_free !== false;
           document.getElementById('studio_summer_friendly').checked = c.summer_friendly !== false;
           document.getElementById('studio_wash_care').checked = c.wash_care !== false;
-          document.getElementById('studio_lighting_disclaimer').value = c.lighting_disclaimer || 'স্টুডিও লাইটিং ও মোবাইল ডিসপ্লের কারণে ছবির কালার বাস্তবে ৫-১০% সামান্য উনিশ-বিশ হতে পারে';
+          document.getElementById('studio_lighting_disclaimer').value = c.lighting_disclaimer || '';
 
           // Populate existing photos
           const existingGallery = [
@@ -3434,12 +3883,18 @@ function createMerchantPortalRouter({
       document.getElementById('productStudioModal').classList.add('hidden');
     }
 
+    function setPresetInput(fieldId, val) {
+      const el = document.getElementById(fieldId);
+      if (el) el.value = val;
+    }
+
     function setPresetSizes(sizes) {
       document.getElementById('studio_sizes').value = sizes;
     }
 
     function setPresetFabric(fabric) {
-      document.getElementById('studio_fabric').value = fabric;
+      const el = document.getElementById('studio_fabric');
+      if (el) el.value = fabric;
     }
 
     function setPresetPackage(pkg) {
@@ -3460,7 +3915,7 @@ function createMerchantPortalRouter({
       }
     }
 
-    // Handle Studio Submit (Enforces Strict Required Fields & Min 5 Photos)
+    // Handle Studio Submit (Enforces Strict Required Fields & Min 1-5 Photos)
     async function handleProductStudioSubmit(e) {
       e.preventDefault();
 
@@ -3523,7 +3978,7 @@ function createMerchantPortalRouter({
 
       const prodId = document.getElementById('studio_prod_id').value;
       const isEdit = !!prodId;
-      const isHijabInc = document.getElementById('studio_hijab_included').value === 'true';
+      const isHijabInc = category === 'fashion' && document.getElementById('studio_hijab_included')?.value === 'true';
       const isBundle = document.getElementById('studio_bundle_active').checked;
       const bundleQty = parseInt(document.getElementById('studio_bundle_qty').value) || 2;
       const bundleType = document.getElementById('studio_bundle_type').value;
@@ -3542,6 +3997,68 @@ function createMerchantPortalRouter({
         }
       }
 
+      const custom_attributes = {
+        category: category,
+        advance_active: document.getElementById('studio_advance_active')?.checked || false,
+        advance_amount: parseFloat(document.getElementById('studio_advance_amount')?.value) || 0,
+        advance_shipping_rule: document.getElementById('studio_advance_shipping_rule')?.value || 'shipping_separate',
+        bundle_active: isBundle,
+        bundle_qty: bundleQty,
+        bundle_type: bundleType,
+        bundle_value: bundleVal,
+        bundle_label: bundleLabel,
+        package_type: document.getElementById('studio_package_type')?.value?.trim() || '',
+        inclusions: document.getElementById('studio_package_inclusions')?.value?.trim() || '',
+        color_guarantee: document.getElementById('studio_color_guarantee')?.checked ?? true,
+        wrinkle_free: document.getElementById('studio_wrinkle_free')?.checked ?? true,
+        summer_friendly: document.getElementById('studio_summer_friendly')?.checked ?? true,
+        wash_care: document.getElementById('studio_wash_care')?.checked ?? true,
+        lighting_disclaimer: document.getElementById('studio_lighting_disclaimer')?.value?.trim() || '',
+        gallery_images: studioUploadedImages.slice(0, 8)
+      };
+
+      if (category === 'fashion') {
+        custom_attributes.transparency = document.getElementById('studio_transparency')?.value || '';
+        custom_attributes.hijab_included = isHijabInc;
+        custom_attributes.hijab_details = document.getElementById('studio_hijab_details')?.value?.trim() || '';
+        custom_attributes.body_fit = document.getElementById('studio_body_fit')?.value?.trim() || '';
+        custom_attributes.flare_inches = document.getElementById('studio_flare_inches')?.value?.trim() || '';
+      } else if (category === 'footwear') {
+        custom_attributes.footwear_type = document.getElementById('studio_footwear_type')?.value?.trim() || '';
+        custom_attributes.material = document.getElementById('studio_footwear_material')?.value?.trim() || '';
+        custom_attributes.comfort = document.getElementById('studio_footwear_comfort')?.value?.trim() || '';
+        custom_attributes.footwear_sole = document.getElementById('studio_footwear_sole')?.value?.trim() || '';
+        custom_attributes.footwear_box = document.getElementById('studio_footwear_box')?.value?.trim() || '';
+        custom_attributes.hijab_included = false;
+      } else if (category === 'electronics') {
+        custom_attributes.electronics_type = document.getElementById('studio_electronics_type')?.value?.trim() || '';
+        custom_attributes.warranty = document.getElementById('studio_warranty')?.value?.trim() || '';
+        custom_attributes.tech_specs = document.getElementById('studio_electronics_specs')?.value?.trim() || '';
+        custom_attributes.battery_specs = document.getElementById('studio_electronics_battery')?.value?.trim() || '';
+        custom_attributes.box_contents = document.getElementById('studio_electronics_box')?.value?.trim() || '';
+        custom_attributes.hijab_included = false;
+      } else if (category === 'cosmetics') {
+        custom_attributes.cosmetics_type = document.getElementById('studio_cosmetics_type')?.value?.trim() || '';
+        custom_attributes.skin_type = document.getElementById('studio_skin_type')?.value?.trim() || '';
+        custom_attributes.net_volume = document.getElementById('studio_net_volume')?.value?.trim() || '';
+        custom_attributes.ingredients = document.getElementById('studio_cosmetics_ingredients')?.value?.trim() || '';
+        custom_attributes.origin_country = document.getElementById('studio_cosmetics_origin')?.value?.trim() || '';
+        custom_attributes.hijab_included = false;
+      } else if (category === 'food') {
+        custom_attributes.food_item = document.getElementById('studio_food_item')?.value?.trim() || '';
+        custom_attributes.food_weight = document.getElementById('studio_food_weight')?.value?.trim() || '';
+        custom_attributes.purity_source = document.getElementById('studio_food_purity')?.value?.trim() || '';
+        custom_attributes.shelf_life = document.getElementById('studio_food_shelf_life')?.value?.trim() || '';
+        custom_attributes.packaging_type = document.getElementById('studio_food_packaging')?.value?.trim() || '';
+        custom_attributes.hijab_included = false;
+      } else {
+        custom_attributes.material = document.getElementById('studio_general_material')?.value?.trim() || '';
+        custom_attributes.general_usage = document.getElementById('studio_general_usage')?.value?.trim() || '';
+        custom_attributes.dimensions = document.getElementById('studio_general_dimensions')?.value?.trim() || '';
+        custom_attributes.warranty = document.getElementById('studio_general_warranty')?.value?.trim() || '';
+        custom_attributes.hijab_included = false;
+      }
+
       const payload = {
         id: prodId || undefined,
         model_code: document.getElementById('studio_code').value.trim(),
@@ -3552,36 +4069,12 @@ function createMerchantPortalRouter({
         stock_quantity: document.getElementById('studio_stock_qty').value || 1,
         sizes: document.getElementById('studio_sizes').value.trim(),
         colors: document.getElementById('studio_colors').value.trim(),
-        fabric: document.getElementById('studio_fabric').value.trim(),
+        fabric: category === 'fashion' ? document.getElementById('studio_fabric')?.value?.trim() || '' : '',
         short_description: document.getElementById('studio_ai_notes').value.trim(),
         gallery_images: studioUploadedImages.slice(0, 8),
         hijab_included: isHijabInc,
-        custom_attributes: {
-          category: category,
-          advance_active: document.getElementById('studio_advance_active')?.checked || false,
-          advance_amount: parseFloat(document.getElementById('studio_advance_amount')?.value) || 0,
-          advance_shipping_rule: document.getElementById('studio_advance_shipping_rule')?.value || 'shipping_separate',
-          bundle_active: isBundle,
-          bundle_qty: bundleQty,
-          bundle_type: bundleType,
-          bundle_value: bundleVal,
-          bundle_label: bundleLabel,
-          package_type: document.getElementById('studio_package_type').value.trim(),
-          inclusions: document.getElementById('studio_package_inclusions').value.trim(),
-          transparency: document.getElementById('studio_transparency').value,
-          hijab_included: isHijabInc,
-          hijab_details: document.getElementById('studio_hijab_details').value.trim(),
-          body_fit: document.getElementById('studio_body_fit').value.trim(),
-          flare_inches: document.getElementById('studio_flare_inches').value.trim(),
-          material: document.getElementById('studio_footwear_material').value.trim(),
-          comfort: document.getElementById('studio_footwear_comfort').value.trim(),
-          warranty: document.getElementById('studio_warranty').value.trim(),
-          tech_specs: document.getElementById('studio_electronics_specs').value.trim(),
-          skin_type: document.getElementById('studio_skin_type').value.trim(),
-          net_volume: document.getElementById('studio_net_volume').value.trim(),
-          color_guarantee: document.getElementById('studio_color_guarantee').checked,
-          wrinkle_free: document.getElementById('studio_wrinkle_free').checked,
-          summer_friendly: document.getElementById('studio_summer_friendly').checked,
+        custom_attributes: custom_attributes
+      };
           wash_care: document.getElementById('studio_wash_care').checked,
           lighting_disclaimer: document.getElementById('studio_lighting_disclaimer').value.trim(),
           gallery_images: studioUploadedImages.slice(0, 8)
@@ -4927,19 +5420,28 @@ function createMerchantPortalRouter({
     const cleanCode = model_code.toUpperCase().trim();
 
     const catVal = category ? category.trim() : 'fashion';
+    const isFashionCat = catVal === 'fashion';
     const mergedCustomAttributes = {
       ...(typeof custom_attributes === 'object' && custom_attributes !== null ? custom_attributes : {}),
       category: catVal,
       gallery_images: gallery
     };
+    if (!isFashionCat) {
+      delete mergedCustomAttributes.transparency;
+      delete mergedCustomAttributes.hijab_details;
+      delete mergedCustomAttributes.body_fit;
+      delete mergedCustomAttributes.flare_inches;
+      mergedCustomAttributes.hijab_included = false;
+    }
 
-    const isHijabIncluded = hijab_included === true || hijab_included === 'true' || mergedCustomAttributes.hijab_included === true;
+    const isHijabIncluded = isFashionCat && (hijab_included === true || hijab_included === 'true' || mergedCustomAttributes.hijab_included === true);
 
     const { data, error } = await supabase.from('products').insert({
       seller_id: inv.seller_id,
       model_code: cleanCode,
       name: name.trim(),
-      fabric: fabric ? fabric.trim() : null,
+      category: catVal,
+      fabric: isFashionCat && fabric ? fabric.trim() : null,
       price: parsedPrice,
       regular_price: regPrice,
       stock_quantity: parseInt(stock_quantity) || 1,
@@ -5036,7 +5538,19 @@ function createMerchantPortalRouter({
       ...existingAttrs,
       ...(typeof custom_attributes === 'object' && custom_attributes !== null ? custom_attributes : {})
     };
-    if (category !== undefined) mergedAttrs.category = category.trim();
+    if (category !== undefined) {
+      updateFields.category = category.trim();
+      mergedAttrs.category = category.trim();
+      if (category.trim() !== 'fashion') {
+        updateFields.fabric = null;
+        updateFields.hijab_included = false;
+        delete mergedAttrs.transparency;
+        delete mergedAttrs.hijab_details;
+        delete mergedAttrs.body_fit;
+        delete mergedAttrs.flare_inches;
+        mergedAttrs.hijab_included = false;
+      }
+    }
 
     if (Array.isArray(gallery_images) && gallery_images.length >= 5) {
       const gallery = gallery_images.filter(Boolean).slice(0, 8);

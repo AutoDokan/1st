@@ -228,23 +228,32 @@ async function refreshProductsFromDB(sellerId = 'autodokan_seller_1') {
           sizeStockDesc = `সাইজ-স্টক: [${sEntries}]`;
         }
 
+        const catName = (p.category || cAttr.category || 'fashion').toLowerCase();
+        const isFashion = catName.includes('fashion') || catName.includes('abaya') || catName.includes('বোরকা') || catName.includes('পোশাক');
+
         const details = [
           p.category && p.category !== 'general' ? `ক্যাটাগরি: ${p.category}` : '',
-          p.fabric ? `উপাদান: ${p.fabric}` : (cAttr.material ? `উপাদান: ${cAttr.material}` : ''),
-          cAttr.transparency ? `ঘনত্ব: ${cAttr.transparency}` : '',
+          isFashion && p.fabric ? `উপাদান: ${p.fabric}` : (cAttr.material ? `উপাদান: ${cAttr.material}` : ''),
+          isFashion && cAttr.transparency ? `ঘনত্ব: ${cAttr.transparency}` : '',
           cAttr.package_type ? `প্যাকেজ: ${cAttr.package_type}` : '',
           cAttr.inclusions ? `থাকছে: ${cAttr.inclusions}` : '',
-          (p.hijab_included || cAttr.hijab_included || cAttr.hijab_details) ? `হিজাব: ${cAttr.hijab_details || 'হিজাব অন্তর্ভুক্ত'}` : '',
-          colorStr ? `কালার: ${colorStr}` : '',
+          isFashion && (p.hijab_included || cAttr.hijab_included || cAttr.hijab_details) ? `হিজাব: ${cAttr.hijab_details || 'হিজাব অন্তর্ভুক্ত'}` : '',
+          colorStr ? `কালার/ভ্যারিয়েন্ট: ${colorStr}` : '',
           sizeStockDesc,
-          cAttr.body_fit ? `ফিটিং: ${cAttr.body_fit}` : '',
-          cAttr.flare_inches ? `ঘের: ${cAttr.flare_inches}` : '',
+          isFashion && cAttr.body_fit ? `ফিটিং: ${cAttr.body_fit}` : '',
+          isFashion && cAttr.flare_inches ? `ঘের: ${cAttr.flare_inches}` : '',
           cAttr.comfort ? `কমফোর্ট: ${cAttr.comfort}` : '',
+          cAttr.footwear_sole ? `সোল: ${cAttr.footwear_sole}` : '',
           cAttr.tech_specs ? `স্পেক্স: ${cAttr.tech_specs}` : '',
+          cAttr.battery_specs ? `ব্যাটারি: ${cAttr.battery_specs}` : '',
           cAttr.skin_type ? `ত্বক: ${cAttr.skin_type}` : '',
+          cAttr.net_volume ? `পরিমাণ: ${cAttr.net_volume}` : '',
+          cAttr.food_weight ? `ওজন: ${cAttr.food_weight}` : '',
+          cAttr.purity_source ? `বিশুদ্ধতা: ${cAttr.purity_source}` : '',
+          cAttr.shelf_life ? `মেয়াদ: ${cAttr.shelf_life}` : '',
           qualityBadges ? `কোয়ালিটি: ${qualityBadges}` : '',
           bundleStr ? `[বান্ডেল অফার: ${bundleStr}]` : '',
-          cAttr.lighting_disclaimer ? `লাইটিং নোট: ${cAttr.lighting_disclaimer}` : '',
+          cAttr.lighting_disclaimer ? `নোট: ${cAttr.lighting_disclaimer}` : '',
           p.short_description ? `সেলস নোট: ${p.short_description}` : ''
         ].filter(Boolean).join(', ');
         const stock = p.in_stock === false ? 'স্টক আউট' : 'স্টকে আছে';
