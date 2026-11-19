@@ -1533,12 +1533,24 @@ function createSuperAdminRouter({
         if (window.history && window.history.replaceState) {
           var curUrl = new URL(window.location);
           curUrl.searchParams.set('tab', tab);
+          curUrl.hash = tab;
           window.history.replaceState(null, '', curUrl.toString());
         }
       } catch (err) {
         console.error('Tab switch error:', err);
       }
     }
+
+    function initSuperTabs() {
+      var hashTab = (window.location.hash || '').replace('#', '').trim();
+      var searchTab = (new URLSearchParams(window.location.search)).get('tab');
+      var target = hashTab || searchTab;
+      if (target && document.getElementById('stab-' + target)) {
+        switchSuperTab(target);
+      }
+    }
+    window.addEventListener('DOMContentLoaded', initSuperTabs);
+    window.addEventListener('hashchange', initSuperTabs);
 
     // Modal Controls
     function openNewShopModal() { document.getElementById('newShopModal').classList.remove('hidden'); }

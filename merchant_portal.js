@@ -1107,7 +1107,7 @@ function createMerchantPortalRouter({
           <span class="bg-[#2C2C2E] text-[rgba(235,235,245,0.50)] text-[11px] px-2 py-0.5 rounded-full font-bold">${totalChatSessions}</span>
         </button>
 
-        <button type="button" onclick="openSettingsDrawer()" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
+        <button type="button" onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white">
           <span>⚙️ শপ সেটিংস</span>
         </button>
       </div>
@@ -3244,7 +3244,20 @@ function createMerchantPortalRouter({
       applyTheme(newTheme, true);
     }
 
-    window.addEventListener('DOMContentLoaded', initTheme);
+    function initTabs() {
+      const hashTab = (window.location.hash || '').replace('#', '').trim();
+      const searchTab = (new URLSearchParams(window.location.search)).get('tab');
+      const target = hashTab || searchTab;
+      if (target && ['products', 'orders', 'chats', 'settings'].includes(target)) {
+        switchTab(target);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+      initTheme();
+      initTabs();
+    });
+    window.addEventListener('hashchange', initTabs);
 
     function showToast(msg, isSuccess = true) {
       const c = document.getElementById('toastContainer');
@@ -3261,13 +3274,20 @@ function createMerchantPortalRouter({
 
     function switchTab(tab) {
       document.querySelectorAll('section[id^="tab-"]').forEach(s => s.classList.add('hidden'));
-      document.getElementById('tab-' + tab)?.classList.remove('hidden');
+      const target = document.getElementById('tab-' + tab);
+      if (target) target.classList.remove('hidden');
 
       document.querySelectorAll('.tab-btn').forEach(b => {
-        b.className = 'tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white';
+        b.className = 'tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.60)] hover:text-white';
       });
       const activeBtn = document.getElementById('tab-btn-' + tab);
-      if (activeBtn) activeBtn.className = 'tab-btn px-6 py-2.5 rounded-[16px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]';
+      if (activeBtn) activeBtn.className = 'tab-btn px-4 sm:px-5 py-2 rounded-[13px] font-semibold text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer bg-[#2C2C2E] text-white shadow-xs border border-white/[0.08]';
+
+      if (window.history && window.history.replaceState) {
+        const u = new URL(window.location);
+        u.hash = tab;
+        window.history.replaceState(null, '', u.toString());
+      }
     }
 
     // Switch Card Photo Preview
@@ -4387,11 +4407,6 @@ function createMerchantPortalRouter({
         hijab_included: isHijabInc,
         custom_attributes: custom_attributes
       };
-          wash_care: document.getElementById('studio_wash_care').checked,
-          lighting_disclaimer: document.getElementById('studio_lighting_disclaimer').value.trim(),
-          gallery_images: studioUploadedImages.slice(0, 8)
-        }
-      };
 
       try {
         const endpoint = isEdit ? '/api/portal/edit-product' : '/api/portal/add-product';
@@ -4843,7 +4858,7 @@ function createMerchantPortalRouter({
       const confirmedByText = isManual ? '👤 মার্চেন্ট নিজে (ম্যানুয়াল এন্ট্রি)' : '🤖 ' + botPersona + ' (WhatsApp AI)';
 
       const storeHelpline = '${(liveNum || inv.phone || '').replace(/'/g, "\\'")}';
-      const currentShopName = '${shopName.replace(/'/g, "\\'")}';
+      const currentShopName = '${(shopName || 'আমার শপ').replace(/'/g, "\\'")}';
 
       let memoHtml = '' +
         '<div class="text-center border-b border-dashed border-gray-400 pb-3 mb-3">' +

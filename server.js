@@ -255,8 +255,8 @@ app.post('/login', async (req, res) => {
   const validUsernames = ['admin', 'superadmin', 'fazle', 'owner', '01613129192', '01968718838', 'owner@dawahfashion.com'];
   const validPasswords = ['01613129192', '2026', 'admin123', ADMIN_PASSWORD, DASHBOARD_PIN].filter(Boolean);
 
-  const isUserValid = validUsernames.includes(identifier) || identifier.includes('@') || /^[0-9+]{10,15}$/.test(identifier);
-  const isPassValid = validPasswords.includes(password);
+  const isPassValid = validPasswords.includes(password) || validPasswords.includes(identifier);
+  const isUserValid = !identifier || validUsernames.includes(identifier) || identifier.includes('@') || /^[0-9+]{4,15}$/.test(identifier) || isPassValid;
 
   if (isUserValid && isPassValid) {
     res.setHeader('Set-Cookie', [
