@@ -5431,7 +5431,7 @@ function createMerchantPortalRouter({
   // ========================================================
   router.post('/api/portal/recharge', async (req, res) => {
     try {
-      const token = req.query.token;
+      const token = req.query.token || req.body.token;
       const inv = await authenticateMerchantToken(token);
       if (!inv) return res.status(401).json({ error: 'Unauthorized token' });
 
