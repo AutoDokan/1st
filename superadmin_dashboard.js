@@ -1,7 +1,8 @@
 /**
- * AutoDokan Engine OS — Super Admin Executive Control Center
+ * AutoDokan Engine OS — Super Admin / Founder & CEO Executive Control Center
  * 100% Pure Apple Human Interface Guidelines (HIG) Luxury Dark Edition
- * Complete Omniscient Control Hub: Bot Fleet, Master Orders, Live AI Chat, Store Config & Telemetry
+ * Complete Omniscient Sovereign Controls: Bot Fleet, Master Orders, Live Chat Takeover,
+ * Central Fraud Blacklist, Global Merchant Broadcast, Telemetry & Multi-Tenant Onboarding
  */
 
 const crypto = require('crypto');
@@ -36,13 +37,13 @@ function createSuperAdminRouter({
       const selectedSeller = req.query.seller_id || 'ALL';
       const activeTab = req.query.tab || 'shops';
 
-      // 1. Fetch tenants, store settings, products, orders, and recent chats
+      // 1. Fetch tenants, store settings, products, orders, recent chats & platform config
       const [invitesRes, settingsRes, prodsRes, ordsRes, chatsRes] = await Promise.all([
         supabase.from('seller_invites').select('*').order('id', { ascending: true }),
         supabase.from('store_settings').select('*'),
         supabase.from('products').select('id, seller_id, in_stock, price, model_code, name'),
         supabase.from('orders').select('*').order('id', { ascending: false }),
-        supabase.from('chat_sessions').select('*').order('updated_at', { ascending: false }).limit(40)
+        supabase.from('chat_sessions').select('*').order('updated_at', { ascending: false }).limit(50)
       ]);
 
       const allInvites = invitesRes.data || [];
@@ -50,6 +51,17 @@ function createSuperAdminRouter({
       const allProducts = prodsRes.data || [];
       const allOrders = ordsRes.data || [];
       const recentChats = chatsRes.data || [];
+
+      // Extract CEO extra config from primary store (autodokan_seller_1)
+      const primarySetting = allSettings.find(s => s.seller_id === 'autodokan_seller_1') || allSettings[0] || {};
+      const primaryExtra = primarySetting.extra_config || {};
+      const centralBlacklist = primaryExtra.central_blacklist || [
+        { phone: '01899999999', reason: 'কুরিয়ার পার্সেল রিফিউজ ও রিটার্ন', added_at: '2026-11-15' },
+        { phone: '01700000000', reason: 'ভুয়া ঠিকানা দিয়ে অর্ডার প্লেস', added_at: '2026-11-16' }
+      ];
+      const platformBroadcasts = primaryExtra.platform_broadcasts || [
+        { id: 1, title: 'স্বাগতম অটো দোকান ইঞ্জিনে', message: 'সকল মার্চেন্টকে জানানো যাচ্ছে যে এআই অটোমেশন ২.০ সক্রিয় রয়েছে।', created_at: '2026-11-18', active: true }
+      ];
 
       // Map shops into platform telemetry objects
       const shopsTelemetry = allInvites.map(inv => {
@@ -255,10 +267,10 @@ function createSuperAdminRouter({
             </div>
 
             <div>
-              <a href="/dashboard?seller_id=${s.seller_id}&tab=orders" class="text-[#0A84FF] hover:underline text-xs font-medium px-2 py-1 transition flex items-center gap-1">
+              <button type="button" onclick="switchSuperTab('orders')" class="text-[#0A84FF] hover:underline text-xs font-medium px-2 py-1 transition flex items-center gap-1 cursor-pointer">
                 <span>অর্ডারস (${s.orders_count})</span>
                 <span>→</span>
-              </a>
+              </button>
             </div>
           </div>
 
@@ -355,7 +367,6 @@ function createSuperAdminRouter({
         const lastBotMsg = [...msgs].reverse().find(m => m.role === 'assistant' || m.role === 'bot');
         const storeName = shopNameMap.get(c.seller_id) || c.seller_id;
         const cleanPhone = (c.customer_phone || '').replace(/[^0-9]/g, '');
-        const waLink = cleanPhone ? `https://wa.me/88${cleanPhone.startsWith('88') ? cleanPhone.substring(2) : cleanPhone}` : '#';
 
         return `
         <div id="chat-session-${c.id}" class="bg-[#15171F] border border-white/[0.08] p-4.5 rounded-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.3)] space-y-3.5">
@@ -406,7 +417,7 @@ function createSuperAdminRouter({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-  <title>AutoDokan Engine OS — Super Admin Executive Control Center</title>
+  <title>AutoDokan Engine OS — Super Admin & CEO Executive Control Center</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
@@ -419,7 +430,7 @@ function createSuperAdminRouter({
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .apple-glass {
-      background-color: rgba(21, 23, 31, 0.85);
+      background-color: rgba(21, 23, 31, 0.88);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
     }
@@ -439,7 +450,7 @@ function createSuperAdminRouter({
         <div>
           <div class="flex items-center gap-2">
             <h1 class="font-semibold text-sm sm:text-base text-white tracking-tight">AutoDokan Engine OS</h1>
-            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-white/90 border border-white/20">Master Controller</span>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#0A84FF]/20 text-[#0A84FF] border border-[#0A84FF]/30">CEO & Founder Sovereign</span>
             <!-- Real-Time Pulse Indicator -->
             <div class="flex items-center gap-1.5 bg-[#1C1E26] border border-white/[0.08] px-2 py-0.5 rounded-full">
               <span class="relative flex h-2 w-2">
@@ -539,26 +550,35 @@ function createSuperAdminRouter({
 
     <!-- Navigation Tabs (Apple Segmented Control Style) -->
     <div class="bg-[#15171F] border border-white/[0.08] p-1.5 rounded-[18px] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-      <button type="button" onclick="switchSuperTab('shops')" id="stab-btn-shops" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'shops' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('shops')" id="stab-btn-shops" class="stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'shops' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
         <span>🏬 দোকান ও বট ফ্লিট</span>
         <span id="tabBadgeShops" class="bg-white/10 px-2 py-0.5 rounded-full text-[10px] font-mono">${totalShops}</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('orders')" id="stab-btn-orders" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'orders' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('orders')" id="stab-btn-orders" class="stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'orders' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
         <span>📦 মাস্টার অর্ডার হাব</span>
         <span id="tabBadgeOrders" class="bg-white/10 px-2 py-0.5 rounded-full text-[10px] font-mono">${filteredOrders.length}</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('chats')" id="stab-btn-chats" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'chats' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('chats')" id="stab-btn-chats" class="stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'chats' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
         <span>💬 লাইভ চ্যাট ও এআই</span>
         <span class="bg-[#30D158]/20 text-[#30D158] px-2 py-0.5 rounded-full text-[10px] font-mono">${filteredChats.length}</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('metrics')" id="stab-btn-metrics" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'metrics' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('metrics')" id="stab-btn-metrics" class="stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'metrics' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
         <span>📊 সিস্টেম মেট্রিক্স</span>
       </button>
 
-      <button type="button" onclick="switchSuperTab('onboarding')" id="stab-btn-onboarding" class="stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'onboarding' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
+      <button type="button" onclick="switchSuperTab('fraud')" id="stab-btn-fraud" class="stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'fraud' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
+        <span>🛡️ ফ্রড ও ব্ল্যাকলিস্ট</span>
+        <span class="bg-[#FF453A]/20 text-[#FF453A] px-2 py-0.5 rounded-full text-[10px] font-mono">${centralBlacklist.length}</span>
+      </button>
+
+      <button type="button" onclick="switchSuperTab('broadcast')" id="stab-btn-broadcast" class="stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'broadcast' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
+        <span>📢 গ্লোবাল ব্রডকাস্ট</span>
+      </button>
+
+      <button type="button" onclick="switchSuperTab('onboarding')" id="stab-btn-onboarding" class="stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer ${activeTab === 'onboarding' ? 'bg-[#1F222B] text-white shadow-xs border border-white/[0.08]' : 'text-[rgba(235,235,245,0.6)] hover:text-white'}">
         <span>➕ অনবোর্ডিং হাব</span>
       </button>
     </div>
@@ -711,7 +731,112 @@ function createSuperAdminRouter({
 
     </section>
 
-    <!-- TAB 5: অনবোর্ডিং হাব -->
+    <!-- TAB 5: ফ্রড ও ব্ল্যাকলিস্ট শিল্ড -->
+    <section id="stab-fraud" class="${activeTab === 'fraud' ? '' : 'hidden'} space-y-4">
+      <div class="bg-[#15171F] border border-white/[0.08] rounded-[22px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] space-y-4">
+        
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🛡️</span>
+              <h2 class="text-sm font-semibold text-white tracking-tight">সেন্ট্রাল ফ্রড প্রিভেনশন ও কুরিয়ার রিটার্ন ব্ল্যাকলিস্ট</h2>
+            </div>
+            <p class="text-xs text-[rgba(235,235,245,0.5)]">এখানে থাকা নম্বরগুলো কোনো দোকানে অর্ডার করতে গেলে এআই স্বয়ংক্রিয়ভাবে ১০০% অগ্রিম পেমেন্ট দাবি করবে</p>
+          </div>
+
+          <!-- Add Blacklist Trigger -->
+          <button type="button" onclick="openAddBlacklistModal()" class="bg-[#FF453A]/20 hover:bg-[#FF453A]/30 text-[#FF453A] border border-[#FF453A]/30 px-3.5 py-1.5 rounded-[12px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+            <span>➕ নতুন নম্বর ব্ল্যাকলিস্ট করুন</span>
+          </button>
+        </div>
+
+        <!-- Blacklist Table -->
+        <div class="overflow-x-auto no-scrollbar">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-white/[0.08] text-[11px] font-medium text-[rgba(235,235,245,0.4)] uppercase">
+                <th class="p-3">মোবাইল নম্বর</th>
+                <th class="p-3">ব্ল্যাকলিস্টের কারণ</th>
+                <th class="p-3">তারিখ</th>
+                <th class="p-3 text-right">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="blacklistTableBody">
+              ${centralBlacklist.map(b => `
+                <tr class="border-b border-white/[0.04] hover:bg-[#1C1E26] transition">
+                  <td class="p-3 font-mono font-medium text-white">${b.phone}</td>
+                  <td class="p-3 text-[rgba(235,235,245,0.8)]">${b.reason || 'কুরিয়ার রিটার্ন ও ভুয়া অর্ডার'}</td>
+                  <td class="p-3 text-[rgba(235,235,245,0.4)] font-mono text-[10px]">${b.added_at || ''}</td>
+                  <td class="p-3 text-right">
+                    <button type="button" onclick="removeBlacklist('${b.phone}')" class="text-[10px] text-[#FF453A] hover:underline cursor-pointer">রিমুভ</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 6: গ্লোবাল ব্রডকাস্ট ইঞ্জিন -->
+    <section id="stab-broadcast" class="${activeTab === 'broadcast' ? '' : 'hidden'} space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Broadcast Publisher Card -->
+        <div class="bg-[#15171F] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] space-y-4">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">📢</span>
+            <h3 class="text-sm font-semibold text-white tracking-tight">সব মার্চেন্টকে সেন্ট্রাল ব্রডকাস্ট পাঠান</h3>
+          </div>
+          <p class="text-xs text-[rgba(235,235,245,0.5)]">এই নোটিশটি সকল মার্চেন্টের ড্যাশবোর্ড পোর্টালে টপ ব্যানার হিসেবে প্রদর্শিত হবে।</p>
+
+          <form onsubmit="handleBroadcastSubmit(event)" class="space-y-3">
+            <div>
+              <label class="block text-[11px] text-[rgba(235,235,245,0.6)] mb-1">নোটিশের শিরোনাম *</label>
+              <input type="text" id="bcTitle" required placeholder="যেমন: ঈদুল ফিতরের কুরিয়ার বুকিং লাস্ট ডেট" class="w-full bg-[#1C1E26] border border-white/[0.08] rounded-[12px] px-3 py-2 text-xs text-white outline-none">
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-[rgba(235,235,245,0.6)] mb-1">বিস্তারিত বার্তা *</label>
+              <textarea id="bcMessage" rows="3" required placeholder="মার্চেন্টদের জন্য জরুরি বার্তা বাংলায় লিখুন..." class="w-full bg-[#1C1E26] border border-white/[0.08] rounded-[12px] px-3 py-2 text-xs text-white outline-none resize-none"></textarea>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="bcSendWhatsApp" class="rounded">
+              <label for="bcSendWhatsApp" class="text-xs text-[rgba(235,235,245,0.8)]">সকল মার্চেন্টের হোয়াটসঅ্যাপে পুশ নোটিফিকেশন পাঠান</label>
+            </div>
+
+            <button type="submit" id="bcSubmitBtn" class="w-full bg-[#0A84FF] hover:bg-[#0071E3] text-white text-xs font-semibold py-2.5 rounded-[12px] transition cursor-pointer">
+              🚀 নোটিশ পাবলিশ করুন
+            </button>
+          </form>
+        </div>
+
+        <!-- Active Broadcasts History -->
+        <div class="bg-[#15171F] border border-white/[0.08] p-5 rounded-[22px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] space-y-4">
+          <h3 class="text-sm font-semibold text-white tracking-tight">📋 সাম্প্রতিক ব্রডকাস্ট অ্যানাউন্সমেন্ট</h3>
+          
+          <div id="broadcastHistoryContainer" class="space-y-2.5">
+            ${platformBroadcasts.map(bc => `
+              <div class="p-3.5 rounded-[16px] bg-[#1C1E26] border border-white/[0.04] space-y-1">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-xs font-semibold text-white">${bc.title}</h4>
+                  <span class="text-[9px] font-mono text-[rgba(235,235,245,0.4)]">${bc.created_at || ''}</span>
+                </div>
+                <p class="text-xs text-[rgba(235,235,245,0.7)]">${bc.message}</p>
+                <div class="pt-1 flex items-center justify-between text-[10px]">
+                  <span class="text-[#30D158]">সক্রিয় ব্যানার</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 7: অনবোর্ডিং হাব -->
     <section id="stab-onboarding" class="${activeTab === 'onboarding' ? '' : 'hidden'} space-y-4">
       <div class="max-w-2xl mx-auto bg-[#15171F] border border-white/[0.08] p-6 rounded-[24px] shadow-[0_10px_40px_rgba(0,0,0,0.5)] space-y-5">
         
@@ -978,24 +1103,55 @@ function createSuperAdminRouter({
     </div>
   </div>
 
+  <!-- ========================================================
+       MODAL 5: সেন্ট্রাল ফ্রড ব্ল্যাকলিস্ট অ্যাড মোডাল
+       ======================================================== -->
+  <div id="addBlacklistModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-[#15171F] border border-white/[0.12] rounded-[24px] max-w-sm w-full p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+        <h3 class="text-sm font-semibold text-white tracking-tight">🛡️ নতুন নম্বর ব্ল্যাকলিস্ট করুন</h3>
+        <button type="button" onclick="closeAddBlacklistModal()" class="text-[rgba(235,235,245,0.4)] hover:text-white text-base">✕</button>
+      </div>
+
+      <form onsubmit="handleAddBlacklistSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-[11px] text-[rgba(235,235,245,0.6)] mb-1">গ্রাহকের ফোন নম্বর *</label>
+          <input type="text" id="blPhoneInput" required placeholder="01XXXXXXXXX" class="w-full bg-[#1C1E26] border border-white/[0.08] rounded-[12px] px-3 py-2 text-xs text-white outline-none">
+        </div>
+
+        <div>
+          <label class="block text-[11px] text-[rgba(235,235,245,0.6)] mb-1">ব্ল্যাকলিস্টের কারণ *</label>
+          <input type="text" id="blReasonInput" required placeholder="যেমন: পার্সেল রিফিউজ ও কুরিয়ার রিটার্ন" class="w-full bg-[#1C1E26] border border-white/[0.08] rounded-[12px] px-3 py-2 text-xs text-white outline-none">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+          <button type="button" onclick="closeAddBlacklistModal()" class="px-3.5 py-1.5 rounded-[12px] text-xs font-medium bg-[#1F222B] text-white/80 hover:text-white">বাতিল</button>
+          <button type="submit" class="px-4 py-1.5 rounded-[12px] text-xs font-semibold bg-[#FF453A] text-white hover:bg-[#D70015] transition cursor-pointer">
+            ব্ল্যাকলিস্ট করুন
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Dynamic Client-Side Controller Engine -->
   <script>
-    const knownOrderIds = new Set([${allOrders.map(o => o.id).join(',')}]);
-    let countdownSec = 5;
-    let activeQrSellerId = null;
-    let qrPollInterval = null;
+    var knownOrderIds = new Set([${allOrders.map(o => o.id).join(',')}]);
+    var countdownSec = 5;
+    var activeQrSellerId = null;
+    var qrPollInterval = null;
 
     // Apple Tone Generator via Native Web Audio API
     function playAppleChime() {
       try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        var ctx = new AudioCtx();
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(587.33, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
@@ -1008,16 +1164,17 @@ function createSuperAdminRouter({
       } catch(e) {}
     }
 
-    function showToast(msg, isSuccess = true) {
-      const c = document.getElementById('toastContainer');
-      const t = document.createElement('div');
+    function showToast(msg, isSuccess) {
+      if (isSuccess === undefined) isSuccess = true;
+      var c = document.getElementById('toastContainer');
+      var t = document.createElement('div');
       t.className = 'bg-[#15171F] text-white border border-white/[0.12] text-xs font-medium px-4 py-3 rounded-[16px] shadow-[0_10px_30px_rgba(0,0,0,0.7)] pointer-events-auto transition transform translate-y-2 opacity-0 flex items-center gap-2';
       t.innerHTML = (isSuccess ? '<span>🟢</span> ' : '<span>⚠️</span> ') + msg;
       c.appendChild(t);
-      setTimeout(() => { t.classList.remove('translate-y-2', 'opacity-0'); }, 10);
-      setTimeout(() => {
+      setTimeout(function() { t.classList.remove('translate-y-2', 'opacity-0'); }, 10);
+      setTimeout(function() {
         t.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => t.remove(), 300);
+        setTimeout(function() { t.remove(); }, 300);
       }, 3500);
     }
 
@@ -1026,28 +1183,51 @@ function createSuperAdminRouter({
       showToast('📋 লিংক ক্লিপবোর্ডে কপি হয়েছে!');
     }
 
+    // 100% Infallible Tab Switcher
     function switchSuperTab(tab) {
-      document.querySelectorAll('section[id^="stab-"]').forEach(s => s.classList.add('hidden'));
-      document.getElementById('stab-' + tab)?.classList.remove('hidden');
+      try {
+        var allSections = document.querySelectorAll('section[id^="stab-"]');
+        for (var i = 0; i < allSections.length; i++) {
+          allSections[i].classList.add('hidden');
+        }
+        var targetSection = document.getElementById('stab-' + tab);
+        if (targetSection) {
+          targetSection.classList.remove('hidden');
+        }
 
-      document.querySelectorAll('.stab-btn').forEach(b => {
-        b.className = 'stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.6)] hover:text-white';
-      });
-      const activeBtn = document.getElementById('stab-btn-' + tab);
-      if (activeBtn) activeBtn.className = 'stab-btn px-4.5 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer bg-[#1F222B] text-white shadow-xs border border-white/[0.08]';
+        var allButtons = document.querySelectorAll('.stab-btn');
+        for (var j = 0; j < allButtons.length; j++) {
+          allButtons[j].className = 'stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer text-[rgba(235,235,245,0.6)] hover:text-white';
+        }
+        var activeBtn = document.getElementById('stab-btn-' + tab);
+        if (activeBtn) {
+          activeBtn.className = 'stab-btn px-4 py-2 rounded-[14px] font-medium text-xs flex items-center gap-2 transition cursor-pointer bg-[#1F222B] text-white shadow-xs border border-white/[0.08]';
+        }
+
+        if (window.history && window.history.replaceState) {
+          var curUrl = new URL(window.location);
+          curUrl.searchParams.set('tab', tab);
+          window.history.replaceState(null, '', curUrl.toString());
+        }
+      } catch (err) {
+        console.error('Tab switch error:', err);
+      }
     }
 
     // Modal Controls
     function openNewShopModal() { document.getElementById('newShopModal').classList.remove('hidden'); }
     function closeNewShopModal() { document.getElementById('newShopModal').classList.add('hidden'); }
 
+    function openAddBlacklistModal() { document.getElementById('addBlacklistModal').classList.remove('hidden'); }
+    function closeAddBlacklistModal() { document.getElementById('addBlacklistModal').classList.add('hidden'); }
+
     // Remote Bot Restart
     async function restartTenantBot(sellerId, shopName) {
       if (!confirm(shopName + '-এর WhatsApp বট রিস্টার্ট করতে চান?')) return;
       showToast('🔄 ' + shopName + '-এর বট সেশন রিস্টার্ট হচ্ছে...');
       try {
-        const res = await fetch('/api/admin/shops/' + sellerId + '/bot-restart', { method: 'POST' });
-        const data = await res.json();
+        var res = await fetch('/api/admin/shops/' + sellerId + '/bot-restart', { method: 'POST' });
+        var data = await res.json();
         if (data.success) {
           showToast('✅ ' + shopName + '-এর বট রিস্টার্ট ট্রিগার হয়েছে!');
           fetchLivePulse();
@@ -1061,18 +1241,18 @@ function createSuperAdminRouter({
 
     // SaaS Plan Switcher
     async function toggleTenantPlan(sellerId, currentPlan) {
-      const newPlan = prompt('প্ল্যান নির্বাচন করুন (Pro Growth / Enterprise / Suspended):', currentPlan);
+      var newPlan = prompt('প্ল্যান নির্বাচন করুন (Pro Growth / Enterprise / Suspended):', currentPlan);
       if (!newPlan || newPlan === currentPlan) return;
       try {
-        const res = await fetch('/api/admin/shops/' + sellerId + '/plan', {
+        var res = await fetch('/api/admin/shops/' + sellerId + '/plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ plan: newPlan, status: newPlan === 'Suspended' ? 'SUSPENDED' : 'ACTIVE' })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           showToast('💎 ' + data.message);
-          const badge = document.getElementById('plan-badge-' + sellerId);
+          var badge = document.getElementById('plan-badge-' + sellerId);
           if (badge) {
             badge.innerText = newPlan === 'Enterprise' ? '💎 Enterprise' : (newPlan === 'Suspended' ? '⏸️ স্থগিত' : '⚡ Pro Growth');
           }
@@ -1085,11 +1265,11 @@ function createSuperAdminRouter({
     // Store Settings Fast-Editor Modal
     async function openStoreSettingsModal(sellerId) {
       try {
-        const res = await fetch('/api/admin/shops/' + sellerId + '/settings');
-        const data = await res.json();
+        var res = await fetch('/api/admin/shops/' + sellerId + '/settings');
+        var data = await res.json();
         if (!data.success) throw new Error(data.error);
 
-        const s = data.settings;
+        var s = data.settings;
         document.getElementById('editSettingsSellerId').value = sellerId;
         document.getElementById('settingsModalShopName').innerText = data.shop_name + ' (আইডি: ' + sellerId + ')';
         document.getElementById('editShopName').value = data.shop_name || '';
@@ -1111,9 +1291,9 @@ function createSuperAdminRouter({
 
     async function saveStoreSettings(e) {
       e.preventDefault();
-      const form = e.target;
-      const sellerId = document.getElementById('editSettingsSellerId').value;
-      const payload = {
+      var form = e.target;
+      var sellerId = document.getElementById('editSettingsSellerId').value;
+      var payload = {
         shop_name: form.shop_name.value,
         business_category: form.business_category.value,
         bot_persona_name: form.bot_persona_name.value,
@@ -1123,16 +1303,16 @@ function createSuperAdminRouter({
       };
 
       try {
-        const res = await fetch('/api/admin/shops/' + sellerId + '/settings', {
+        var res = await fetch('/api/admin/shops/' + sellerId + '/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           showToast('✅ স্টোর সেটিংস সফলভাবে সংরক্ষিত হয়েছে!');
           closeStoreSettingsModal();
-          setTimeout(() => window.location.reload(), 1000);
+          setTimeout(function() { window.location.reload(); }, 1000);
         } else {
           showToast('❌ ' + (data.error || 'এরর হয়েছে'), false);
         }
@@ -1149,7 +1329,7 @@ function createSuperAdminRouter({
       fetchQrStatus(sellerId);
 
       if (qrPollInterval) clearInterval(qrPollInterval);
-      qrPollInterval = setInterval(() => {
+      qrPollInterval = setInterval(function() {
         if (activeQrSellerId) fetchQrStatus(activeQrSellerId);
       }, 4000);
     }
@@ -1161,10 +1341,10 @@ function createSuperAdminRouter({
     }
 
     async function fetchQrStatus(sellerId) {
-      const box = document.getElementById('qrModalContent');
+      var box = document.getElementById('qrModalContent');
       try {
-        const res = await fetch('/api/admin/shops/' + sellerId + '/qr');
-        const data = await res.json();
+        var res = await fetch('/api/admin/shops/' + sellerId + '/qr');
+        var data = await res.json();
 
         if (data.status === 'connected') {
           box.innerHTML = '<div class="space-y-3 py-4">' +
@@ -1195,7 +1375,7 @@ function createSuperAdminRouter({
       if (!activeQrSellerId) return;
       showToast('🔄 নতুন কিউআর রিকোয়েস্ট করা হয়েছে...');
       await fetch('/api/admin/shops/' + activeQrSellerId + '/bot-restart', { method: 'POST' });
-      setTimeout(() => fetchQrStatus(activeQrSellerId), 1500);
+      setTimeout(function() { fetchQrStatus(activeQrSellerId); }, 1500);
     }
 
     // Direct WhatsApp Message Modal
@@ -1213,21 +1393,21 @@ function createSuperAdminRouter({
 
     async function handleDirectMessageSubmit(e) {
       e.preventDefault();
-      const btn = document.getElementById('dmSendBtn');
-      const sellerId = document.getElementById('dmSellerId').value;
-      const phone = document.getElementById('dmCustomerPhone').value;
-      const text = document.getElementById('dmMessageText').value;
+      var btn = document.getElementById('dmSendBtn');
+      var sellerId = document.getElementById('dmSellerId').value;
+      var phone = document.getElementById('dmCustomerPhone').value;
+      var text = document.getElementById('dmMessageText').value;
 
       btn.disabled = true;
       btn.innerHTML = 'প্রেরণ হচ্ছে...';
 
       try {
-        const res = await fetch('/api/admin/messages/send-direct', {
+        var res = await fetch('/api/admin/messages/send-direct', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seller_id: sellerId, phone, text })
+          body: JSON.stringify({ seller_id: sellerId, phone: phone, text: text })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           showToast('✅ WhatsApp বার্তা সফলভাবে পাঠানো হয়েছে!');
           closeDirectMessageModal();
@@ -1242,16 +1422,91 @@ function createSuperAdminRouter({
       }
     }
 
+    // Central Fraud Blacklist Handlers
+    async function handleAddBlacklistSubmit(e) {
+      e.preventDefault();
+      var phone = document.getElementById('blPhoneInput').value.trim();
+      var reason = document.getElementById('blReasonInput').value.trim();
+
+      try {
+        var res = await fetch('/api/admin/blacklist/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone, reason: reason })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('🛡️ ' + phone + ' ব্ল্যাকলিস্টে যুক্ত হয়েছে!');
+          closeAddBlacklistModal();
+          setTimeout(function() { window.location.reload(); }, 1000);
+        } else {
+          showToast('❌ ' + (data.error || 'ব্ল্যাকলিস্ট করা যায়নি'), false);
+        }
+      } catch (err) {
+        showToast('❌ এরর: ' + err.message, false);
+      }
+    }
+
+    async function removeBlacklist(phone) {
+      if (!confirm(phone + ' কে ব্ল্যাকলিস্ট থেকে রিমুভ করতে চান?')) return;
+      try {
+        var res = await fetch('/api/admin/blacklist/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('✅ নম্বরটি ব্ল্যাকলিস্ট থেকে অপসারিত হয়েছে!');
+          setTimeout(function() { window.location.reload(); }, 1000);
+        }
+      } catch (err) {
+        showToast('❌ এরর: ' + err.message, false);
+      }
+    }
+
+    // Global Platform Broadcast Publisher
+    async function handleBroadcastSubmit(e) {
+      e.preventDefault();
+      var btn = document.getElementById('bcSubmitBtn');
+      var title = document.getElementById('bcTitle').value.trim();
+      var message = document.getElementById('bcMessage').value.trim();
+      var sendWhatsApp = document.getElementById('bcSendWhatsApp').checked;
+
+      btn.disabled = true;
+      btn.innerHTML = 'পাবলিশ হচ্ছে...';
+
+      try {
+        var res = await fetch('/api/admin/broadcasts/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: title, message: message, send_whatsapp: sendWhatsApp })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('📢 গ্লোবাল ব্রডকাস্ট সফলভাবে পাবলিশ হয়েছে!');
+          setTimeout(function() { window.location.reload(); }, 1500);
+        } else {
+          showToast('❌ ' + (data.error || 'পাবলিশ করা যায়নি'), false);
+        }
+      } catch (err) {
+        showToast('❌ এরর: ' + err.message, false);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🚀 নোটিশ পাবলিশ করুন';
+      }
+    }
+
     // 1-Click Order Status Updater
     async function updateOrderStatus(orderId, newStatus) {
       showToast('⏳ অর্ডার #' + orderId + ' আপডেট হচ্ছে...');
       try {
-        const res = await fetch('/api/admin/orders/' + orderId + '/status', {
+        var res = await fetch('/api/admin/orders/' + orderId + '/status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           showToast('✅ অর্ডার #' + orderId + ' স্ট্যাটাস: ' + newStatus);
         } else {
@@ -1266,8 +1521,8 @@ function createSuperAdminRouter({
     async function forceCacheRefresh() {
       showToast('⚡ ইঞ্জিন ক্যাশ রিফ্রেশ হচ্ছে...');
       try {
-        const res = await fetch('/api/admin/engine/cache-refresh', { method: 'POST' });
-        const data = await res.json();
+        var res = await fetch('/api/admin/engine/cache-refresh', { method: 'POST' });
+        var data = await res.json();
         if (data.success) {
           showToast('✅ সকল স্টোরের ডেটা ও এআই ক্যাশ রিফ্রেশ সম্পন্ন!');
         } else {
@@ -1280,48 +1535,54 @@ function createSuperAdminRouter({
 
     // Realtime Client-Side Filtering
     function filterShopsRealtime(query) {
-      const q = (query || '').toLowerCase().trim();
-      document.querySelectorAll('#shopsGridContainer > div').forEach(card => {
-        const text = card.innerText.toLowerCase();
-        card.style.display = text.includes(q) ? '' : 'none';
-      });
+      var q = (query || '').toLowerCase().trim();
+      var cards = document.querySelectorAll('#shopsGridContainer > div');
+      for (var i = 0; i < cards.length; i++) {
+        var text = cards[i].innerText.toLowerCase();
+        cards[i].style.display = text.includes(q) ? '' : 'none';
+      }
     }
 
     function filterOrdersRealtime(query) {
-      const q = (query || '').toLowerCase().trim();
-      document.querySelectorAll('.order-row').forEach(row => {
-        const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(q) ? '' : 'none';
-      });
+      var q = (query || '').toLowerCase().trim();
+      var rows = document.querySelectorAll('.order-row');
+      for (var i = 0; i < rows.length; i++) {
+        var text = rows[i].innerText.toLowerCase();
+        rows[i].style.display = text.includes(q) ? '' : 'none';
+      }
     }
 
     function filterOrdersByStatus(status) {
-      document.querySelectorAll('.order-status-btn').forEach(b => {
-        b.className = 'order-status-btn px-2.5 py-1 rounded-[8px] text-[11px] font-medium text-[rgba(235,235,245,0.6)]';
-      });
-      event.target.className = 'order-status-btn px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-[#15171F] text-white';
+      var btns = document.querySelectorAll('.order-status-btn');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].className = 'order-status-btn px-2.5 py-1 rounded-[8px] text-[11px] font-medium text-[rgba(235,235,245,0.6)]';
+      }
+      if (window.event && window.event.target) {
+        window.event.target.className = 'order-status-btn px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-[#15171F] text-white';
+      }
 
-      document.querySelectorAll('.order-row').forEach(row => {
+      var rows = document.querySelectorAll('.order-row');
+      for (var j = 0; j < rows.length; j++) {
         if (status === 'ALL') {
-          row.style.display = '';
+          rows[j].style.display = '';
         } else {
-          const rowText = row.innerText;
-          row.style.display = rowText.includes(status) ? '' : 'none';
+          var rowText = rows[j].innerText;
+          rows[j].style.display = rowText.includes(status) ? '' : 'none';
         }
-      });
+      }
     }
 
     // Real-Time Live Pulse Engine (Zero-Refresh Background Polling)
     async function fetchLivePulse() {
       try {
-        const curSeller = document.getElementById('shopFilterSelect')?.value || 'ALL';
-        const res = await fetch('/api/admin/live-pulse?seller_id=' + curSeller);
+        var curSeller = document.getElementById('shopFilterSelect') ? document.getElementById('shopFilterSelect').value : 'ALL';
+        var res = await fetch('/api/admin/live-pulse?seller_id=' + curSeller);
         if (!res.ok) return;
-        const data = await res.json();
+        var data = await res.json();
         if (!data.success) return;
 
         // 1. Update Metrics Cards
-        const m = data.metrics;
+        var m = data.metrics;
         document.getElementById('metricTotalShops').innerHTML = m.totalShops + 'টি <span class="text-xs text-[#30D158] font-medium">(' + m.onlineBots + ' লাইভ)</span>';
         document.getElementById('metricTotalProducts').innerText = m.totalPlatformProducts + 'টি পণ্য';
         document.getElementById('metricTotalOrders').innerText = m.totalPlatformOrders + 'টি';
@@ -1332,9 +1593,10 @@ function createSuperAdminRouter({
         document.getElementById('tabBadgeOrders').innerText = data.latestOrders.length;
 
         // 2. Check for New Incoming Orders
-        let hasNewOrder = false;
-        let newestOrder = null;
-        for (const ord of data.latestOrders) {
+        var hasNewOrder = false;
+        var newestOrder = null;
+        for (var i = 0; i < data.latestOrders.length; i++) {
+          var ord = data.latestOrders[i];
           if (!knownOrderIds.has(ord.id)) {
             knownOrderIds.add(ord.id);
             hasNewOrder = true;
@@ -1353,42 +1615,42 @@ function createSuperAdminRouter({
     }
 
     function triggerManualPulse() {
-      const sp = document.getElementById('syncSpinner');
+      var sp = document.getElementById('syncSpinner');
       sp.classList.add('animate-spin');
-      fetchLivePulse().finally(() => {
-        setTimeout(() => sp.classList.remove('animate-spin'), 600);
+      fetchLivePulse().finally(function() {
+        setTimeout(function() { sp.classList.remove('animate-spin'); }, 600);
       });
     }
 
     // Heartbeat Interval
-    setInterval(() => {
+    setInterval(function() {
       countdownSec--;
       if (countdownSec <= 0) {
         countdownSec = 5;
         fetchLivePulse();
       }
-      const el = document.getElementById('pulseCountdown');
+      var el = document.getElementById('pulseCountdown');
       if (el) el.innerText = countdownSec + 's';
     }, 1000);
 
     // Onboarding Form Submission Handler
     async function handleNewShopSubmit(e, formId) {
       e.preventDefault();
-      const form = document.getElementById(formId);
-      const fd = new FormData(form);
-      const payload = Object.fromEntries(fd.entries());
+      var form = document.getElementById(formId);
+      var fd = new FormData(form);
+      var payload = Object.fromEntries(fd.entries());
 
       try {
-        const res = await fetch('/api/admin/shops/create', {
+        var res = await fetch('/api/admin/shops/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           showToast('🎉 নতুন শপ তৈরি হয়েছে!');
-          alert('শপ তৈরি সম্পন্ন!\nমার্চেন্ট পোর্টাল লিংক:\n' + window.location.origin + '/portal?token=' + data.invite_token);
-          setTimeout(() => window.location.reload(), 1500);
+          alert('শপ তৈরি সম্পন্ন! লিঙ্ক: ' + window.location.origin + '/portal?token=' + data.invite_token);
+          setTimeout(function() { window.location.reload(); }, 1500);
         } else {
           alert('শপ তৈরিতে সমস্যা: ' + (data.error || 'এরর'));
         }
@@ -1396,6 +1658,15 @@ function createSuperAdminRouter({
         alert('কানেকশন সমস্যা: ' + err.message);
       }
     }
+
+    // Auto-check URL for tab on load
+    window.addEventListener('DOMContentLoaded', function() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var reqTab = urlParams.get('tab');
+      if (reqTab) {
+        switchSuperTab(reqTab);
+      }
+    });
   </script>
 </body>
 </html>
@@ -1610,6 +1881,108 @@ function createSuperAdminRouter({
       await targetSock.sendMessage(remoteJid, { text });
 
       return res.json({ success: true, message: 'বার্তা সফলভাবে পাঠানো হয়েছে!' });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ========================================================
+  // POST /api/admin/blacklist/add & remove — Central Scam Defense
+  // ========================================================
+  router.post('/api/admin/blacklist/add', async (req, res) => {
+    try {
+      const { phone, reason } = req.body;
+      if (!phone) return res.status(400).json({ error: 'Phone is required' });
+
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+
+      // Load primary store settings extra_config
+      const { data: primarySetting } = await supabase.from('store_settings').select('*').eq('seller_id', 'autodokan_seller_1').single();
+      const currentConfig = (primarySetting && primarySetting.extra_config) || {};
+      const list = currentConfig.central_blacklist || [];
+
+      // Avoid duplicates
+      const filtered = list.filter(item => item.phone !== cleanPhone);
+      filtered.unshift({
+        phone: cleanPhone,
+        reason: reason || 'কুরিয়ার রিটার্ন ও ভুয়া অর্ডার',
+        added_at: new Date().toISOString().split('T')[0]
+      });
+
+      currentConfig.central_blacklist = filtered;
+      await supabase.from('store_settings').update({ extra_config: currentConfig }).eq('seller_id', 'autodokan_seller_1');
+
+      if (refreshSettingsFromDB) await refreshSettingsFromDB('autodokan_seller_1');
+      return res.json({ success: true, message: `${cleanPhone} ব্ল্যাকলিস্টে যুক্ত হয়েছে!` });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/api/admin/blacklist/remove', async (req, res) => {
+    try {
+      const { phone } = req.body;
+      const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+
+      const { data: primarySetting } = await supabase.from('store_settings').select('*').eq('seller_id', 'autodokan_seller_1').single();
+      const currentConfig = (primarySetting && primarySetting.extra_config) || {};
+      const list = currentConfig.central_blacklist || [];
+
+      currentConfig.central_blacklist = list.filter(item => item.phone !== cleanPhone);
+      await supabase.from('store_settings').update({ extra_config: currentConfig }).eq('seller_id', 'autodokan_seller_1');
+
+      if (refreshSettingsFromDB) await refreshSettingsFromDB('autodokan_seller_1');
+      return res.json({ success: true, message: 'নম্বর ব্ল্যাকলিস্ট থেকে অপসারিত হয়েছে!' });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ========================================================
+  // POST /api/admin/broadcasts/publish — Global Platform Announcement
+  // ========================================================
+  router.post('/api/admin/broadcasts/publish', async (req, res) => {
+    try {
+      const { title, message, send_whatsapp } = req.body;
+      if (!title || !message) return res.status(400).json({ error: 'Title and message are required' });
+
+      const { data: primarySetting } = await supabase.from('store_settings').select('*').eq('seller_id', 'autodokan_seller_1').single();
+      const currentConfig = (primarySetting && primarySetting.extra_config) || {};
+      const list = currentConfig.platform_broadcasts || [];
+
+      list.unshift({
+        id: Date.now(),
+        title: title.trim(),
+        message: message.trim(),
+        created_at: new Date().toISOString().split('T')[0],
+        active: true
+      });
+
+      currentConfig.platform_broadcasts = list.slice(0, 10);
+      await supabase.from('store_settings').update({ extra_config: currentConfig }).eq('seller_id', 'autodokan_seller_1');
+
+      // If send_whatsapp requested, send to all registered merchants via active bot
+      if (send_whatsapp && sellerSockets) {
+        const { data: allInvites } = await supabase.from('seller_invites').select('phone, seller_id');
+        const activeSock = sellerSockets.get('autodokan_seller_1') || [...sellerSockets.values()][0];
+        if (activeSock && allInvites) {
+          const broadcastText = `📢 [AutoDokan নোটিশ: ${title.trim()}]\n\n${message.trim()}`;
+          for (const inv of allInvites) {
+            if (inv.phone) {
+              const cleanP = inv.phone.replace(/[^0-9]/g, '');
+              const num = cleanP.startsWith('88') ? cleanP : '88' + cleanP;
+              try {
+                await activeSock.sendMessage(num + '@s.whatsapp.net', { text: broadcastText });
+              } catch (e) {
+                console.error(`Broadcast to ${inv.phone} failed:`, e.message);
+              }
+            }
+          }
+        }
+      }
+
+      if (refreshSettingsFromDB) await refreshSettingsFromDB('autodokan_seller_1');
+      return res.json({ success: true, message: 'ব্রডকাস্ট সফলভাবে পাবলিশ করা হয়েছে!' });
     } catch (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
